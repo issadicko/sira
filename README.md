@@ -2,7 +2,7 @@
 
 Client API compatible avec les collections Bruno (OpenCollection YAML) : un dossier, un fichier par requête, versionné avec Git, sans compte ni cloud. Moteur en Rust, fenêtre Tauri 2, interface Angular.
 
-État : **MVP-β** (boucle requête, imports cURL et OpenAPI, palette, CodeMirror). Voir `docs/docs/roadmap.md`.
+État : **MVP complet** (α boucle requête, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies). Voir `docs/docs/roadmap.md`.
 
 ## Structure
 
@@ -10,8 +10,8 @@ Client API compatible avec les collections Bruno (OpenCollection YAML) : un doss
 | --- | --- |
 | `crates/engine` | Envoi HTTP/1.1 et HTTPS (hyper + rustls), timings DNS / TCP / TLS / TTFB / téléchargement, annulation |
 | `crates/core` | Lecture et écriture OpenCollection YAML à l'identique de Bruno, résolution des variables, héritage auth et en-têtes, assertions |
-| `crates/sync` | Imports à l'identique de Bruno : cURL, OpenAPI 3.0 / 3.1 / Swagger 2.0, sérialiseur OpenCollection YAML, instantané `.oc-sync/` pour la future synchro |
-| `crates/cli` | Binaire `xc` : `run`, `check` et `import` |
+| `crates/sync` | Imports à l'identique de Bruno (cURL, OpenAPI 3.0 / 3.1 / Swagger 2.0, sérialiseur OpenCollection YAML) et synchro OpenAPI à 3 voies non destructive (`.oc-sync/`) |
+| `crates/cli` | Binaire `xc` : `run`, `check`, `import` et `sync` |
 | `app/` | Interface Angular 21 zoneless (signals) ; `app/src-tauri` : commandes Tauri |
 | `examples/demo` | Collection de démonstration (httpbin.org) |
 | `docs/` | Cahier des charges, roadmap, études, maquettes |
@@ -62,6 +62,16 @@ cargo run -p xc-cli -- import https://petstore3.swagger.io/api/v3/openapi.json ~
 
 `run` sort avec le code 1 si une assertion ou un envoi échoue, 2 si la collection est illisible. `check` relit et réécrit chaque fichier en mémoire et signale ceux qui ne reviendraient pas à l'identique (porte d'entrée de la Gate 1). `import` crée une collection à partir d'une spec OpenAPI (fichier ou URL) et affiche son chemin.
 
+```bash
+cargo run -p xc-cli -- sync chemin/vers/la-collection --check
+```
+
+```bash
+cargo run -p xc-cli -- sync chemin/vers/la-collection --apply --keep-team
+```
+
+`sync --check` sort avec le code 1 si la spec a divergé de la collection (à brancher en CI). `sync --apply` fusionne la nouvelle spec à 3 voies sans écraser ce que l'équipe a saisi ; s'il reste des conflits, il refuse sauf avec `--keep-team` ou `--take-spec`. Règles : `docs/docs/synchro-openapi.md`.
+
 ## Tests
 
 ```bash
@@ -82,7 +92,8 @@ C'est un raccourci pour `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --t
 
 - **Coller un cURL** dans la barre d'URL : une commande qui commence par `curl` n'est pas collée telle quelle, elle est analysée comme Bruno le fait puis appliquée à la requête ouverte (URL, méthode, puis en-têtes, corps et authentification s'ils sont présents). L'onglet passe à « non enregistré ».
 - **Nouvelle requête depuis cURL…** (palette ⌘⇧P, ou écran « Aucune requête ouverte ») : crée un fichier de requête dans le dossier choisi de la collection.
-- **Importer une spec OpenAPI…** (palette ⌘⇧P, écran d'accueil ou « Aucune requête ouverte ») : OpenAPI 3.0 / 3.1 ou Swagger 2.0, fichier `.yaml`, `.yml`, `.json` ou URL ; aperçu, regroupement par tags ou par chemins, puis nouvelle collection dans le dossier parent choisi. La source de la spec et un instantané de chaque opération sont gardés dans `.oc-sync/openapi/` pour la future synchronisation à 3 voies ; `.oc-sync` est ajouté à la liste `ignore` de la collection pour que Bruno ne l'affiche pas.
+- **Importer une spec OpenAPI…** (palette ⌘⇧P, écran d'accueil ou « Aucune requête ouverte ») : OpenAPI 3.0 / 3.1 ou Swagger 2.0, fichier `.yaml`, `.yml`, `.json` ou URL ; aperçu, regroupement par tags ou par chemins, puis nouvelle collection dans le dossier parent choisi. La source de la spec et une copie brute (la base de la synchro) sont gardées dans `.oc-sync/openapi/`, à versionner avec la collection ; `.oc-sync` est ajouté à la liste `ignore` de la collection pour que Bruno ne l'affiche pas.
+- **Synchroniser avec la spec** (vue « Synchro OpenAPI » de la barre d'activité, ou palette) : compare la nouvelle version de la spec à la base et à la collection, fusionne champ par champ, et te laisse arbitrer chaque conflit (garder l'équipe, prendre la spec, combiner, éditer) avant d'écrire quoi que ce soit. Une collection existante (créée par Bruno par exemple) peut être connectée à une spec : la première synchro se fait sans base.
 
 Dans le navigateur (`npm start`), ces actions sont limitées à un aperçu : l'analyse et l'écriture se font dans l'application desktop.
 

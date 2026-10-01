@@ -48,7 +48,7 @@ Abréviation : `S` = `packages/bruno-electron/src/ipc/openapi-sync.js`.
 4. **Pour les requêtes créées par Bruno**, qui n'ont pas d'`operationId`, calculer la clé depuis l'URL comme Bruno, puis la rattacher à l'`operationId` de la spec courante.
 5. **Documenter** qu'il faut un seul outil de synchro par collection : après une synchro Bruno, notre base est périmée et ses changements seraient lus comme des changements de l'équipe.
 
-## Décisions à prendre (non tranchées)
+## Décisions (tranchées le 1er octobre 2026 : non à l'entrée Bruno, oui à la copie brute comme base, `.oc-sync/` versionné ; voir `synchro-openapi.md`)
 
 - **Écrire une entrée minimale `extensions.bruno.openapi`** (`sourceUrl`, `groupBy`, `autoCheck: false`) à l'import ?
   - Pour : Bruno verrait la collection comme connectée.

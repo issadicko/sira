@@ -4,7 +4,7 @@
 
 Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé par une gate mesurable. Les dates supposent **deux développeurs à temps plein** (hypothèse non confirmée, voir § 9). Avec une seule personne, multiplier les durées par 1,8 environ.
 
-## 0. Avancement au 1er octobre 2026 (MVP-β livré)
+## 0. Avancement au 1er octobre 2026 (MVP complet : α, β, γ)
 
 | Élément | État | Où |
 | --- | --- | --- |
@@ -22,7 +22,8 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | MVP-α α.9 Rechargement à chaud (`notify`) | À faire (bouton « Relire le dossier » en attendant) | — |
 | MVP-β β.1 Collage cURL et « Nouvelle requête depuis cURL… » | Fait ; analyse identique à Bruno (fixtures de son code et 113 000 commandes aléatoires) | `crates/sync/src/curl`, `app/src/app/ui/url-bar.ts` |
 | MVP-β β.2 Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL), tags ou chemins | Fait ; collection identique à l'octet à celle de Bruno (35 specs × 2 regroupements, 34 arbres d'import) | `crates/sync/src/openapi`, `crates/sync/src/import`, `xc import` |
-| MVP-β β.3 Instantané `.oc-sync/openapi/` | Fait : `source.yml` (source, regroupement, opérations) et `base/<clé>.yml`, écrits en dernier | `crates/sync/src/import` |
+| MVP-β β.3 Base `.oc-sync/openapi/` | Fait : `source.yml` (source, regroupement, opérations) et copie brute de la spec, écrits en dernier (format revu au MVP-γ, `synchro-openapi.md` § 2) | `crates/sync/src/store.rs` |
+| MVP-γ γ.1 – γ.8 Synchro OpenAPI à 3 voies | Fait : fusion champ par champ, connexion sans base, rapprochements, écran de fusion, `xc sync --check / --apply` ; 500 opérations en 1,21 s (ENF-PERF-07) | `crates/sync/src/{merge,sync}`, `app/src/app/ui/merge-editor.ts` |
 | MVP-β β.4 Palette ⌘K | Fait : requêtes, commandes (registre partagé avec les raccourcis), environnements | `app/src/app/ui/palette.ts` |
 | MVP-β β.5 CodeMirror 6 | Fait ; réponse JSON de 10 Mo affichée en 140 ms (Chrome, mode démo), formatage en Rust | `app/src/app/ui/code-editor.ts`, `crates/core/src/pretty.rs` |
 | Corps form-urlencoded et multipart (EF-REQ-02) | Fait : lecture, écriture, envoi et édition | `crates/core`, `app/src/app/ui/multipart-table.ts` |
@@ -127,7 +128,7 @@ Synchro OpenAPI, imports, scripts JavaScript, auth autre que Bearer/Basic hérit
 | --- | --- | --- |
 | β.1 | Collage d'une commande cURL détecté dans la barre d'URL | EF-IMP-01 (cURL) |
 | β.2 | Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL) vers une collection, dossiers par tag | EF-IMP-02 |
-| β.3 | Snapshot `.oc-sync/openapi/base/` écrit à l'import | § 6 règle 6 |
+| β.3 | Base `.oc-sync/openapi/` (copie brute de la spec) écrite à l'import | EF-SYN-06 |
 | β.4 | Palette de commandes (`Ctrl/⌘+K`) : requêtes, commandes, environnements | EF-UX-01 |
 | β.5 | CodeMirror 6 pour le corps de requête et la réponse (gros documents, pliage, recherche) | ENF-PERF-04 |
 
@@ -135,13 +136,13 @@ Synchro OpenAPI, imports, scripts JavaScript, auth autre que Bearer/Basic hérit
 
 | # | Tâche | Exigences |
 | --- | --- | --- |
-| γ.1 | `sync::merge` : fusion à 3 voies champ par champ, clé `operationId` ou méthode + chemin normalisé | § 6 |
-| γ.2 | Table de propriété des champs (spec / équipe), valeurs saisies conservées | § 6 |
-| γ.3 | Opérations nouvelles rangées par tag, opérations retirées marquées dépréciées | § 6 règles 2, 3 |
-| γ.4 | Rapprochement manuel quand le chemin change sans `operationId` | § 6 règle 1 |
-| γ.5 | Écran de fusion de la maquette v2 : Équipe / Spec / Résultat, base optionnelle, actions par conflit | § 6 règle 4 |
-| γ.6 | Aperçu avant écriture, base réécrite en dernier, synchro interrompue rejouable | § 6 règles 5, 6 |
-| γ.7 | `cli sync --check` | § 6 règle 7 |
+| γ.1 | `sync::merge` : fusion à 3 voies champ par champ, clé `operationId` ou méthode + chemin normalisé | EF-SYN-01, EF-SYN-04 |
+| γ.2 | Table de propriété des champs (spec / équipe), valeurs saisies conservées | EF-SYN-04 |
+| γ.3 | Opérations nouvelles rangées par tag, opérations retirées marquées dépréciées | EF-SYN-02, EF-SYN-03 |
+| γ.4 | Rapprochement manuel quand le chemin change sans `operationId` | EF-SYN-01 |
+| γ.5 | Écran de fusion de la maquette v2 : Équipe / Spec / Résultat, base optionnelle, actions par conflit | EF-SYN-04 |
+| γ.6 | Aperçu avant écriture, base réécrite en dernier, synchro interrompue rejouable | EF-SYN-05, EF-SYN-06 |
+| γ.7 | `cli sync --check` | EF-SYN-07 |
 | γ.8 | Tests des quatre issues de fusion (aucun changement, spec seule, équipe seule, conflit) | Critères § 9 |
 
 **Gate 2** : budgets de perf ENF-PERF-01 à 08 tenus sur les trois OS, 10 bêta-testeurs actifs pendant deux semaines.
@@ -185,5 +186,5 @@ Assistant IA optionnel avec clé de l'utilisateur (EF-AI-01), mock server, monit
 | Crate YAML (`serde_yaml` archivé) | Aller-retour sans diff impossible si le sérialiseur reformate | Bench au Lot 0 ; repli : écrivain YAML maison pour le sous-ensemble OpenCollection | Lot 0 |
 | Timings bas niveau avec HTTP/2 | Timeline incomplète en HTTP/2 | HTTP/1.1 au MVP, HTTP/2 via ALPN en V1 | V1 |
 | WebKitGTK plus lent sous Linux | UI moins fluide | Traitements lourds en Rust, listes virtualisées, mesures aussi sous Linux | MVP |
-| Fusion OpenAPI déjà présente chez Bruno ? | Différenciant affaibli | Vérifié (étude `etude-synchro-openapi-bruno.md`) : Bruno a une synchro OpenAPI en bêta, désactivée par défaut, à deux diffs et par endpoint entier, base hors dépôt, ajouts de l'équipe et opérations retirées supprimés. Communiquer sur la fusion à 3 voies champ par champ, la base versionnée et le non-destructif. Trois choix à valider avant γ (voir l'étude) | MVP-γ |
+| Fusion OpenAPI déjà présente chez Bruno ? | Différenciant affaibli | Vérifié (étude `etude-synchro-openapi-bruno.md`) : Bruno a une synchro OpenAPI en bêta, désactivée par défaut, à deux diffs et par endpoint entier, base hors dépôt, ajouts de l'équipe et opérations retirées supprimés. Communiquer sur la fusion à 3 voies champ par champ, la base versionnée et le non-destructif. Choix tranchés le 1er oct. : pas d'entrée `extensions.bruno.openapi`, base = copie brute de la spec, `.oc-sync/` versionné | MVP-γ |
 | Nom du produit | Binaire, bundle id, domaine | Décision avant la première release signée | Gate 2 |
