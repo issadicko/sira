@@ -65,6 +65,8 @@ export class Workspace {
   readonly theme = signal<'dark' | 'light'>(document.documentElement.dataset['theme'] === 'light' ? 'light' : 'dark');
   readonly toast = signal<string | null>(null);
   readonly hover = signal<{ name: string; rect: DOMRect } | null>(null);
+  /** Saisie de la palette de commandes ; `null` quand elle est fermée. */
+  readonly palette = signal<string | null>(null);
 
   readonly active = computed(() => this.tabs().find((t) => t.path === this.activePath()) ?? null);
   readonly varMap = computed(() => new Map(this.vars().map((v) => [v.name, v])));

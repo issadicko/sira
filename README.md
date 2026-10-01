@@ -64,15 +64,25 @@ cargo test --workspace
 
 Chaque test porte l'identifiant de l'exigence qu'il couvre (`ef_req_01_…`, `enf_comp_02_…`). Les fixtures de `crates/core/tests/fixtures` ont été produites par le sérialiseur de Bruno lui-même (`yaml` 2.3.4, mêmes options), ce qui garantit un aller-retour octet pour octet.
 
+La logique pure de l'interface (recherche floue, registre de commandes) a ses tests, même convention (`ef_ux_01_…`), lancés par Node.js 22.18 ou plus sans dépendance :
+
+```bash
+cd app && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test 'src/**/*.spec.ts'
+```
+
 ## Raccourcis
 
 | Action | macOS | Windows / Linux |
 | --- | --- | --- |
+| Palette : requêtes, commandes, environnements | ⌘K | Ctrl+K |
+| Palette : toutes les commandes | ⌘⇧P | Ctrl+Maj+P |
 | Envoyer | ⌘↵ | Ctrl+↵ |
 | Annuler l'envoi | Échap | Échap |
 | Enregistrer | ⌘S | Ctrl+S |
-| Filtrer les requêtes | ⌘K | Ctrl+K |
+| Filtrer les requêtes de l'arbre | ⌘⇧F | Ctrl+Maj+F |
 | Ouvrir une collection | ⌘O | Ctrl+O |
 | Fermer l'onglet | ⌘W | Ctrl+W |
 | Barre latérale | ⌘B | Ctrl+B |
 | Empiler requête / réponse | ⌘\ | Ctrl+\ |
+
+Dans la palette : ↑ et ↓ pour naviguer (en boucle), ↵ pour exécuter, Échap pour fermer ; le préfixe `>` ne garde que les commandes. La recherche est floue (lettres dans l'ordre, sans casse ni accents) sur le nom, l'URL et le chemin du fichier des requêtes.

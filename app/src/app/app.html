@@ -10,15 +10,11 @@
         <app-ic name="chev-down" [size]="14" />
       </button>
     </div>
-    @if (ws.collection()) {
-      <button class="command-center" (click)="focusFilter()" aria-label="Filtrer les requêtes">
-        <app-ic name="search" [size]="14" />
-        <span>Filtrer les requêtes</span>
-        <kbd class="kbd" id="ccKbd">{{ mod }}K</kbd>
-      </button>
-    } @else {
-      <span data-tauri-drag-region></span>
-    }
+    <button class="command-center" (click)="openPalette('')" aria-haspopup="dialog" aria-label="Ouvrir la palette de commandes">
+      <app-ic name="search" [size]="14" />
+      <span>{{ ws.collection() ? 'Rechercher une requête ou une commande' : 'Rechercher une commande' }}</span>
+      <kbd class="kbd" id="ccKbd">{{ key('mod+k') }}</kbd>
+    </button>
     <div class="tb-right" data-tauri-drag-region>
       @if (ws.collection(); as c) {
         <div class="env-wrap">
@@ -51,7 +47,7 @@
           }
         </div>
         <span class="tb-div" aria-hidden="true"></span>
-        <button class="icon-btn" (click)="ws.stacked.set(!ws.stacked())" [title]="(ws.stacked() ? 'Côte à côte' : 'Empiler requête et réponse') + ' (' + mod + '\\)'" [attr.aria-label]="ws.stacked() ? 'Côte à côte' : 'Empiler requête et réponse'">
+        <button class="icon-btn" (click)="ws.stacked.set(!ws.stacked())" [title]="(ws.stacked() ? 'Côte à côte' : 'Empiler requête et réponse') + ' (' + key('mod+\\') + ')'" [attr.aria-label]="ws.stacked() ? 'Côte à côte' : 'Empiler requête et réponse'">
           <app-ic [name]="ws.stacked() ? 'rows' : 'cols'" />
         </button>
       }
@@ -67,6 +63,7 @@
         <button class="act" [attr.aria-current]="ws.view() === 'collections'" (click)="toggleView('collections')" title="Collections" aria-label="Collections"><app-ic name="layers" [size]="20" /></button>
         <button class="act" [attr.aria-current]="ws.view() === 'env'" (click)="toggleView('env')" title="Environnements et variables" aria-label="Environnements et variables"><app-ic name="variable" [size]="20" /></button>
         <span class="act-spacer"></span>
+        <button class="act" (click)="openPalette('>')" [title]="'Commandes et réglages (' + key('mod+shift+p') + ')'" aria-label="Commandes et réglages"><app-ic name="settings" [size]="19" /></button>
       </nav>
       <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : 'Collection'">
         @if (ws.view() === 'collections') {
@@ -74,7 +71,7 @@
             <span class="pane-title" [title]="c.root">{{ c.name }}</span>
             <button class="icon-btn sm" (click)="ws.reload()" title="Relire le dossier" aria-label="Relire le dossier"><app-ic name="sync" [size]="15" /></button>
           </div>
-          <label class="sb-filter"><app-ic name="filter" [size]="13" /><input #filter type="text" spellcheck="false" placeholder="Filtrer par nom ou chemin" [value]="ws.filter()" (input)="ws.filter.set($any($event.target).value)" aria-label="Filtrer les requêtes" /></label>
+          <label class="sb-filter"><app-ic name="filter" [size]="13" /><input #filter type="text" spellcheck="false" placeholder="Filtrer par nom ou chemin" [title]="'Filtrer les requêtes (' + key('mod+shift+f') + ')'" [value]="ws.filter()" (input)="ws.filter.set($any($event.target).value)" aria-label="Filtrer les requêtes" /></label>
           <div class="sb-scroll" role="tree">
             <app-tree [items]="c.items" />
             @if (!c.items.length) {
@@ -146,4 +143,5 @@
 </div>
 
 <app-var-popover />
+<app-palette />
 <div class="toast" [class.show]="!!ws.toast()" role="status" aria-live="polite"><app-ic name="check-circle" [size]="15" /><span>{{ ws.toast() }}</span></div>
