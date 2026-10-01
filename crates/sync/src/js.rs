@@ -2,6 +2,7 @@
 //! nombres, chaînes, espaces, véracité, `JSON.stringify`, `decodeURIComponent` et motifs `$` de
 //! `String.prototype.replace`.
 
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Range;
 
 use serde_json::{Map as JsonMap, Number, Value as Json};
@@ -22,23 +23,36 @@ impl JsError {
 
 /// Objet JavaScript : clés d'index de tableau d'abord (ordre croissant), puis clés textuelles dans l'ordre
 /// d'insertion. Un objet littéral (`{}`) ignore l'affectation de `__proto__`, pas un `Object.create(null)`.
+/// Les lectures et écritures par clé sont en temps constant.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct JsObject<V> {
-    entries: Vec<(String, V)>,
+    indexed: BTreeMap<usize, (String, V)>,
+    named: Vec<(String, V)>,
+    positions: HashMap<String, usize>,
     null_proto: bool,
 }
 
 impl<V> JsObject<V> {
     pub(crate) fn new() -> Self {
-        Self { entries: Vec::new(), null_proto: false }
+        Self { indexed: BTreeMap::new(), named: Vec::new(), positions: HashMap::new(), null_proto: false }
     }
 
     pub(crate) fn null_proto() -> Self {
-        Self { entries: Vec::new(), null_proto: true }
+        Self { null_proto: true, ..Self::new() }
     }
 
     pub(crate) fn get(&self, key: &str) -> Option<&V> {
-        self.entries.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+        match array_index(key) {
+            Some(index) => self.indexed.get(&index).map(|(_, v)| v),
+            None => self.positions.get(key).map(|&at| &self.named[at].1),
+        }
+    }
+
+    pub(crate) fn get_mut(&mut self, key: &str) -> Option<&mut V> {
+        match array_index(key) {
+            Some(index) => self.indexed.get_mut(&index).map(|(_, v)| v),
+            None => self.positions.get(key).map(|&at| &mut self.named[at].1),
+        }
     }
 
     pub(crate) fn contains(&self, key: &str) -> bool {
@@ -49,31 +63,30 @@ impl<V> JsObject<V> {
         if !self.null_proto && key == "__proto__" {
             return;
         }
-        if let Some(entry) = self.entries.iter_mut().find(|(k, _)| k == key) {
-            entry.1 = value;
-            return;
+        if let Some(index) = array_index(key) {
+            self.indexed.insert(index, (key.to_owned(), value));
+        } else if let Some(&at) = self.positions.get(key) {
+            self.named[at].1 = value;
+        } else {
+            self.positions.insert(key.to_owned(), self.named.len());
+            self.named.push((key.to_owned(), value));
         }
-        let position = match array_index(key) {
-            Some(index) => self.entries.iter().position(|(k, _)| array_index(k).is_none_or(|other| other > index)),
-            None => None,
-        };
-        self.entries.insert(position.unwrap_or(self.entries.len()), (key.to_owned(), value));
     }
 
     pub(crate) fn len(&self) -> usize {
-        self.entries.len()
+        self.indexed.len() + self.named.len()
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.len() == 0
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = (&String, &V)> {
-        self.entries.iter().map(|(k, v)| (k, v))
+        self.indexed.values().chain(&self.named).map(|(k, v)| (k, v))
     }
 
     pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
-        self.entries.iter_mut().map(|(_, v)| v)
+        self.indexed.values_mut().chain(&mut self.named).map(|(_, v)| v)
     }
 
     pub(crate) fn to_json(&self, value: impl Fn(&V) -> Option<Json>) -> Json {

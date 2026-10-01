@@ -25,12 +25,16 @@ pub enum CoreError {
     NotACollection(String),
     #[error("chemin hors de la collection : {0}")]
     OutsideCollection(String),
+    #[error("chemin caché refusé : {0}")]
+    HiddenPath(String),
+    #[error("{path} : le corps de la requête dépasse {max_mb} Mo")]
+    BodyTooLarge { path: String, max_mb: u64 },
     #[error("type de requête non pris en charge pour l'instant : {0}")]
     UnsupportedRequestType(String),
 }
 
 impl CoreError {
-    pub(crate) fn io(path: &Path, e: std::io::Error) -> Self {
+    pub fn io(path: &Path, e: std::io::Error) -> Self {
         Self::Io { path: path.display().to_string(), message: e.to_string() }
     }
 }

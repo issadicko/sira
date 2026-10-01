@@ -5,8 +5,11 @@
 //! Écarts voulus avec Bruno, tous au profit du principe « non destructif » : deux éléments dont les noms
 //! assainis se confondent (sans tenir compte de la casse) reçoivent un suffixe ` 1`, ` 2`… au lieu de
 //! s'écraser, les noms réservés de la collection (`opencollection.yml`, `folder.yml`, `environments`,
-//! `.oc-sync`) sont évités de même, et les noms trop longs sont tronqués aussi en octets. Un nom réduit à des
-//! caractères interdits devient `Untitled Request`, `Untitled Folder` ou `Untitled Environment`.
+//! `.oc-sync`), les noms que l'arbre cacherait (`node_modules`, `mocks` à la racine, un point de tête qui est retiré)
+//! et les noms de périphériques Windows (`con`, `nul`, `com1`…) sont évités de même, et les noms trop longs sont
+//! tronqués aussi en octets. Un nom réduit à des caractères interdits devient `Untitled Request`, `Untitled Folder`,
+//! `Untitled Environment` ou `Untitled Collection`. L'import se construit dans un dossier de préparation caché,
+//! renommé à la fin ; le snapshot `.oc-sync/openapi/` ne contient ni identifiants d'URL ni paramètres secrets.
 
 mod from_curl;
 mod naming;
@@ -20,6 +23,7 @@ use serde::Serialize;
 use serde_json::Value;
 use xc_core::CoreError;
 
+use crate::curl::MAX_COMMAND_BYTES;
 use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSummary};
 
 pub use from_curl::{create_request_from_curl, request_doc_from_curl};
@@ -38,14 +42,14 @@ pub enum ImportError {
     GroupBy(String),
     #[error("commande cURL invalide")]
     InvalidCurl,
+    #[error("commande cURL trop volumineuse : {} Mo au plus", MAX_COMMAND_BYTES >> 20)]
+    CurlTooLarge,
     #[error("nom invalide : {0}")]
     InvalidName(String),
     #[error("dossier introuvable dans la collection : {0}")]
     FolderNotFound(String),
     #[error("{0} existe déjà")]
     AlreadyExists(String),
-    #[error("{path} : {message}")]
-    Io { path: String, message: String },
     #[error(transparent)]
     Core(#[from] CoreError),
 }
@@ -63,10 +67,6 @@ fn join(relative: &str, name: &str) -> String {
 }
 
 impl ImportError {
-    fn io(path: &Path, e: std::io::Error) -> Self {
-        Self::Io { path: path.display().to_string(), message: e.to_string() }
-    }
-
     /// L'entrée (source de la spec, dossier parent, spec illisible) est en cause, pas l'import lui-même.
     pub fn is_input(&self) -> bool {
         matches!(
@@ -115,8 +115,12 @@ pub struct OpenApiPreview {
     pub folder_name: String,
 }
 
-pub fn preview(text: &str) -> Result<OpenApiPreview, ImportError> {
-    let summary = summary(&load_spec(text)?);
-    let folder_name = naming::folder_name(&summary.title);
-    Ok(OpenApiPreview { summary, folder_name })
+/// Résume la spec et la convertit pour les deux regroupements, afin de renvoyer dès l'aperçu les erreurs que
+/// l'import rencontrerait ; `folder_name` est le dossier qu'il crée dans un dossier parent où rien ne le gêne.
+pub fn preview(spec_text: &str) -> Result<OpenApiPreview, ImportError> {
+    let spec = load_spec(spec_text)?;
+    let collection = to_bruno(&spec, GroupBy::Tags)?;
+    to_bruno(&spec, GroupBy::Path)?;
+    let (folder_name, _) = naming::collection_folder(text(&collection, "name"), |_| false);
+    Ok(OpenApiPreview { summary: summary(&spec), folder_name })
 }

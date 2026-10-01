@@ -2,22 +2,22 @@
 //! (`NewRequest`, `newHttpRequest`) de Bruno. L'item JSON est celui que construit Bruno ; il passe par
 //! `stringify::item`, comme le fichier écrit par Bruno.
 
+use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use url::Url;
-use xc_core::collection::{resolve_path, write_atomic};
+use xc_core::collection::{count_entries, is_hidden, resolve_path, write_new, REQUEST_EXT};
 use xc_core::yaml::{self, is_js_space};
-use xc_core::{open_collection, RequestDoc, TreeItem};
+use xc_core::{CoreError, RequestDoc};
 
-use super::naming::{fit, sanitize_name, validate_name};
+use super::naming::{fit, is_device_name, sanitize_name, validate_name};
 use super::{join, text, ImportError};
-use crate::curl::{request_from_curl, request_from_curl_typed};
+use crate::curl::{request_from_curl, request_from_curl_typed, MAX_COMMAND_BYTES};
 use crate::stringify;
 
-const REQUEST_EXT: &str = ".yml";
 const AUTH_KEYS: [&str; 6] = ["basic", "bearer", "digest", "ntlm", "awsv4", "apikey"];
 
 static ODATA_SEGMENT: LazyLock<Regex> =
@@ -196,7 +196,9 @@ fn is_graphql(request: &Value) -> bool {
 }
 
 /// Validation du formulaire de Bruno : nom obligatoire de 255 caractères au plus, nom de fichier `sanitizeName(nom)`
-/// valide et hors des noms réservés `collection` et `folder`. Renvoie le nom du fichier avec son extension.
+/// valide et hors des noms réservés `collection` et `folder`. Écart avec Bruno : le fichier final ne peut être ni
+/// caché ni réservé (`folder.yml`, `opencollection.yml`, point de tête, nom de périphérique Windows), car l'arbre
+/// de la collection ne le montrerait pas. Renvoie le nom du fichier avec son extension.
 fn file_name(name: &str) -> Result<String, ImportError> {
     let invalid = ImportError::InvalidName;
     let trimmed = name.trim_matches(is_js_space);
@@ -214,23 +216,16 @@ fn file_name(name: &str) -> Result<String, ImportError> {
     validate_name(filename).map_err(invalid)?;
     let base = filename.replacen(REQUEST_EXT, "", 1);
     validate_name(&base).map_err(invalid)?;
-    Ok(fit(&base, "", REQUEST_EXT))
-}
-
-fn find_folder<'a>(items: &'a [TreeItem], path: &str) -> Option<&'a [TreeItem]> {
-    items.iter().find_map(|item| match item {
-        TreeItem::Folder { path: p, children, .. } if p == path => Some(children.as_slice()),
-        TreeItem::Folder { children, .. } => find_folder(children, path),
-        TreeItem::Request { .. } => None,
-    })
+    let file = fit(&base, "", REQUEST_EXT);
+    if is_hidden(&file, false) || is_device_name(&file) {
+        return Err(invalid(format!("le nom de fichier « {file} » est réservé ou caché")));
+    }
+    Ok(file)
 }
 
 /// `seq` d'une nouvelle requête : un de plus que le nombre de dossiers et de requêtes du dossier visé.
 fn next_seq(root: &Path, folder: &str) -> Result<usize, ImportError> {
-    let collection = open_collection(root)?;
-    let siblings =
-        if folder.is_empty() { Some(collection.items.as_slice()) } else { find_folder(&collection.items, folder) };
-    siblings.map(|items| items.len() + 1).ok_or_else(|| ImportError::FolderNotFound(folder.to_owned()))
+    count_entries(root, folder)?.map(|count| count + 1).ok_or_else(|| ImportError::FolderNotFound(folder.to_owned()))
 }
 
 fn new_item(request: &Value, kind: &str, name: &str, seq: usize) -> Value {
@@ -256,8 +251,12 @@ fn new_item(request: &Value, kind: &str, name: &str, seq: usize) -> Value {
 
 /// « New Request → From cURL » de Bruno : crée dans `folder` (relatif à la racine, `""` pour la racine) le fichier
 /// de la requête `name` décrite par `command`, avec le `seq` suivant du dossier, et renvoie son chemin relatif
-/// avec des `/`. Contrairement à Bruno, qui numérote le fichier en silence, un fichier existant est refusé.
+/// avec des `/`. Contrairement à Bruno, qui numérote le fichier en silence, un fichier existant est refusé, même
+/// s'il apparaît pendant la création (création exclusive).
 pub fn create_request_from_curl(root: &Path, folder: &str, name: &str, command: &str) -> Result<String, ImportError> {
+    if command.len() > MAX_COMMAND_BYTES {
+        return Err(ImportError::CurlTooLarge);
+    }
     let mut request = request_from_curl(command).ok_or(ImportError::InvalidCurl)?;
     let kind = if is_graphql(&request) { "graphql-request" } else { "http-request" };
     if kind == "graphql-request" {
@@ -271,10 +270,10 @@ pub fn create_request_from_curl(root: &Path, folder: &str, name: &str, command: 
     }
     let relative = join(folder, &file);
     let path = dir.join(&file);
-    if path.exists() {
-        return Err(ImportError::AlreadyExists(relative));
-    }
     let item = new_item(&request, kind, name, next_seq(root, folder)?);
-    write_atomic(&path, &stringify::item(&item))?;
-    Ok(relative)
+    match write_new(&path, &stringify::item(&item)) {
+        Ok(()) => Ok(relative),
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err(ImportError::AlreadyExists(relative)),
+        Err(e) => Err(CoreError::io(&path, e).into()),
+    }
 }

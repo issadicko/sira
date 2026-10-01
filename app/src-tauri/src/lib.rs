@@ -7,7 +7,7 @@ use tauri::State;
 use xc_core::assert::{evaluate, AssertionResult, ResponseView};
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
-use xc_core::{CollectionInfo, EnvVar, RequestDoc};
+use xc_core::{CollectionInfo, EnvVar, Prepared, RequestDoc};
 use xc_engine::Timings;
 use xc_sync::import::{fetch_spec, OpenApiPreview};
 use xc_sync::openapi::GroupBy;
@@ -100,10 +100,10 @@ fn variables(
 #[tauri::command]
 async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendResult> {
     let runtime = state.runtime.lock().map_err(err)?.get(&args.root).cloned().unwrap_or_default();
-    let prepared =
+    let Prepared { request, unresolved } =
         xc_core::prepare(&root(&args.root), &args.path, &args.doc, args.env.as_deref(), &runtime).map_err(err)?;
-    let request = prepared.request.clone();
-    let task = tokio::spawn(async move { xc_engine::send(&request).await });
+    let (method, url) = (request.method.clone(), request.url.clone());
+    let task = tokio::spawn(async move { xc_engine::send(request).await });
     state.inflight.lock().map_err(err)?.insert(args.id.clone(), task.abort_handle());
     let outcome = task.await;
     state.inflight.lock().map_err(err)?.remove(&args.id);
@@ -114,18 +114,19 @@ async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendR
     };
     let assertions =
         evaluate(&args.doc.assertions, &ResponseView { status: res.status, headers: &res.headers, body: &res.body });
-    let body = String::from_utf8_lossy(&res.body).into_owned();
+    let size = res.body.len();
+    let body = xc_engine::lossy_text(res.body);
     Ok(SendResult {
-        method: prepared.request.method,
-        url: prepared.request.url,
-        unresolved: prepared.unresolved,
+        method,
+        url,
+        unresolved,
         assertions,
         response: ResponseDto {
             status: res.status,
             reason: res.reason,
             http_version: res.http_version,
             remote_addr: res.remote_addr,
-            size: res.body.len(),
+            size,
             pretty: pretty_json(&body),
             body,
             headers: res.headers,
@@ -140,19 +141,24 @@ fn cancel_request(state: State<'_, AppState>, id: String) -> Reply<bool> {
 }
 
 #[tauri::command]
-fn parse_curl(command: String) -> Option<RequestDoc> {
-    xc_sync::import::request_doc_from_curl(&command)
+async fn parse_curl(command: String) -> Option<RequestDoc> {
+    tokio::task::spawn_blocking(move || xc_sync::import::request_doc_from_curl(&command)).await.ok().flatten()
 }
 
 #[tauri::command]
-fn create_request_from_curl(root: String, folder: String, name: String, command: String) -> Reply<String> {
-    xc_sync::import::create_request_from_curl(Path::new(&root), &folder, &name, &command).map_err(err)
+async fn create_request_from_curl(root: String, folder: String, name: String, command: String) -> Reply<String> {
+    tokio::task::spawn_blocking(move || {
+        xc_sync::import::create_request_from_curl(Path::new(&root), &folder, &name, &command)
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)
 }
 
 #[tauri::command]
 async fn preview_openapi(source: String) -> Reply<OpenApiPreview> {
     let text = fetch_spec(&source).await.map_err(err)?;
-    xc_sync::import::preview(&text).map_err(err)
+    tokio::task::spawn_blocking(move || xc_sync::import::preview(&text)).await.map_err(err)?.map_err(err)
 }
 
 #[tauri::command]

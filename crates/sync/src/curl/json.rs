@@ -35,9 +35,12 @@ impl JsonValue {
     }
 }
 
+/// Imbrication au-delà de laquelle le texte est refusé comme une `SyntaxError` (le parseur est récursif).
+const MAX_DEPTH: usize = 512;
+
 /// `JSON.parse(text)` ; `None` correspond à une `SyntaxError`.
 pub(crate) fn parse(text: &str) -> Option<JsonValue> {
-    let mut parser = Parser { s: text.as_bytes(), pos: 0 };
+    let mut parser = Parser { s: text.as_bytes(), pos: 0, depth: 0 };
     let value = parser.value()?;
     parser.skip_ws();
     (parser.pos == parser.s.len()).then_some(value)
@@ -46,6 +49,7 @@ pub(crate) fn parse(text: &str) -> Option<JsonValue> {
 struct Parser<'a> {
     s: &'a [u8],
     pos: usize,
+    depth: usize,
 }
 
 impl Parser<'_> {
@@ -66,14 +70,24 @@ impl Parser<'_> {
     fn value(&mut self) -> Option<JsonValue> {
         self.skip_ws();
         match self.peek()? {
-            b'{' => self.object(),
-            b'[' => self.array(),
+            b'{' => self.nested(Self::object),
+            b'[' => self.nested(Self::array),
             b'"' => self.string().map(JsonValue::String),
             b't' => self.eat("true").map(|_| JsonValue::Bool(true)),
             b'f' => self.eat("false").map(|_| JsonValue::Bool(false)),
             b'n' => self.eat("null").map(|_| JsonValue::Null),
             _ => self.number(),
         }
+    }
+
+    fn nested(&mut self, parse: fn(&mut Self) -> Option<JsonValue>) -> Option<JsonValue> {
+        if self.depth == MAX_DEPTH {
+            return None;
+        }
+        self.depth += 1;
+        let value = parse(self);
+        self.depth -= 1;
+        value
     }
 
     fn object(&mut self) -> Option<JsonValue> {

@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 
+use xc_core::collection::is_hidden;
 use xc_core::yaml::is_js_space;
 
 const MAX_NAME: usize = 255;
@@ -25,6 +26,11 @@ fn is_reserved(name: &str) -> bool {
     let numbered =
         |prefix: &str| upper.strip_prefix(prefix).is_some_and(|n| n.len() == 1 && n.as_bytes()[0].is_ascii_digit());
     matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL") || numbered("COM") || numbered("LPT")
+}
+
+/// Windows réserve aussi ces noms suivis d'une extension (`con.txt`) : le radical est ce qui précède le premier point.
+pub fn is_device_name(name: &str) -> bool {
+    is_reserved(name.split('.').next().unwrap_or(name))
 }
 
 /// `validateNameError` : la première raison pour laquelle `name` ne peut pas servir de nom de fichier.
@@ -51,18 +57,35 @@ pub fn validate_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Radical du fichier d'un élément : `sanitizeName("<nom><ext>")` privé de son extension.
+/// Radical du fichier d'un élément : `sanitizeName("<nom><ext>")` privé de son extension et de ses points de tête,
+/// que l'arbre des collections cacherait.
 pub fn stem(name: &str, ext: &str, fallback: &str) -> String {
     let sanitized = sanitize_name(&format!("{name}{ext}"));
-    match sanitized.strip_suffix(ext) {
-        Some(stem) if !stem.is_empty() => stem.to_owned(),
-        _ => fallback.to_owned(),
-    }
+    let visible = sanitized
+        .strip_suffix(ext)
+        .map(|stem| stem.trim_start_matches(|c| c == '.' || c == '-' || is_js_space(c)))
+        .filter(|stem| !stem.is_empty());
+    visible.unwrap_or(fallback).to_owned()
 }
 
-/// Nom du dossier d'une collection : celui de `sanitizeName`, borné à la taille d'un nom de fichier.
-pub fn folder_name(title: &str) -> String {
-    fit(&sanitize_name(title), "", "")
+/// Dossier de la collection nommée `title`, avec le nom qu'elle porte : `title`, puis `title - 1`, `title - 2`…
+/// tant que `taken` refuse le dossier, qui reste sous la limite de taille avec son suffixe. Un titre réduit à des
+/// caractères interdits devient `Untitled Collection` ; un nom de périphérique réservé reçoit aussi un suffixe.
+pub fn collection_folder(title: &str, taken: impl Fn(&str) -> bool) -> (String, String) {
+    let sanitized = sanitize_name(title);
+    let base = if sanitized.is_empty() { "Untitled Collection" } else { &sanitized };
+    let mut counter = 0;
+    loop {
+        let (suffix, name) = match counter {
+            0 => (String::new(), title.to_owned()),
+            n => (format!(" - {n}"), format!("{title} - {n}")),
+        };
+        let folder = with_suffix(base, &suffix, "");
+        if !is_device_name(&folder) && !taken(&folder) {
+            return (folder, name);
+        }
+        counter += 1;
+    }
 }
 
 /// `getSafePathToWrite` : tronque le radical pour que `radical + suffixe + extension` tienne dans 255 unités UTF-16
@@ -85,25 +108,46 @@ pub fn fit(stem: &str, suffix: &str, ext: &str) -> String {
     format!("{}{tail}", &base[..end.unwrap_or(base.len())])
 }
 
+/// [`fit`] avec le suffixe placé après le radical quand celui-ci est un nom de périphérique réservé
+/// (`con.txt` devient `con 1.txt`) : à la fin du nom, il laisserait le radical réservé.
+fn with_suffix(stem: &str, suffix: &str, ext: &str) -> String {
+    match stem.split_once('.') {
+        Some((radical, rest)) if is_reserved(radical) => fit(&format!("{radical}{suffix}.{rest}"), "", ext),
+        _ => fit(stem, suffix, ext),
+    }
+}
+
 /// Noms déjà pris dans un dossier, casse ignorée : sur un disque insensible à la casse, deux noms qui ne
 /// diffèrent que par elle seraient le même fichier.
 pub struct Directory {
     taken: HashSet<String>,
+    listed_at_root: Option<bool>,
 }
 
 impl Directory {
     pub fn new(reserved: &[&str]) -> Self {
-        Self { taken: reserved.iter().map(|name| name.to_lowercase()).collect() }
+        Self { taken: reserved.iter().map(|name| name.to_lowercase()).collect(), listed_at_root: None }
+    }
+
+    /// Les noms attribués doivent rester visibles de `open_collection` ; `at_root` : le dossier est la racine.
+    pub fn listed(mut self, at_root: bool) -> Self {
+        self.listed_at_root = Some(at_root);
+        self
     }
 
     /// Premier nom libre parmi `radical`, `radical 1`, `radical 2`… avec l'extension `ext`.
+    /// Écart avec Bruno : un nom de périphérique Windows ou un nom que l'arbre cacherait (`node_modules`, `mocks` à la
+    /// racine, `opencollection.yml`, `folder.yml`) reçoit aussi un suffixe.
     pub fn claim(&mut self, stem: &str, ext: &str) -> String {
-        let mut name = fit(stem, "", ext);
         let mut counter = 0;
-        while !self.taken.insert(name.to_lowercase()) {
+        loop {
+            let suffix = if counter == 0 { String::new() } else { format!(" {counter}") };
+            let name = with_suffix(stem, &suffix, ext);
+            let hidden = self.listed_at_root.is_some_and(|at_root| is_hidden(&name, at_root));
+            if !is_device_name(&name) && !hidden && self.taken.insert(name.to_lowercase()) {
+                return name;
+            }
             counter += 1;
-            name = fit(stem, &format!(" {counter}"), ext);
         }
-        name
     }
 }

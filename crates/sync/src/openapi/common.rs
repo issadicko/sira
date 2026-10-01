@@ -12,7 +12,7 @@ use super::heap::{type_error, Heap, Js};
 use super::R;
 use crate::js::{collapse_spaces, is_js_space, js_order, number_value, string_to_number, trim};
 
-const MAX_DEPTH: usize = 400;
+pub const MAX_DEPTH: usize = 400;
 
 /// Opération extraite de la spec, avant transformation en requête Bruno.
 pub struct Request {
@@ -479,16 +479,18 @@ pub fn handle_body(h: &Heap, handler: Handler, body: &mut Body, schema: &Js) -> 
     Ok(())
 }
 
-fn guard(depth: usize) -> R<()> {
+/// Chaque nœud d'un exemple généré compte pour la limite de la conversion et la profondeur reste bornée.
+fn guard(h: &Heap, depth: usize) -> R<()> {
     if depth > MAX_DEPTH {
         return Err(type_error("récursion trop profonde dans un schéma"));
     }
-    Ok(())
+    h.charge(1);
+    h.check()
 }
 
 /// Port de `getDefaultValueForSchema`.
 pub fn default_value(h: &Heap, schema: &Js, visited: &mut Vec<Js>, depth: usize) -> R<Js> {
-    guard(depth)?;
+    guard(h, depth)?;
     let example = h.prop(schema, "example")?;
     if !example.is_undef() {
         return Ok(example);
@@ -536,7 +538,7 @@ fn primitive_default(kind: &Js) -> Js {
 
 /// Port de `buildEmptyJsonBody`, `visited` suivant les ancêtres par identité.
 pub fn empty_json_body(h: &Heap, schema: &Js, visited: &mut Vec<Js>, depth: usize) -> R<Js> {
-    guard(depth)?;
+    guard(h, depth)?;
     if visited.iter().any(|v| v.strict_eq(schema)) {
         return Ok(h.obj(Vec::new()));
     }
@@ -624,7 +626,7 @@ pub fn xml_body(h: &Heap, schema: &Js) -> R<String> {
 }
 
 fn xml_element(h: &Heap, name: &str, prop: Js, value: &Js, indent: &str, depth: usize) -> R<Option<String>> {
-    guard(depth)?;
+    guard(h, depth)?;
     let prop = if prop.is_undef() { h.obj(Vec::new()) } else { prop };
     let xml = h.prop(&prop, "xml")?;
     let xml_name = h.to_string(&h.get(&xml, "name").or(Js::str(name)));

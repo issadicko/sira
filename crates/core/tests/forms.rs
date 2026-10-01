@@ -234,6 +234,35 @@ fn ef_req_02_multipart_refuses_files_outside_the_collection() {
 }
 
 #[test]
+fn enf_sec_01_multipart_refuses_hidden_files_and_links_leading_out_of_the_collection() {
+    let with_path = |path: &str| MULTIPART.replace("HEADERS", "").replace("files/logo.png", path);
+    for path in [".env", "./.env", "files/.env"] {
+        let dir = collection(&with_path(path));
+        fs::write(dir.path().join(".env"), "PSP_PASSWORD=s3cret\n").unwrap();
+        fs::write(dir.path().join("files/.env"), "PSP_PASSWORD=s3cret\n").unwrap();
+        assert!(matches!(send(&dir), Err(CoreError::HiddenPath(p)) if p == path), "{path}");
+    }
+    #[cfg(unix)]
+    {
+        let outside = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join("id_rsa"), "clé privée").unwrap();
+        for (link, path) in [("leak", "files/leak/id_rsa"), ("stolen.txt", "files/stolen.txt")] {
+            let dir = collection(&with_path(path));
+            let target = if link == "leak" { outside.path().to_owned() } else { outside.path().join("id_rsa") };
+            std::os::unix::fs::symlink(target, dir.path().join("files").join(link)).unwrap();
+            assert!(matches!(send(&dir), Err(CoreError::OutsideCollection(p)) if p == path), "{path}");
+        }
+    }
+}
+
+#[test]
+fn ef_req_02_multipart_refuses_a_body_over_512_mb() {
+    let dir = collection(&MULTIPART.replace("HEADERS", "").replace("files/logo.png", "files/huge.bin"));
+    fs::File::create(dir.path().join("files/huge.bin")).unwrap().set_len((512 << 20) + 1).unwrap();
+    assert!(matches!(send(&dir), Err(CoreError::BodyTooLarge { max_mb: 512, .. })));
+}
+
+#[test]
 fn ef_req_02_multipart_file_types_follow_the_mime_types_package_of_bruno() {
     let names = ["a.xml", "b.YML", "c.yaml", "d.js", "e.json", "f.unknown"];
     let listed: String = names.iter().map(|n| format!("          - files/{n}\n")).collect();

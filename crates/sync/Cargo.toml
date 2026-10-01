@@ -12,6 +12,7 @@ regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 url = "2"
 xc-core.workspace = true
 xc-engine.workspace = true
@@ -20,7 +21,6 @@ yaml-rust2 = "0.10"
 [dev-dependencies]
 serde_json = { workspace = true, features = ["float_roundtrip"] }
 tempfile = "3"
-tokio.workspace = true
 
 [lints]
 workspace = true

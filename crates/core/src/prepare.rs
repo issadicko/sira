@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 
 use base64::Engine as _;
 use xc_engine::HttpRequest;
 
-use crate::collection::resolve_path;
+use crate::collection::resolve_visible_path;
 use crate::request::{
     auth_from, key_values, Auth, Body, KeyValue, MultipartField, MultipartValue, ParamKind, RequestDoc,
 };
@@ -14,6 +15,7 @@ use crate::vars::{Context, Scope};
 use crate::CoreError;
 
 const NO_TIMEOUT: Duration = Duration::from_secs(600);
+const MAX_MULTIPART_BODY: u64 = 512 << 20;
 
 pub struct Prepared {
     pub request: HttpRequest,
@@ -101,6 +103,7 @@ pub fn prepare(
             headers,
             body: body.map(|(bytes, _)| bytes),
             timeout: doc.timeout_ms.map(Duration::from_millis).unwrap_or(NO_TIMEOUT),
+            max_response_body: None,
         },
         unresolved,
     })
@@ -152,7 +155,8 @@ fn boundary_of(content_type: &str) -> Option<String> {
     value.filter(|v| !v.is_empty()).map(str::to_owned)
 }
 
-/// Corps multipart octet pour octet comme le paquet `form-data` de Bruno ; fichiers lus depuis la collection.
+/// Corps multipart octet pour octet comme le paquet `form-data` de Bruno ; fichiers lus depuis la collection,
+/// sans éléments cachés (`.env`) et dans la limite de 512 Mo au total.
 fn multipart(
     root: &Path,
     fields: &[MultipartField],
@@ -169,12 +173,12 @@ fn multipart(
             }
             MultipartValue::File(paths) => {
                 for path in paths {
-                    let path = resolve_path(root, fill(path).trim())?;
-                    let bytes = fs::read(&path).map_err(|e| CoreError::io(&path, e))?;
+                    let path = resolve_visible_path(root, fill(path).trim())?;
                     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
-                    let guessed = guess_mime(&path);
                     let disposition = format!("{disposition}; filename=\"{file_name}\"");
-                    write_part(&mut body, boundary, &disposition, Some(content_type.unwrap_or(guessed)), &bytes);
+                    write_head(&mut body, boundary, &disposition, Some(content_type.unwrap_or(guess_mime(&path))));
+                    append_file(&path, &mut body)?;
+                    body.extend_from_slice(b"\r\n");
                 }
             }
         }
@@ -196,14 +200,34 @@ fn guess_mime(path: &Path) -> &'static str {
     }
 }
 
-fn write_part(body: &mut Vec<u8>, boundary: &str, disposition: &str, content_type: Option<&str>, value: &[u8]) {
+fn write_head(body: &mut Vec<u8>, boundary: &str, disposition: &str, content_type: Option<&str>) {
     body.extend_from_slice(format!("--{boundary}\r\nContent-Disposition: {disposition}\r\n").as_bytes());
     if let Some(content_type) = content_type {
         body.extend_from_slice(format!("Content-Type: {content_type}\r\n").as_bytes());
     }
     body.extend_from_slice(b"\r\n");
+}
+
+fn write_part(body: &mut Vec<u8>, boundary: &str, disposition: &str, content_type: Option<&str>, value: &[u8]) {
+    write_head(body, boundary, disposition, content_type);
     body.extend_from_slice(value);
     body.extend_from_slice(b"\r\n");
+}
+
+/// Lit le fichier à la suite de `body`, sans que celui-ci dépasse [`MAX_MULTIPART_BODY`] octets.
+fn append_file(path: &Path, body: &mut Vec<u8>) -> Result<(), CoreError> {
+    let io = |e| CoreError::io(path, e);
+    let too_large = || CoreError::BodyTooLarge { path: path.display().to_string(), max_mb: MAX_MULTIPART_BODY >> 20 };
+    let file = fs::File::open(path).map_err(io)?;
+    let room = MAX_MULTIPART_BODY.saturating_sub(body.len() as u64);
+    if file.metadata().map_err(io)?.len() > room {
+        return Err(too_large());
+    }
+    file.take(room + 1).read_to_end(body).map_err(io)?;
+    if body.len() as u64 > MAX_MULTIPART_BODY {
+        return Err(too_large());
+    }
+    Ok(())
 }
 
 /// Remplace les segments `:nom` de l'URL par la valeur du paramètre de chemin correspondant.

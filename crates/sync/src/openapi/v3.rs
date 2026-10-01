@@ -18,7 +18,7 @@ use crate::js::{expand_replacement, replace_all, trim, utf16};
 pub const METHODS: [&str; 8] = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
 
 pub fn convert(h: &Heap, data: &Value, group_by: GroupBy) -> R<Value> {
-    let spec = resolve(h, data, Flavor::OpenApi);
+    let spec = resolve(h, data, Flavor::OpenApi)?;
     if !spec.truthy() {
         return Err(type_error("Invalid OpenAPI collection. Failed to resolve refs."));
     }

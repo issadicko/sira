@@ -46,14 +46,26 @@ enum Frame {
 
 const MAX_DEPTH: usize = 100;
 const MAX_MERGED_KEYS: usize = 10_000;
+const MAX_ALIAS_NODES: usize = 1_000_000;
 
+/// Valeurs ancrées avec leur nombre de nœuds ; `expanded` totalise ceux que recopient les alias, qui s'emboîtent
+/// en nombre exponentiel dans une « bombe » YAML.
 #[derive(Default)]
 struct Builder {
     stack: Vec<Frame>,
-    anchors: HashMap<usize, Value>,
+    anchors: HashMap<usize, (Value, usize)>,
     docs: Vec<Value>,
     merged: usize,
+    expanded: usize,
     error: Option<String>,
+}
+
+fn nodes(value: &Value) -> usize {
+    match value {
+        Value::Array(items) => 1 + items.iter().map(nodes).sum::<usize>(),
+        Value::Object(map) => 1 + map.values().map(nodes).sum::<usize>(),
+        _ => 1,
+    }
 }
 
 impl EventReceiver for Builder {
@@ -85,7 +97,7 @@ impl Builder {
                         ref v => Key::Name(string(v)),
                     });
                     if anchor > 0 {
-                        self.anchors.insert(anchor, value);
+                        self.anchors.insert(anchor, (value, 1));
                     }
                     return Ok(());
                 }
@@ -108,7 +120,12 @@ impl Builder {
                 None => Ok(()),
             },
             Event::Alias(id) => {
-                let value = self.anchors.get(&id).cloned().ok_or("alias YAML inconnu ou récursif")?;
+                let size = self.anchors.get(&id).map(|(_, size)| *size).ok_or("alias YAML inconnu ou récursif")?;
+                self.expanded += size;
+                if self.expanded > MAX_ALIAS_NODES {
+                    return Err(format!("alias YAML : plus de {MAX_ALIAS_NODES} nœuds produits par leur expansion"));
+                }
+                let value = self.anchors[&id].0.clone();
                 self.push(value, 0)
             }
             _ => Ok(()),
@@ -117,7 +134,7 @@ impl Builder {
 
     fn push(&mut self, value: Value, anchor: usize) -> Result<(), String> {
         if anchor > 0 {
-            self.anchors.insert(anchor, value.clone());
+            self.anchors.insert(anchor, (value.clone(), nodes(&value)));
         }
         match self.stack.last_mut() {
             None => self.docs.push(value),

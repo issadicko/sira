@@ -5,8 +5,14 @@
 use crate::js::{replace_all_utf16, utf16, utf16_len};
 
 const LONG_LINE_LIMIT: usize = 20_000;
+const MAX_NESTING: usize = 512;
 
+/// Écart avec Bruno : un texte imbriqué sur plus de 512 niveaux est rendu tel quel, car la taille de la mise en
+/// forme croît comme le carré de la profondeur.
 pub(crate) fn prettify_json_string(text: &str) -> String {
+    if max_nesting(text) > MAX_NESTING {
+        return text.to_owned();
+    }
     let (hashed, originals) = hash_variables(text);
     let formatted = if has_long_line(text) { fast_json_format(&hashed) } else { jsonc_format(&hashed) };
     let mut restored = utf16(&formatted);
@@ -14,6 +20,27 @@ pub(crate) fn prettify_json_string(text: &str) -> String {
         restored = replace_all_utf16(&restored, &utf16(hash), &utf16(original));
     }
     String::from_utf16_lossy(&restored)
+}
+
+/// Imbrication maximale des `[` et `{` hors des chaînes.
+fn max_nesting(text: &str) -> usize {
+    let (mut depth, mut deepest, mut in_string, mut escaped) = (0usize, 0usize, false, false);
+    for byte in text.bytes() {
+        match (in_string, byte) {
+            (true, _) if escaped => escaped = false,
+            (true, b'\\') => escaped = true,
+            (true, b'"') => in_string = false,
+            (true, _) => {}
+            (false, b'"') => in_string = true,
+            (false, b'[' | b'{') => {
+                depth += 1;
+                deepest = deepest.max(depth);
+            }
+            (false, b']' | b'}') => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    deepest
 }
 
 fn has_long_line(text: &str) -> bool {

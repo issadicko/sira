@@ -206,3 +206,89 @@ fn ef_imp_02_swagger_is_detected_from_its_version() {
     assert_eq!(collection["items"][0]["request"]["script"], json!({"res": null}));
     assert_eq!(collection["items"][0]["operationKey"], "GET /a");
 }
+
+/// Spec dont la réponse de `/a` renvoie `S0` ; `component(i)` est le corps du schéma `S<i>`, `i` de 0 à `levels`.
+fn schema_spec(levels: usize, component: impl Fn(usize) -> String) -> String {
+    let mut text = String::from(
+        "openapi: 3.0.0\ninfo: {title: t, version: '1'}\npaths:\n  /a:\n    get:\n      responses:\n        '200':\n          description: ok\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/S0'\ncomponents:\n  schemas:\n",
+    );
+    for level in 0..=levels {
+        text.push_str(&format!("    S{level}:\n{}", component(level)));
+    }
+    text
+}
+
+fn elapsed<T>(work: impl FnOnce() -> T) -> (T, std::time::Duration) {
+    let start = std::time::Instant::now();
+    (work(), start.elapsed())
+}
+
+#[test]
+fn ef_imp_02_a_long_chain_of_references_is_refused_instead_of_overflowing_the_stack() {
+    let links = 1_500;
+    let text = schema_spec(links, |i| match i {
+        i if i == links => "      type: string\n".into(),
+        i => format!(
+            "      type: object\n      properties:\n        next:\n          $ref: '#/components/schemas/S{}'\n",
+            i + 1
+        ),
+    });
+    let error = convert(&text, GroupBy::Tags).unwrap_err();
+    assert!(error.to_string().contains("récursion trop profonde"), "{error}");
+    let shallow = schema_spec(20, |i| match i {
+        20 => "      type: string\n".into(),
+        i => format!(
+            "      type: object\n      properties:\n        next:\n          $ref: '#/components/schemas/S{}'\n",
+            i + 1
+        ),
+    });
+    assert!(convert(&shallow, GroupBy::Tags).is_ok());
+}
+
+#[test]
+fn ef_imp_02_references_fanning_out_cannot_blow_up_the_generated_examples() {
+    let levels = 40;
+    let text = schema_spec(levels, |i| {
+        match i {
+        i if i == levels => "      type: string\n".into(),
+        i => format!(
+            "      type: object\n      properties:\n        a:\n          $ref: '#/components/schemas/S{n}'\n        b:\n          $ref: '#/components/schemas/S{n}'\n",
+            n = i + 1
+        ),
+    }
+    });
+    let (result, time) = elapsed(|| convert(&text, GroupBy::Tags));
+    assert!(result.unwrap_err().to_string().contains("exemples trop volumineux"));
+    assert!(time.as_secs() < 2, "{time:?}");
+}
+
+#[test]
+fn ef_imp_02_shared_examples_fanning_out_cannot_blow_up_the_serialized_bodies() {
+    let levels = 40;
+    let mut text = String::from(
+        "openapi: 3.0.0\ninfo: {title: t, version: '1'}\npaths:\n  /a:\n    post:\n      requestBody:\n        content:\n          application/json:\n            schema:\n              example:\n                $ref: '#/components/examples/E0'\n      responses:\n        '200': {description: ok}\ncomponents:\n  examples:\n",
+    );
+    for level in 0..=levels {
+        let child = format!("{{$ref: '#/components/examples/E{}'}}", level + 1);
+        let body = if level == levels { "1".into() } else { format!("[{child}, {child}]") };
+        text.push_str(&format!("    E{level}: {body}\n"));
+    }
+    let (result, time) = elapsed(|| convert(&text, GroupBy::Tags));
+    assert!(result.unwrap_err().to_string().contains("exemples trop volumineux"));
+    assert!(time.as_secs() < 2, "{time:?}");
+}
+
+#[test]
+fn ef_imp_02_yaml_alias_bombs_are_refused_in_bounded_time() {
+    let mut text = String::from("a0: &a0 [x,x,x,x,x,x,x,x,x,x]\n");
+    for level in 1..8 {
+        let children = vec![format!("*a{}", level - 1); 10].join(",");
+        text.push_str(&format!("a{level}: &a{level} [{children}]\n"));
+    }
+    let (result, time) = elapsed(|| load_spec(&text));
+    assert!(matches!(&result, Err(OpenApiError::Syntax(message)) if message.contains("alias YAML")), "{result:?}");
+    assert!(time.as_secs() < 2, "{time:?}");
+
+    let modest = "base: &b {x: 1, y: [1, 2, 3]}\nuses: [*b, *b, *b]\n";
+    assert_eq!(load_spec(modest).unwrap()["uses"][2]["y"], json!([1, 2, 3]));
+}

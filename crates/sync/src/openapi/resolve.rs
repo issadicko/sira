@@ -5,7 +5,9 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use super::heap::{Heap, Js};
+use super::common::MAX_DEPTH;
+use super::heap::{type_error, Heap, Js};
+use super::R;
 use crate::js::{array_index, js_order, truthy};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -14,7 +16,8 @@ pub enum Flavor {
     Swagger,
 }
 
-pub fn resolve(heap: &Heap, spec: &Value, flavor: Flavor) -> Js {
+/// Résout les `$ref` de `spec` ; au-delà de [`MAX_DEPTH`] niveaux d'imbrication ou de références, la spec est refusée.
+pub fn resolve(heap: &Heap, spec: &Value, flavor: Flavor) -> R<Js> {
     let mut resolver = Resolver {
         heap,
         root: spec,
@@ -23,7 +26,7 @@ pub fn resolve(heap: &Heap, spec: &Value, flavor: Flavor) -> Js {
         by_object: HashMap::new(),
         by_ref: HashMap::new(),
     };
-    resolver.walk(spec)
+    resolver.walk(spec, 0)
 }
 
 struct Resolver<'a> {
@@ -36,39 +39,43 @@ struct Resolver<'a> {
 }
 
 impl<'a> Resolver<'a> {
-    fn walk(&mut self, v: &'a Value) -> Js {
-        match v {
+    fn walk(&mut self, v: &'a Value, depth: usize) -> R<Js> {
+        if depth > MAX_DEPTH {
+            return Err(type_error("récursion trop profonde dans les références"));
+        }
+        Ok(match v {
             Value::Array(items) => {
-                let items = items.iter().map(|x| self.walk(x)).collect();
+                let items = items.iter().map(|x| self.walk(x, depth + 1)).collect::<R<_>>()?;
                 self.heap.arr(items)
             }
             Value::Object(map) => {
                 let key = v as *const Value;
                 if let Some(done) = self.by_object.get(&key) {
-                    return done.clone();
+                    return Ok(done.clone());
                 }
                 if let Some(reference) = self.reference(v) {
                     if let Some(done) = self.by_ref.get(reference) {
-                        return done.clone();
+                        return Ok(done.clone());
                     }
                     let Some(target) = self.target(reference) else {
-                        return self.heap.import(v);
+                        return Ok(self.heap.import(v));
                     };
                     let placeholder = self.heap.obj(Vec::new());
                     self.by_ref.insert(reference.to_owned(), placeholder);
-                    let resolved = self.walk(target);
+                    let resolved = self.walk(target, depth + 1)?;
                     self.by_ref.insert(reference.to_owned(), resolved.clone());
-                    return resolved;
+                    return Ok(resolved);
                 }
                 let id = self.heap.reserve();
                 self.by_object.insert(key, Js::Obj(id));
                 let entries: Vec<_> = map.iter().map(|(k, x)| (k.as_str().into(), x)).collect();
-                let entries = js_order(entries).into_iter().map(|(k, x)| (k, self.walk(x))).collect();
+                let entries =
+                    js_order(entries).into_iter().map(|(k, x)| Ok((k, self.walk(x, depth + 1)?))).collect::<R<_>>()?;
                 self.heap.fill(id, entries);
                 Js::Obj(id)
             }
             scalar => self.heap.import(scalar),
-        }
+        })
     }
 
     fn reference(&self, v: &'a Value) -> Option<&'a str> {

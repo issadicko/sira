@@ -453,6 +453,12 @@ fn route(path: &str, accept: &str) -> Vec<u8> {
         "/old" => reply("301 Moved Permanently", &[("location", "spec.yaml")], ""),
         "/ftp" => reply("302 Found", &[("location", "ftp://example.test/spec.yaml")], ""),
         "/no-location" => reply("302 Found", &[], ""),
+        "/announced" => b"HTTP/1.1 200 OK\r\ncontent-length: 40000000\r\nconnection: close\r\n\r\nabc".to_vec(),
+        "/streamed" => {
+            let head = b"HTTP/1.1 200 OK\r\nconnection: close\r\n\r\n";
+            [&head[..], &vec![b'a'; (32 << 20) + 1]].concat()
+        }
+        "/limit" => reply("200 OK", &[], &"a".repeat(32 << 20)),
         p if p.starts_with("/hop/") => match p["/hop/".len()..].parse::<u32>() {
             Ok(0) => reply("200 OK", &[], "arrivé"),
             Ok(n) => reply("302 Found", &[("location", &format!("/hop/{}", n - 1))], ""),
@@ -673,4 +679,301 @@ fn ef_imp_01_only_text_that_looks_like_a_curl_command_is_pasted() {
         assert!(request_doc_from_curl(text).is_some(), "{text:?}");
     }
     assert_eq!(request_doc_from_curl("curl -X DELETE https://x.test/1").unwrap().method, "DELETE");
+}
+
+fn is_device_radical(name: &str) -> bool {
+    let radical = name.split('.').next().unwrap().to_ascii_lowercase();
+    let numbered =
+        |prefix: &str| radical.strip_prefix(prefix).is_some_and(|n| n.len() == 1 && n.as_bytes()[0].is_ascii_digit());
+    ["con", "prn", "aux", "nul"].contains(&radical.as_str()) || numbered("com") || numbered("lpt")
+}
+
+#[test]
+fn ef_imp_02_a_long_title_over_an_existing_folder_gets_a_suffix_instead_of_looping() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    thread::spawn(move || {
+        let dir = location();
+        let title = "x".repeat(300);
+        let collection = collection(&title, vec![request("one", "GET /one")], vec![]);
+        let roots: Vec<PathBuf> =
+            (0..3).map(|_| write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap()).collect();
+        sender.send((dir, roots)).ok();
+    });
+    let (_dir, roots) = receiver.recv_timeout(std::time::Duration::from_secs(10)).expect("l'import boucle");
+    let names: Vec<String> = roots.iter().map(|r| r.file_name().unwrap().to_string_lossy().into_owned()).collect();
+    assert_eq!(names, ["x".repeat(255), format!("{} - 1", "x".repeat(251)), format!("{} - 2", "x".repeat(251))]);
+    let config = fs::read_to_string(roots[1].join("opencollection.yml")).unwrap();
+    assert!(config.contains(&format!("name: {} - 1", "x".repeat(300))), "le nom de la collection garde son titre");
+}
+
+#[test]
+fn ef_imp_02_a_failed_import_leaves_neither_a_collection_nor_a_staging_folder() {
+    let nested = |depth: usize| {
+        (0..depth).fold(vec![request("deepest", "GET /deep")], |inner, level| {
+            let name = format!("{}{level}", "a".repeat(250));
+            vec![request("sibling", &format!("GET /s{level}")), folder(&name, inner)]
+        })
+    };
+    let dir = location();
+    let items = [vec![request("before", "GET /before")], nested(150)].concat();
+    let error =
+        write_collection(&collection("Deep", items, vec![]), dir.path(), "spec.yaml", GroupBy::Tags).unwrap_err();
+    assert!(matches!(error, ImportError::Core(_)), "{error}");
+    assert_eq!(dir.path().read_dir().unwrap().count(), 0, "ni dossier final ni dossier de préparation");
+
+    let collection = collection("Fine", vec![request("one", "GET /one")], vec![]);
+    let root = write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
+    assert_eq!(dir.path().read_dir().unwrap().count(), 1, "le dossier de préparation est renommé, pas copié");
+    assert!(root.join(".oc-sync/openapi/source.yml").is_file());
+}
+
+#[test]
+fn ef_imp_02_items_the_collection_tree_would_hide_are_renamed_so_they_stay_listed() {
+    let items = vec![
+        folder(".well-known", vec![request("jwks", "GET /.well-known/jwks")]),
+        folder("node_modules", vec![request("package", "GET /node_modules")]),
+        folder("mocks", vec![request("mock", "GET /mocks")]),
+        folder("Mocks", vec![request("kept", "GET /Mocks")]),
+        request(".hidden", "GET /hidden"),
+        request("opencollection", "GET /opencollection"),
+        folder("sub", vec![request("opencollection", "GET /sub/opencollection"), request("folder", "GET /sub/folder")]),
+        folder("sub-mocks", vec![folder("mocks", vec![request("inner", "GET /inner")])]),
+    ];
+    let dir = location();
+    let root = write_collection(&collection("Hidden", items, vec![]), dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
+    let info = open_collection(&root).unwrap();
+    assert_eq!(info.request_count, 9, "chaque requête écrite est montrée par l'arbre");
+
+    let files: Vec<String> =
+        files_under(&root).into_keys().filter(|p| !p.starts_with(".oc-sync/openapi/base/")).collect();
+    assert_eq!(
+        files,
+        [
+            ".oc-sync/openapi/source.yml",
+            "Mocks/folder.yml",
+            "Mocks/kept.yml",
+            "hidden.yml",
+            "mocks 1/folder.yml",
+            "mocks 1/mock.yml",
+            "node_modules 1/folder.yml",
+            "node_modules 1/package.yml",
+            "opencollection 1.yml",
+            "opencollection.yml",
+            "sub-mocks/folder.yml",
+            "sub-mocks/mocks/folder.yml",
+            "sub-mocks/mocks/inner.yml",
+            "sub/folder 1.yml",
+            "sub/folder.yml",
+            "sub/opencollection 1.yml",
+            "well-known/folder.yml",
+            "well-known/jwks.yml"
+        ]
+    );
+    let snapshot = tree(&fs::read_to_string(root.join(".oc-sync/openapi/source.yml")).unwrap());
+    for operation in snapshot.seq("operations").iter().filter_map(yaml::Value::as_map) {
+        assert!(root.join(operation.str("file").unwrap()).is_file());
+    }
+}
+
+#[test]
+fn ef_imp_02_windows_device_names_never_name_a_file_or_a_folder() {
+    let names = ["CON", "nul", "Aux", "COM1", "lpt9", "con.txt", "Com3.v2", "console", "COM10"];
+    let mut items: Vec<Value> = names.iter().map(|n| request(n, &format!("GET /{n}"))).collect();
+    items.push(folder("PRN", vec![request("in", "GET /in")]));
+    let dir = location();
+    let root =
+        write_collection(&collection("Devices", items, vec![environment("NUL")]), dir.path(), "s.yaml", GroupBy::Tags)
+            .unwrap();
+    let files = files_under(&root);
+    for path in files.keys() {
+        for part in path.split('/') {
+            assert!(!is_device_radical(part), "{part} dans {path}");
+        }
+    }
+    let listed: Vec<&String> = files.keys().filter(|p| !p.starts_with(".oc-sync/")).collect();
+    let renamed =
+        ["CON 1", "nul 1", "Aux 1", "COM1 1", "lpt9 1", "con 1.txt", "Com3 1.v2", "PRN 1/in", "environments/NUL 1"];
+    for name in renamed.iter().map(|n| format!("{n}.yml")).chain(["console.yml".into(), "COM10.yml".into()]) {
+        assert!(listed.iter().any(|p| **p == name), "{name} absent de {listed:?}");
+    }
+
+    for (title, folder) in [("CON", "CON - 1"), ("con.example", "con - 1.example"), ("com1", "com1 - 1")] {
+        let dir = location();
+        let created =
+            write_collection(&collection(title, vec![], vec![]), dir.path(), "s.yaml", GroupBy::Tags).unwrap();
+        assert_eq!(created.file_name().unwrap().to_string_lossy(), folder);
+    }
+}
+
+#[test]
+fn enf_sec_01_snapshot_source_keeps_neither_url_credentials_nor_secret_parameters() {
+    let dir = location();
+    let items = vec![request("one", "GET /one")];
+    let source = |url: &str| {
+        let root = write_collection(&collection("S", items.clone(), vec![]), dir.path(), url, GroupBy::Tags).unwrap();
+        let text = fs::read_to_string(root.join(".oc-sync/openapi/source.yml")).unwrap();
+        for (path, bytes) in files_under(&root) {
+            let content = utf8(&bytes);
+            assert!(!content.contains("hunter2") && !content.contains("abc123"), "secret dans {path}");
+        }
+        tree(&text).str("source").unwrap().to_owned()
+    };
+    assert_eq!(source("https://ada:hunter2@api.test/s.json?token=abc123&v=2"), "https://api.test/s.json?v=2");
+    assert_eq!(
+        source("https://api.test/s.json?API_KEY=abc123&lang=fr&X-Amz-Signature=abc123&access_token=abc123&code=abc123"),
+        "https://api.test/s.json?lang=fr"
+    );
+    assert_eq!(
+        source("https://ada@api.test:8443/s.json?a=1&client_secret=abc123&b=%20x"),
+        "https://api.test:8443/s.json?a=1&b=%20x"
+    );
+    assert_eq!(source("https://ada:hunter2@api.test/s.json"), "https://api.test/s.json");
+    assert_eq!(
+        source("https://api.test/s.json?sort_key=1&keyword=k&password=abc123"),
+        "https://api.test/s.json?keyword=k"
+    );
+    assert_eq!(source(" https://api.test/s.json?version=3&lang=fr "), "https://api.test/s.json?version=3&lang=fr");
+    assert_eq!(source("https://api.test"), "https://api.test");
+}
+
+#[test]
+fn ef_imp_02_preview_reports_the_errors_of_the_import_and_names_the_folder_it_creates() {
+    for version in ["openapi: 3.0.0", "swagger: '2.0'"] {
+        let numeric = format!("{version}\ninfo: {{title: 123, version: '1'}}\npaths: {{}}\n");
+        let error = preview(&numeric).unwrap_err();
+        let imported = import_spec(&numeric, "s", location().path(), GroupBy::Tags).unwrap_err();
+        assert_eq!(error.to_string(), imported.to_string());
+
+        for title in ["'..'", "'-'", "'  x  '", "'a/b: c'", "CON", "'~/x.'", "Untitled", "''"] {
+            let spec = format!("{version}\ninfo: {{title: {title}, version: '1'}}\npaths: {{}}\n");
+            let dir = location();
+            let created = import_spec(&spec, "s", dir.path(), GroupBy::Tags).unwrap();
+            let name = created.file_name().unwrap().to_string_lossy().into_owned();
+            assert_eq!(preview(&spec).unwrap().folder_name, name, "{version} {title}");
+            assert!(!name.is_empty());
+        }
+    }
+    let dots = "openapi: 3.0.0\ninfo: {title: '..', version: '1'}\npaths: {}\n";
+    assert_eq!(preview(dots).unwrap().folder_name, "Untitled Collection");
+}
+
+#[tokio::test]
+async fn ef_imp_02_fetch_spec_refuses_a_spec_over_32_mb() {
+    let base = serve();
+    let announced = fetch_spec(&format!("{base}/announced")).await.unwrap_err();
+    assert!(announced.is_input() && announced.to_string().contains("réponse trop volumineuse"), "{announced}");
+    let streamed = fetch_spec(&format!("{base}/streamed")).await.unwrap_err();
+    assert!(streamed.to_string().contains("réponse trop volumineuse"), "{streamed}");
+    let just_fits = fetch_spec(&format!("{base}/limit")).await.unwrap();
+    assert_eq!(just_fits.len(), 32 << 20);
+
+    let dir = location();
+    let path = dir.path().join("huge.yaml");
+    fs::File::create(&path).unwrap().set_len((32 << 20) + 1).unwrap();
+    let error = fetch_spec(path.to_str().unwrap()).await.unwrap_err();
+    assert!(error.is_input() && error.to_string().contains("32 Mo"), "{error}");
+}
+
+#[test]
+fn ef_imp_01_a_new_request_cannot_take_a_name_the_tree_would_not_show() {
+    let dir = blank_collection();
+    fs::create_dir(dir.path().join("sub")).unwrap();
+    let curl = "curl https://x.test/a";
+    for name in ["folder.yml", "opencollection", "opencollection.yml", ".hidden", "con.txt", "Aux.yml", "..x"] {
+        for folder in ["", "sub"] {
+            let error = create_request_from_curl(dir.path(), folder, name, curl).unwrap_err();
+            assert!(matches!(error, ImportError::InvalidName(_)), "{folder:?} {name:?} : {error}");
+        }
+    }
+    for folder in ["", "sub"] {
+        create_request_from_curl(dir.path(), folder, "Fine", curl).unwrap();
+    }
+    assert_eq!(open_collection(dir.path()).unwrap().request_count, 2, "les requêtes créées sont montrées");
+}
+
+#[test]
+fn ef_imp_01_seq_counts_the_entries_the_tree_lists_without_reading_them() {
+    let dir = blank_collection();
+    let users = dir.path().join("users");
+    fs::create_dir_all(users.join("archive")).unwrap();
+    fs::create_dir_all(users.join(".git")).unwrap();
+    fs::create_dir_all(users.join("node_modules")).unwrap();
+    dummy_requests(&users, 2);
+    fs::write(users.join("broken.yml"), "{{ pas du yaml").unwrap();
+    fs::write(users.join(".secret.yml"), "info:\n  name: caché\n").unwrap();
+    fs::write(users.join("notes.txt"), "pas une requête").unwrap();
+    fs::write(users.join("folder.yml"), "info:\n  name: Users\n  type: folder\n").unwrap();
+    let created = create_request_from_curl(dir.path(), "users", "List", "curl https://x.test/users").unwrap();
+    let doc = read_request(dir.path(), &created).unwrap();
+    assert_eq!(doc.seq, Some(5), "archive, dummy-1, dummy-2 et broken.yml, plus un");
+}
+
+#[test]
+fn ef_imp_01_creation_is_exclusive_even_when_the_name_looks_free() {
+    let dir = blank_collection();
+    #[cfg(unix)]
+    {
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path().join("stolen.yml"), dir.path().join("Same.yml")).unwrap();
+        let error = create_request_from_curl(dir.path(), "", "Same", "curl https://x.test/a").unwrap_err();
+        assert!(matches!(&error, ImportError::AlreadyExists(p) if p == "Same.yml"), "{error}");
+        assert!(!outside.path().join("stolen.yml").exists(), "rien n'est écrit à travers le lien");
+
+        std::os::unix::fs::symlink(outside.path(), dir.path().join("leak")).unwrap();
+        let error = create_request_from_curl(dir.path(), "leak", "Out", "curl https://x.test/a").unwrap_err();
+        assert!(matches!(error, ImportError::Core(xc_core::CoreError::OutsideCollection(_))), "{error}");
+        assert_eq!(outside.path().read_dir().unwrap().count(), 0);
+    }
+    create_request_from_curl(dir.path(), "", "Once", "curl https://x.test/a").unwrap();
+}
+
+#[test]
+fn ef_imp_01_a_curl_command_over_2_mb_is_refused() {
+    let command = format!("curl https://x.test -d '{}'", "a".repeat(2 << 20));
+    assert!(request_doc_from_curl(&command).is_none());
+    let dir = blank_collection();
+    let error = create_request_from_curl(dir.path(), "", "Big", &command).unwrap_err();
+    assert!(matches!(error, ImportError::CurlTooLarge), "{error}");
+    assert!(error.to_string().contains("2 Mo"), "{error}");
+    let fits = format!("curl https://x.test -d '{}'", "a".repeat(1 << 20));
+    assert!(request_doc_from_curl(&fits).is_some());
+}
+
+#[test]
+fn ef_imp_01_pasting_hostile_curl_commands_does_not_freeze() {
+    let commands = [
+        ("truncated utf-8", format!("curl http://x.test -d 'a={}'", "%E3%81".repeat(3_000))),
+        ("shift-jis", format!("curl http://x.test -d 'text={}'", "%83%65%83%58%83%67".repeat(900))),
+        ("repeated key", format!("curl http://x.test -d '{}'", "a=b&".repeat(20_000))),
+        (
+            "distinct keys",
+            format!("curl http://x.test -d '{}'", (0..20_000).map(|i| format!("k{i}=v")).collect::<Vec<_>>().join("&")),
+        ),
+        ("repeated url key", format!("curl 'http://x.test/?{}'", "a=b&".repeat(20_000))),
+    ];
+    for (label, command) in commands {
+        let start = std::time::Instant::now();
+        assert!(request_doc_from_curl(&command).is_some(), "{label}");
+        assert!(start.elapsed().as_secs_f64() < 1.0, "{label} : {:?}", start.elapsed());
+    }
+}
+
+#[test]
+fn ef_imp_01_deeply_nested_json_bodies_neither_crash_nor_blow_up() {
+    let deep = |levels: usize| format!("{}{}", "[".repeat(levels), "]".repeat(levels));
+    let start = std::time::Instant::now();
+    let doc = request_doc_from_curl(&format!(
+        "curl https://x.test -H 'Content-Type: application/json' -d '{}'",
+        deep(100_000)
+    ))
+    .unwrap();
+    assert_eq!(doc.body, Body::Json { data: deep(100_000) }, "au-delà de 512 niveaux, le corps n'est pas mis en forme");
+    let shallow = request_doc_from_curl("curl https://x.test -H 'Content-Type: application/json' -d '[[1]]'").unwrap();
+    assert_eq!(shallow.body, Body::Json { data: "[\n  [\n    1\n  ]\n]".into() });
+
+    let dir = blank_collection();
+    let graphql = format!("curl https://x.test/graphql -H 'Content-Type: application/json' -d '{}'", deep(100_000));
+    let created = create_request_from_curl(dir.path(), "", "Deep", &graphql).unwrap();
+    assert_eq!(created, "Deep.yml");
+    assert!(start.elapsed().as_secs_f64() < 2.0, "{:?}", start.elapsed());
 }

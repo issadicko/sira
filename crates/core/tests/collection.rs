@@ -3,9 +3,9 @@ use std::fs;
 use std::path::Path;
 
 use xc_core::assert::{evaluate, ResponseView};
-use xc_core::collection::{resolve_path, write_atomic};
+use xc_core::collection::{count_entries, is_hidden, resolve_path, resolve_visible_path, write_atomic, write_new};
 use xc_core::vars::{Context, Scope};
-use xc_core::{open_collection, prepare, read_request, save_request, Assertion, TreeItem};
+use xc_core::{open_collection, prepare, read_request, save_request, Assertion, CoreError, TreeItem};
 
 fn write(root: &Path, rel: &str, text: &str) {
     let path = root.join(rel);
@@ -189,6 +189,124 @@ fn enf_comp_02_atomic_write_supports_names_at_the_filesystem_limit() {
     write_atomic(&path, "info:\n  name: long\n").unwrap();
     assert_eq!(fs::read_to_string(&path).unwrap(), "info:\n  name: long\n");
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn enf_comp_02_atomic_write_leaves_no_temporary_file_when_the_target_cannot_be_replaced() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("occupied");
+    fs::create_dir_all(target.join("inside")).unwrap();
+    assert!(write_atomic(&target, "info:\n  name: x\n").is_err());
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn ef_imp_01_write_new_never_overwrites_an_existing_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("a.yml");
+    write_new(&path, "premier").unwrap();
+    let error = write_new(&path, "second").unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+    assert_eq!(fs::read_to_string(&path).unwrap(), "premier");
+}
+
+#[cfg(unix)]
+#[test]
+fn ef_imp_01_write_new_refuses_a_dangling_symbolic_link_instead_of_writing_through_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (outside, link) = (dir.path().join("outside.yml"), dir.path().join("link.yml"));
+    std::os::unix::fs::symlink(&outside, &link).unwrap();
+    assert!(!link.exists(), "lien pendant");
+    assert_eq!(write_new(&link, "x").unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
+    assert!(!outside.exists());
+}
+
+#[test]
+fn ef_col_01_hidden_and_reserved_names_follow_what_the_tree_lists() {
+    for name in [".git", ".well-known", "node_modules", "folder.yml", "opencollection.yml"] {
+        assert!(is_hidden(name, false) && is_hidden(name, true), "{name}");
+    }
+    for name in ["environments", "mocks"] {
+        assert!(is_hidden(name, true) && !is_hidden(name, false), "{name}");
+    }
+    for name in ["Mocks", "users", "folder.yaml", "opencollection 1.yml", "mocks.yml"] {
+        assert!(!is_hidden(name, true), "{name}");
+    }
+
+    let dir = sample();
+    let root = dir.path();
+    write(root, "sub/folder.yml", "info:\n  name: Sub\n  type: folder\n");
+    write(root, "sub/opencollection.yml", "info:\n  name: caché\n");
+    write(root, "sub/.hidden.yml", "info:\n  name: caché\n");
+    write(root, "sub/mocks/in.yml", "info:\n  name: visible hors racine\n");
+    write(root, "mocks/out.yml", "info:\n  name: caché\n");
+    assert_eq!(open_collection(root).unwrap().request_count, 4);
+}
+
+#[test]
+fn ef_col_01_count_entries_counts_what_the_tree_lists() {
+    let dir = sample();
+    let root = dir.path();
+    write(root, "transactions/.hidden.yml", "info:\n  name: caché\n");
+    write(root, "transactions/notes.txt", "pas une requête");
+    write(root, "transactions/archive/old.yml", "info:\n  name: Old\n");
+    assert_eq!(count_entries(root, "").unwrap(), Some(2));
+    assert_eq!(count_entries(root, "transactions").unwrap(), Some(3));
+    assert_eq!(count_entries(root, "transactions/archive").unwrap(), Some(1));
+    for hidden in ["node_modules", "environments", "absent", "transactions/.hidden.yml"] {
+        assert_eq!(count_entries(root, hidden).unwrap(), None, "{hidden}");
+    }
+    let bare = tempfile::tempdir().unwrap();
+    assert!(matches!(count_entries(bare.path(), ""), Err(CoreError::NotACollection(_))));
+}
+
+#[cfg(unix)]
+#[test]
+fn ef_col_01_folder_symbolic_links_are_not_followed() {
+    let dir = sample();
+    let root = dir.path();
+    std::os::unix::fs::symlink(".", root.join("loop")).unwrap();
+    std::os::unix::fs::symlink(root.join("transactions"), root.join("alias")).unwrap();
+    std::os::unix::fs::symlink(root.join("transactions/liste.yml"), root.join("file-link.yml")).unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("o.yml"), "info:\n  name: dehors\n  type: http\n").unwrap();
+    std::os::unix::fs::symlink(outside.path().join("o.yml"), root.join("outside-link.yml")).unwrap();
+    let info = open_collection(root).unwrap();
+    assert_eq!(info.request_count, 4, "le lien de fichier vers la collection reste listé, pas celui qui en sort");
+    let names: Vec<_> = info.items.iter().map(|i| serde_json::to_value(i).unwrap()["path"].clone()).collect();
+    assert!(names.iter().all(|p| p != "loop" && p != "alias"), "{names:?}");
+    assert_eq!(count_entries(root, "").unwrap(), Some(3));
+    assert_eq!(count_entries(root, "loop").unwrap(), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_symbolic_links_cannot_lead_out_of_the_collection() {
+    let dir = sample();
+    let root = dir.path();
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("o.yml"), "info:\n  name: dehors\n  type: http\n").unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.join("leak")).unwrap();
+    std::os::unix::fs::symlink(outside.path().join("absent"), root.join("dangling")).unwrap();
+    std::os::unix::fs::symlink(root.join("auth"), root.join("inside")).unwrap();
+
+    for escape in ["leak", "leak/o.yml", "leak/new.yml", "leak/sub/new.yml", "dangling", "dangling/x.yml"] {
+        assert!(matches!(resolve_path(root, escape), Err(CoreError::OutsideCollection(_))), "{escape}");
+    }
+    assert!(matches!(read_request(root, "leak/o.yml"), Err(CoreError::OutsideCollection(_))));
+    assert!(resolve_path(root, "inside/connexion.yml").is_ok(), "un lien qui reste dans la collection est permis");
+    assert!(resolve_path(root, "auth/nouveau.yml").is_ok());
+}
+
+#[test]
+fn enf_sec_01_visible_paths_refuse_hidden_files() {
+    let dir = sample();
+    let root = dir.path();
+    for hidden in [".env", "./.env", "files/.env", ".git/config", "a/.oc-sync/openapi/source.yml"] {
+        assert!(matches!(resolve_visible_path(root, hidden), Err(CoreError::HiddenPath(_))), "{hidden}");
+    }
+    assert!(matches!(resolve_visible_path(root, "../x"), Err(CoreError::OutsideCollection(_))));
+    assert_eq!(resolve_visible_path(root, "./auth/connexion.yml").unwrap(), root.join("./auth/connexion.yml"));
 }
 
 #[test]

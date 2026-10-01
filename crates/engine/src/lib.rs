@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
+use hyper::body::Body as _;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
 use serde::Serialize;
@@ -19,6 +20,8 @@ pub struct HttpRequest {
     pub headers: Vec<(String, String)>,
     pub body: Option<Vec<u8>>,
     pub timeout: Duration,
+    /// Taille maximale, en octets, du corps de la réponse ; `None` ne la borne pas.
+    pub max_response_body: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
@@ -61,19 +64,20 @@ pub enum EngineError {
     Http(String),
     #[error("délai dépassé après {0} ms")]
     Timeout(u128),
+    #[error("réponse trop volumineuse : plus de {0} octets")]
+    ResponseTooLarge(u64),
 }
 
 const fn ms(d: Duration) -> f64 {
     d.as_secs_f64() * 1000.0
 }
 
-pub async fn send(request: &HttpRequest) -> Result<HttpResponse, EngineError> {
-    tokio::time::timeout(request.timeout, send_inner(request))
-        .await
-        .map_err(|_| EngineError::Timeout(request.timeout.as_millis()))?
+pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
+    let timeout = request.timeout;
+    tokio::time::timeout(timeout, send_inner(request)).await.map_err(|_| EngineError::Timeout(timeout.as_millis()))?
 }
 
-async fn send_inner(request: &HttpRequest) -> Result<HttpResponse, EngineError> {
+async fn send_inner(request: HttpRequest) -> Result<HttpResponse, EngineError> {
     let start = Instant::now();
     let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
     let secure = match url.scheme() {
@@ -140,7 +144,7 @@ async fn connect(addrs: &[SocketAddr]) -> Result<(TcpStream, SocketAddr), Engine
 async fn exchange<S>(
     stream: S,
     url: &Url,
-    request: &HttpRequest,
+    request: HttpRequest,
     timings: &mut Timings,
 ) -> Result<HttpResponse, EngineError>
 where
@@ -168,7 +172,7 @@ where
     for (k, v) in &request.headers {
         builder = builder.header(k.as_str(), v.as_str());
     }
-    let body = Full::new(Bytes::from(request.body.clone().unwrap_or_default()));
+    let body = Full::new(Bytes::from(request.body.unwrap_or_default()));
     let req = builder.body(body).map_err(|e| EngineError::Http(e.to_string()))?;
 
     let t = Instant::now();
@@ -184,7 +188,7 @@ where
         .collect();
 
     let t = Instant::now();
-    let body = response.into_body().collect().await.map_err(http_err)?.to_bytes().to_vec();
+    let body = read_body(response.into_body(), request.max_response_body).await?;
     timings.download_ms = ms(t.elapsed());
 
     Ok(HttpResponse {
@@ -196,4 +200,30 @@ where
         body,
         timings: timings.clone(),
     })
+}
+
+/// Texte d'un corps : l'UTF-8 valide est repris sans copie, sinon les octets invalides sont remplacés.
+pub fn lossy_text(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+}
+
+const PREALLOCATED_MAX: u64 = 64 << 20;
+
+/// Lit le corps morceau par morceau, en refusant dès que `Content-Length` ou les octets reçus dépassent `max`.
+async fn read_body(mut body: hyper::body::Incoming, max: Option<u64>) -> Result<Vec<u8>, EngineError> {
+    let too_large = |size: u64| max.filter(|max| size > *max).map(EngineError::ResponseTooLarge);
+    let announced = body.size_hint().lower();
+    if let Some(error) = too_large(announced) {
+        return Err(error);
+    }
+    let mut bytes = Vec::with_capacity(usize::try_from(announced.min(PREALLOCATED_MAX)).unwrap_or(0));
+    while let Some(frame) = body.frame().await {
+        let frame = frame.map_err(|e| EngineError::Http(e.to_string()))?;
+        let Ok(data) = frame.into_data() else { continue };
+        if let Some(error) = too_large((bytes.len() + data.len()) as u64) {
+            return Err(error);
+        }
+        bytes.extend_from_slice(&data);
+    }
+    Ok(bytes)
 }

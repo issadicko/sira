@@ -25,6 +25,9 @@ use content_type::{is_json_like, is_plain_text, is_xml_like};
 use json::JsonValue;
 use shell::Token;
 
+/// Taille maximale d'une commande acceptée : au-delà, la commande n'est pas reconnue.
+pub const MAX_COMMAND_BYTES: usize = 2 << 20;
+
 /// `getRequestFromCurlCommand(command)` : requête HTTP de Bruno, ou `None` si la commande n'est pas reconnue.
 pub fn request_from_curl(command: &str) -> Option<Value> {
     request_from_curl_typed(command, "http-request")
@@ -32,7 +35,7 @@ pub fn request_from_curl(command: &str) -> Option<Value> {
 
 /// `getRequestFromCurlCommand(command, requestType)` ; `graphql-request` produit un corps GraphQL.
 pub fn request_from_curl_typed(command: &str, request_type: &str) -> Option<Value> {
-    if command.is_empty() {
+    if command.is_empty() || command.len() > MAX_COMMAND_BYTES {
         return None;
     }
     let request = curl_to_json(command).ok()??;

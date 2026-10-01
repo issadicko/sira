@@ -1,7 +1,7 @@
 //! Tas de valeurs JavaScript nécessaire au port fidèle des convertisseurs de Bruno : les tableaux et objets
 //! gardent leur identité, avec les conversions et lectures de propriétés du langage.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use serde_json::Value;
@@ -31,9 +31,14 @@ enum Slot {
     Obj(Entries),
 }
 
+/// Nœuds que peut produire toute une conversion en exemples générés et en valeurs sérialisées : une spec où les
+/// `$ref` se multiplient en éventail en produirait un nombre exponentiel.
+const MAX_NODES: usize = 2_000_000;
+
 #[derive(Default)]
 pub struct Heap {
     slots: RefCell<Vec<Slot>>,
+    produced: Cell<usize>,
 }
 
 pub fn type_error(msg: impl Into<String>) -> OpenApiError {
@@ -109,6 +114,22 @@ impl Js {
 }
 
 impl Heap {
+    /// Compte `nodes` nœuds produits par une expansion ; un dépassement de la limite se signale par [`Heap::check`].
+    pub fn charge(&self, nodes: usize) {
+        self.produced.set(self.produced.get().saturating_add(nodes));
+    }
+
+    fn exhausted(&self) -> bool {
+        self.produced.get() > MAX_NODES
+    }
+
+    pub fn check(&self) -> R<()> {
+        if self.exhausted() {
+            return Err(type_error(format!("exemples trop volumineux : plus de {MAX_NODES} nœuds produits")));
+        }
+        Ok(())
+    }
+
     fn push(&self, slot: Slot) -> Id {
         let mut slots = self.slots.borrow_mut();
         slots.push(slot);
@@ -287,6 +308,10 @@ impl Heap {
     }
 
     fn write_string(&self, v: &Js, stack: &mut Vec<Id>, out: &mut String) {
+        self.charge(1);
+        if self.exhausted() {
+            return;
+        }
         match v {
             Js::Undef => out.push_str("undefined"),
             Js::Null => out.push_str("null"),
@@ -332,6 +357,8 @@ impl Heap {
     }
 
     fn value_of(&self, v: &Js, stack: &mut Vec<Id>) -> R<Option<Value>> {
+        self.charge(1);
+        self.check()?;
         Ok(Some(match v {
             Js::Undef => return Ok(None),
             Js::Null => Value::Null,

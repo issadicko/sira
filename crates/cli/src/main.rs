@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use xc_core::assert::{evaluate, ResponseView};
-use xc_core::collection::{COLLECTION_FILE, FOLDER_FILE};
+use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::{normalize, open_collection, prepare, read_request, TreeItem};
 use xc_sync::import::{fetch_spec, import_spec};
@@ -165,9 +165,10 @@ async fn run_one(root: &Path, path: &str, name: &str, env: Option<&str>, runtime
     if !prepared.unresolved.is_empty() {
         println!("  ! variables non résolues : {}", prepared.unresolved.join(", "));
     }
-    match xc_engine::send(&prepared.request).await {
+    let method = prepared.request.method.clone();
+    match xc_engine::send(prepared.request).await {
         Err(e) => {
-            println!("✗ {} {name}  {e}", prepared.request.method);
+            println!("✗ {method} {name}  {e}");
             false
         }
         Ok(res) => {
@@ -177,7 +178,7 @@ async fn run_one(root: &Path, path: &str, name: &str, env: Option<&str>, runtime
             println!(
                 "{} {} {name}  {} {}  {:.0} ms",
                 if ok { "✓" } else { "✗" },
-                prepared.request.method,
+                method,
                 res.status,
                 res.reason,
                 res.timings.total_ms
@@ -206,7 +207,7 @@ fn check(root: &Path) -> ExitCode {
     for file in &files {
         let rel = file.strip_prefix(root).unwrap_or(file).display();
         let Ok(text) = fs::read_to_string(file) else { continue };
-        let is_env = file.parent().and_then(Path::file_name).is_some_and(|d| d == "environments");
+        let is_env = file.parent().and_then(Path::file_name).is_some_and(|d| d == ENV_DIR);
         let blank: &[&str] = if is_env { &[] } else { BLANK_BEFORE };
         match normalize(&text, blank) {
             Ok(out) if out == text => same += 1,
@@ -238,7 +239,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         }
         if path.is_dir() {
             walk(&path, out);
-        } else if name.ends_with(".yml") || name == COLLECTION_FILE || name == FOLDER_FILE {
+        } else if name.ends_with(REQUEST_EXT) || name == COLLECTION_FILE || name == FOLDER_FILE {
             out.push(path);
         }
     }

@@ -17,7 +17,7 @@ use super::{GroupBy, R};
 pub const METHODS: [&str; 7] = ["get", "put", "post", "delete", "options", "head", "patch"];
 
 pub fn convert(h: &Heap, data: &Value, group_by: GroupBy) -> R<Value> {
-    let spec = resolve(h, data, Flavor::Swagger);
+    let spec = resolve(h, data, Flavor::Swagger)?;
     if !spec.truthy() {
         return Err(type_error("Invalid Swagger 2.0 specification. Failed to resolve refs."));
     }

@@ -57,6 +57,7 @@ pub fn to_bruno(spec: &Value, group_by: GroupBy) -> Result<Value, OpenApiError> 
     } else {
         v3::convert(&heap, spec, group_by)?
     };
+    heap.check()?;
     validate::collection(&collection)?;
     Ok(collection)
 }
