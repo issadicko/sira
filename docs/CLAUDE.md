@@ -11,6 +11,7 @@ Tu reprends un projet cadré dont le MVP (α, β, γ et δ : synchro OpenAPI à 
 
 ## Décisions déjà prises (ne pas rediscuter sans validation)
 
+- Nom du produit : **Sira** (« le chemin » en dioula et en bambara). Licence : MIT ou Apache-2.0, au choix. Dépôt public : `github.com/issadicko/sira`.
 - Stack : Rust (workspace Cargo `core`, `engine`, `script`, `sync`, `cli`, `app`) + Tauri 2. Front Angular zoneless avec signals, CodeMirror 6.
 - Format natif : **OpenCollection YAML**, strictement conforme à la spec publique de Bruno. Aucun champ propriétaire dans les fichiers de requête. Nos métadonnées vont dans `.oc-sync/`.
 - Scripts : QuickJS via `rquickjs`, API compatible Bruno (`bru`, `req`, `res`).
@@ -43,7 +44,4 @@ Gate 1 à franchir avant le MVP : un corpus de collections Bruno publiques est r
 
 ## Points ouverts
 
-- Nom du produit : non défini (`[NOM]` dans la maquette).
 - Taille de l'équipe : le planning (22 semaines jusqu'à la V1) suppose deux développeurs à temps plein, hypothèse non confirmée.
-- Bruno gère-t-il déjà une fusion OpenAPI non destructive ? À vérifier dans la doc Bruno avant de le présenter comme différenciant.
-- Crate YAML : `serde_yaml` est archivé, choisir une alternative maintenue au Lot 0.

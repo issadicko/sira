@@ -37,7 +37,7 @@ Même format que Bruno (OpenCollection YAML, un fichier par requête, aucun comp
 - Aucun champ propriétaire dans les fichiers de requête ; métadonnées dans `.oc-sync/`.
 - Zéro télémétrie, aucun appel sortant non demandé.
 - Interface en français et anglais, thèmes clair et sombre, raccourcis clavier, palette de commandes.
-- Nom du produit : non défini (`[NOM]`).
+- Nom du produit : **Sira** (décidé le 1er octobre 2026), « le chemin » en dioula et en bambara.
 
 ## Brand Commitments
 

@@ -1,4 +1,4 @@
-# [NOM] — client API desktop offline-first
+# Sira — client API desktop offline-first
 
 Client API compatible avec les collections Bruno (OpenCollection YAML) : un dossier, un fichier par requête, versionné avec Git, sans compte ni cloud. Moteur en Rust, fenêtre Tauri 2, interface Angular.
 
@@ -135,3 +135,7 @@ Les familles sont des préréglages hors ligne (Inter et JetBrains Mono, embarqu
 | Arbre : réordonner | ⌥↑ / ⌥↓ | Alt+↑ / Alt+↓ |
 
 Dans la palette : ↑ et ↓ pour naviguer (en boucle), ↵ pour exécuter, Échap pour fermer ; le préfixe `>` ne garde que les commandes. La recherche est floue (lettres dans l'ordre, sans casse ni accents) sur le nom, l'URL et le chemin du fichier des requêtes, dont l'URL vient de l'arbre de la collection sans relire les fichiers.
+
+## Licence
+
+Au choix, sous licence [MIT](LICENSE-MIT) ou [Apache 2.0](LICENSE-APACHE).

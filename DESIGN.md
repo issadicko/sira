@@ -1,5 +1,5 @@
 ---
-name: "[NOM] · Client API desktop"
+name: "Sira · Client API desktop"
 description: "Un IDE d'API sombre d'abord, en îlots : la donnée occupe l'écran, le chrome se tait."
 colors:
   frame: "#0c0c0f"
@@ -209,7 +209,7 @@ components:
     height: "20px"
 ---
 
-# Design System: [NOM] · Client API desktop
+# Design System: Sira · Client API desktop
 
 > Ce fichier décrit le monde visuel de la maquette v2 (`docs/design/maquette-v2/`). Pour tout nouveau travail, il **remplace** l'identité et les tokens v1 décrits dans `docs/design/README.md` (fond crème, cartes flottantes) ; ce README et la maquette v1 restent comme archive, non comme référence.
 
