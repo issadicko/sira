@@ -17,6 +17,7 @@ import { methodClass, shortMethod } from './ui/method';
 import { MoveDialog } from './ui/move-dialog';
 import { OpenApiDialog } from './ui/openapi-dialog';
 import { Palette } from './ui/palette';
+import { SettingsView } from './ui/settings-view';
 import { SyncSidebar } from './ui/sync-sidebar';
 import { SyncView } from './ui/sync-view';
 import { Tree } from './ui/tree';
@@ -38,6 +39,7 @@ import { Welcome } from './ui/welcome';
     EnvView,
     SyncSidebar,
     SyncView,
+    SettingsView,
     Welcome,
     VarPopover,
     Palette,
@@ -98,6 +100,7 @@ export class App {
       { id: 'view.sidebar', title: 'Afficher ou masquer la barre latérale', group: 'Affichage', icon: 'cols', keys: 'mod+b', when: opened, run: () => ws.sidebar.update((v) => !v) },
       { id: 'view.layout', title: 'Empiler ou juxtaposer requête et réponse', group: 'Affichage', icon: 'rows', keys: 'mod+\\', when: opened, run: () => ws.stacked.update((v) => !v) },
       { id: 'view.theme', title: 'Basculer le thème clair / sombre', group: 'Affichage', icon: 'sun', run: () => ws.toggleTheme() },
+      { id: 'view.settings', title: 'Ouvrir les réglages', group: 'Affichage', icon: 'settings', keys: 'mod+,', run: () => this.openSettings() },
       { id: 'palette.search', title: 'Rechercher une requête ou une commande', group: 'Palette', icon: 'search', keys: 'mod+k', run: () => this.openPalette('') },
       { id: 'palette.commands', title: 'Afficher toutes les commandes', group: 'Palette', icon: 'settings', keys: 'mod+shift+p', run: () => this.openPalette('>') },
     );
@@ -106,6 +109,11 @@ export class App {
   protected toggleView(view: View) {
     if (this.ws.view() === view) this.ws.sidebar.update((v) => !v);
     else this.show(view);
+  }
+
+  protected toggleSettings() {
+    if (this.ws.view() === 'settings') this.ws.closeSettings();
+    else this.openSettings();
   }
 
   protected togglePlusMenu(event: MouseEvent) {
@@ -149,6 +157,12 @@ export class App {
     };
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', up);
+  }
+
+  private openSettings() {
+    this.envMenu.set(false);
+    this.ws.hover.set(null);
+    this.ws.openSettings();
   }
 
   protected openPalette(query: string) {

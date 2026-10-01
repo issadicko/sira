@@ -175,3 +175,14 @@ test('ef_col_04_raccourcis_de_larbre_affichent_f2_cmd_d_et_la_suppression', () =
   assert.equal(shortcutLabel('mod+backspace', true), '⌘⌫');
   assert.equal(shortcutLabel('delete', false), 'Suppr');
 });
+
+test('ef_ux_03_raccourci_des_reglages_est_cmd_virgule_sur_macos_et_ctrl_virgule_ailleurs', () => {
+  assert.equal(shortcutLabel('mod+,', true), '⌘,');
+  assert.equal(shortcutLabel('mod+,', false), 'Ctrl+,');
+  assert.ok(matchesShortcut('mod+,', press(',', { meta: true }), true));
+  assert.ok(matchesShortcut('mod+,', press(',', { ctrl: true }), false));
+  assert.ok(!matchesShortcut('mod+,', press(',', { ctrl: true }), true));
+  assert.ok(!matchesShortcut('mod+,', press(','), true));
+  assert.ok(!matchesShortcut('mod+,', press(';', { meta: true }), true));
+  assert.ok(!matchesShortcut('mod+,', press(',', { ctrl: true, alt: true }), false));
+});

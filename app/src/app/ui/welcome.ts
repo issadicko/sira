@@ -36,6 +36,7 @@ import { Icon } from './icon';
         <p class="faint demo-note">Mode démo du navigateur : données synthétiques en mémoire. Le sélecteur de dossier est simulé : « Ouvrir un dossier » propose tour à tour la collection de démo, un dossier vide, un dossier non vide et un dossier .bru. Lance l'application Tauri pour travailler sur tes fichiers.</p>
       }
       <p class="faint principles"><app-ic name="search" [size]="13" /><span>Ouvrir, importer, changer de thème : tout passe par la palette de commandes <kbd class="kbd">{{ key('mod+k') }}</kbd></span></p>
+      <p class="faint principles"><app-ic name="settings" [size]="13" /><span>Thème, police et taille du texte : les réglages <kbd class="kbd">{{ key('mod+,') }}</kbd></span></p>
       <p class="faint principles"><app-ic name="disk" [size]="13" />Tout reste sur ton disque. Aucun compte, aucun appel réseau tant que tu n'envoies pas de requête.</p>
     </div>
   `,

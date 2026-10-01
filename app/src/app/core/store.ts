@@ -33,7 +33,8 @@ export interface Discard {
   resolve: (accepted: boolean) => void;
 }
 
-export type View = 'collections' | 'env' | 'sync';
+export type View = 'collections' | 'env' | 'sync' | 'settings';
+export type Theme = 'dark' | 'light';
 export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete' | 'move';
 
 /** Dossier existant, vide ou non, où l'on propose de créer une collection. */
@@ -83,7 +84,7 @@ export class Workspace {
   readonly stacked = signal(false);
   readonly filter = signal('');
   readonly recent = signal<string[]>(storage(RECENT_KEY, []));
-  readonly theme = signal<'dark' | 'light'>(document.documentElement.dataset['theme'] === 'light' ? 'light' : 'dark');
+  readonly theme = signal<Theme>(document.documentElement.dataset['theme'] === 'light' ? 'light' : 'dark');
   readonly toast = signal<string | null>(null);
   readonly toastError = signal(false);
   readonly dialog = signal<DialogKind | null>(null);
@@ -104,6 +105,7 @@ export class Workspace {
   private envSeq = 0;
   private varsSeq = 0;
   private requested = '';
+  private viewBeforeSettings: View = 'collections';
 
   isDirty(tab: Tab): boolean {
     return JSON.stringify(tab.doc) !== tab.saved;
@@ -116,15 +118,28 @@ export class Workspace {
     this.toastTimer = setTimeout(() => this.toast.set(null), error ? 5000 : 2600);
   }
 
-  toggleTheme() {
-    const next = this.theme() === 'dark' ? 'light' : 'dark';
-    this.theme.set(next);
-    document.documentElement.dataset['theme'] = next;
+  setTheme(theme: Theme) {
+    this.theme.set(theme);
+    document.documentElement.dataset['theme'] = theme;
     try {
-      localStorage.setItem('xc-theme', next);
+      localStorage.setItem('xc-theme', theme);
     } catch {
       /* stockage indisponible */
     }
+  }
+
+  toggleTheme() {
+    this.setTheme(this.theme() === 'dark' ? 'light' : 'dark');
+  }
+
+  openSettings() {
+    if (this.view() === 'settings') return;
+    this.viewBeforeSettings = this.view();
+    this.view.set('settings');
+  }
+
+  closeSettings() {
+    if (this.view() === 'settings') this.view.set(this.viewBeforeSettings);
   }
 
   /** Demande de confirmer la perte des modifications non enregistrées ; `answerDiscard` répond. */

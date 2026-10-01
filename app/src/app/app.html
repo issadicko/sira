@@ -63,7 +63,7 @@
   </header>
 
   @if (ws.collection(); as c) {
-    <div class="workbench" [class.no-sidebar]="!ws.sidebar()" [style.--sb.px]="sidebarWidth()">
+    <div class="workbench" [class.no-sidebar]="!ws.sidebar() || ws.view() === 'settings'" [style.--sb.px]="sidebarWidth()">
       <nav class="activity" aria-label="Vues">
         <button class="act" [attr.aria-current]="ws.view() === 'collections'" (click)="toggleView('collections')" title="Collections" aria-label="Collections"><app-ic name="layers" [size]="20" /></button>
         <button class="act" [attr.aria-current]="ws.view() === 'env'" (click)="toggleView('env')" title="Environnements et variables" aria-label="Environnements et variables"><app-ic name="variable" [size]="20" /></button>
@@ -74,7 +74,7 @@
           }
         </button>
         <span class="act-spacer"></span>
-        <button class="act" (click)="openPalette('>')" [title]="'Commandes et réglages (' + key('mod+shift+p') + ')'" aria-label="Commandes et réglages"><app-ic name="settings" [size]="19" /></button>
+        <button class="act" [attr.aria-current]="ws.view() === 'settings'" (click)="toggleSettings()" [title]="'Réglages (' + key('mod+,') + ')'" aria-label="Réglages"><app-ic name="settings" [size]="19" /></button>
       </nav>
       <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : 'Collection'">
         @if (ws.view() === 'collections') {
@@ -113,7 +113,7 @@
           }
         } @else if (ws.view() === 'sync') {
           @defer (on immediate) { <app-sync-sidebar /> }
-        } @else {
+        } @else if (ws.view() === 'env') {
           <div class="pane-head"><span class="pane-title">Environnements</span></div>
           <div class="sb-scroll">
             @for (e of c.environments; track e) {
@@ -135,6 +135,8 @@
           @defer (on immediate) { <app-env-view /> }
         } @else if (ws.view() === 'sync') {
           @defer (on immediate) { <app-sync-view /> }
+        } @else if (ws.view() === 'settings') {
+          @defer (on immediate) { <app-settings-view /> }
         } @else {
           <app-editor />
         }
@@ -142,7 +144,13 @@
     </div>
   } @else {
     <div class="workbench solo">
-      <app-welcome />
+      @if (ws.view() === 'settings') {
+        <main class="island editor">
+          @defer (on immediate) { <app-settings-view /> }
+        </main>
+      } @else {
+        <app-welcome />
+      }
     </div>
   }
 
