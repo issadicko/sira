@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Authentifications
+  version: '1'
+security:
+  - missing: []
+  - queryKey: []
+components:
+  securitySchemes:
+    queryKey: { type: apiKey, in: query, name: api_key, description: Clé en query }
+    headerKey: { type: apiKey, in: header, name: X-API-Key }
+    cookieKey: { type: apiKey, in: cookie, name: session }
+    basicAuth: { type: http, scheme: basic }
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    BearerCaps: { type: http, scheme: Bearer }
+    digestAuth: { type: http, scheme: digest }
+    mtls: { type: mutualTLS }
+    oidc: { type: openIdConnect, openIdConnectUrl: https://id.example.com/.well-known }
+    codeFlow:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/token
+          refreshUrl: https://auth.example.com/refresh
+          scopes: { read: Lire, write: Écrire }
+        implicit:
+          authorizationUrl: https://auth.example.com/implicit
+          scopes: {}
+    implicitFlow:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://auth.example.com/implicit
+          scopes: { 'pets:read': lire }
+    passwordFlow:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: https://auth.example.com/token
+          scopes: [a, b]
+    clientFlow:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/cc
+    noFlow:
+      type: oauth2
+paths:
+  /global:
+    get:
+      summary: Sécurité globale
+      responses: { '200': { description: ok } }
+  /none:
+    get:
+      summary: Sans sécurité
+      security: []
+      responses: { '200': { description: ok } }
+  /query:
+    get:
+      summary: Clé en query
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+      security: [{ queryKey: [] }]
+      responses: { '200': { description: ok } }
+  /header:
+    get:
+      summary: Clé en en-tête
+      security: [{ headerKey: [] }, { basicAuth: [] }]
+      responses: { '200': { description: ok } }
+  /cookie:
+    get:
+      summary: Clé en cookie
+      security: [{ cookieKey: [] }]
+      responses: { '200': { description: ok } }
+  /basic:
+    get:
+      summary: Basic
+      security: [{ basicAuth: [], bearerAuth: [] }]
+      responses: { '200': { description: ok } }
+  /bearer:
+    get:
+      summary: Bearer
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: ok } }
+  /bearer-caps:
+    get:
+      summary: Bearer en majuscules
+      security: [{ BearerCaps: [] }]
+      responses: { '200': { description: ok } }
+  /digest:
+    get:
+      summary: Digest
+      security: [{ digestAuth: [] }]
+      responses: { '200': { description: ok } }
+  /mtls:
+    get:
+      summary: mTLS et OIDC
+      security: [{ mtls: [] }, { oidc: [] }]
+      responses: { '200': { description: ok } }
+  /code:
+    get:
+      summary: OAuth2 code
+      security: [{ codeFlow: [read] }]
+      responses: { '200': { description: ok } }
+  /implicit:
+    get:
+      summary: OAuth2 implicite
+      security: [{ implicitFlow: [] }]
+      responses: { '200': { description: ok } }
+  /password:
+    get:
+      summary: OAuth2 mot de passe
+      security: [{ passwordFlow: [] }]
+      responses: { '200': { description: ok } }
+  /client:
+    get:
+      summary: OAuth2 client
+      security: [{ clientFlow: [] }]
+      responses: { '200': { description: ok } }
+  /noflow:
+    get:
+      summary: OAuth2 sans flux
+      security: [{ noFlow: [] }]
+      responses: { '200': { description: ok } }
+  /unknown:
+    get:
+      summary: Schéma inconnu
+      security: [{ nope: [] }]
+      responses: { '200': { description: ok } }
+  /empty-requirement:
+    get:
+      summary: Exigence vide
+      security: [{}]
+      responses: { '200': { description: ok } }

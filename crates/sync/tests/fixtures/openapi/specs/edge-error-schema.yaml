@@ -1,0 +1,11 @@
+openapi: 3.0.0
+info:
+  title: Description numérique
+  version: '1'
+paths:
+  /a:
+    get:
+      summary: Paramètre invalide pour le schéma Bruno
+      parameters:
+        - { name: q, in: query, description: 42, schema: { type: string } }
+      responses: { '200': { description: ok } }
