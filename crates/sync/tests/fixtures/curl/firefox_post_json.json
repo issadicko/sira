@@ -1,0 +1,52 @@
+{
+  "url": "https://api.example.com/graphql",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"operationName\": \"Me\",\n  \"variables\": {},\n  \"query\": \"query Me { me { id name } }\"\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Accept-Encoding",
+      "value": "deflate, gzip",
+      "enabled": true
+    },
+    {
+      "name": "User-Agent",
+      "value": "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
+      "enabled": true
+    },
+    {
+      "name": "Accept",
+      "value": "*/*",
+      "enabled": true
+    },
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    },
+    {
+      "name": "Origin",
+      "value": "https://app.example.com",
+      "enabled": true
+    },
+    {
+      "name": "Connection",
+      "value": "keep-alive",
+      "enabled": true
+    },
+    {
+      "name": "Cookie",
+      "value": "sid=abc123; theme=dark",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "url": "https://api.example.com/users?top=10&filter=name%20eq%20%22Ada%22",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  }
+}

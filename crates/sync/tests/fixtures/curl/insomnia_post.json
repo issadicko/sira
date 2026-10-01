@@ -1,0 +1,27 @@
+{
+  "url": "https://api.example.com/v1/tickets",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"subject\": \"Panne\",\n  \"priority\": \"high\"\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Authorization",
+      "value": "Basic YWRhOnB3ZA==",
+      "enabled": true
+    },
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

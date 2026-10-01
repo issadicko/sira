@@ -1,0 +1,38 @@
+{
+  "url": "https://api.example.com/login",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "username",
+        "value": "ada@example.com",
+        "enabled": true
+      },
+      {
+        "name": "password",
+        "value": "s3cr3t",
+        "enabled": true
+      },
+      {
+        "name": "!",
+        "value": "",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/x-www-form-urlencoded",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/v1/messages",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"text\": \"Il a dit \\\"bonjour\\\"\",\n  \"price\": \"$5\"\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

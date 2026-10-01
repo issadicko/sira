@@ -1,0 +1,22 @@
+{
+  "url": "https://intranet.example.com/",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "auth": {
+    "mode": "ntlm",
+    "ntlm": {
+      "username": "CORP\\\\ada",
+      "password": "Passw0rd"
+    }
+  }
+}

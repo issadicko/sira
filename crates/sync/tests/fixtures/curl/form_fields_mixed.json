@@ -1,0 +1,41 @@
+{
+  "url": "https://api.example.com/profile",
+  "method": "post",
+  "body": {
+    "mode": "multipartForm",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": [
+      {
+        "name": "name",
+        "value": "Ada",
+        "type": "text",
+        "enabled": true
+      },
+      {
+        "name": "avatar",
+        "value": "avatar.png;type=image/png",
+        "type": "file",
+        "enabled": true
+      },
+      {
+        "name": "bio",
+        "value": "Mathématicienne",
+        "type": "text",
+        "enabled": true
+      }
+    ],
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "multipart/form-data",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "url": "https://upload.example.com/archives",
+  "method": "post",
+  "body": {
+    "mode": "file",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": [
+      {
+        "filePath": "/tmp/archive.tar.gz",
+        "contentType": "application/gzip",
+        "selected": true
+      }
+    ]
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/gzip",
+      "enabled": true
+    }
+  ]
+}

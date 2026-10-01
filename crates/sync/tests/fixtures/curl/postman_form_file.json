@@ -1,0 +1,46 @@
+{
+  "url": "https://api.example.com/v1/documents",
+  "method": "post",
+  "body": {
+    "mode": "multipartForm",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": [
+      {
+        "name": "title",
+        "value": "Facture mars",
+        "type": "text",
+        "enabled": true
+      },
+      {
+        "name": "file",
+        "value": "/Users/ada/Documents/facture.pdf",
+        "type": "file",
+        "enabled": true
+      },
+      {
+        "name": "category",
+        "value": "billing",
+        "type": "text",
+        "enabled": true
+      }
+    ],
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "X-Api-Key",
+      "value": "{{apiKey}}",
+      "enabled": true
+    },
+    {
+      "name": "Content-Type",
+      "value": "multipart/form-data",
+      "enabled": true
+    }
+  ]
+}

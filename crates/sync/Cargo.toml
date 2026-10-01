@@ -6,6 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+idna = "1"
+idna_adapter = { version = "1.2", features = ["compiled_data"] }
 regex = "1"
 serde.workspace = true
 serde_json.workspace = true

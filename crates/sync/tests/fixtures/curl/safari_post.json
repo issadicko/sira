@@ -1,0 +1,37 @@
+{
+  "url": "https://api.example.com/v2/items",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"sku\": \"A-42\",\n  \"quantity\": 3\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    },
+    {
+      "name": "Accept",
+      "value": "application/json",
+      "enabled": true
+    },
+    {
+      "name": "Origin",
+      "value": "https://www.example.com",
+      "enabled": true
+    },
+    {
+      "name": "User-Agent",
+      "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+      "enabled": true
+    }
+  ]
+}

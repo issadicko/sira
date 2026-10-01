@@ -1,0 +1,22 @@
+{
+  "url": "https://cdn.example.com/upload",
+  "method": "post",
+  "body": {
+    "mode": "xml",
+    "json": null,
+    "text": null,
+    "xml": "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "image/svg+xml",
+      "enabled": true
+    }
+  ]
+}

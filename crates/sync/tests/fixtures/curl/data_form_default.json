@@ -1,0 +1,39 @@
+{
+  "url": "https://api.example.com/form",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "name",
+        "value": "Ada",
+        "enabled": true
+      },
+      {
+        "name": "lang",
+        "value": [
+          "fr",
+          "en"
+        ],
+        "enabled": true
+      },
+      {
+        "name": "empty",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "name": "flag",
+        "value": "",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

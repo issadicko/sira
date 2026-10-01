@@ -1,0 +1,27 @@
+{
+  "url": "https://api.example.com/v1/customers",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"firstName\": \"Ada\",\n  \"lastName\": \"Lovelace\",\n  \"tags\": [\n    \"vip\",\n    \"beta\"\n  ]\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    },
+    {
+      "name": "Authorization",
+      "value": "Bearer {{token}}",
+      "enabled": true
+    }
+  ]
+}

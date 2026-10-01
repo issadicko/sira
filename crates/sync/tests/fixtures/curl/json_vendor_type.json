@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/articles",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"data\": {\n    \"type\": \"articles\",\n    \"id\": \"1\"\n  }\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/vnd.api+json",
+      "enabled": true
+    }
+  ]
+}

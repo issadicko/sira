@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/unicode",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"ville\": \"Zürich\",\n  \"salutation\": \"こんにちは\",\n  \"emoji\": \"🚀\"\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json; charset=utf-8",
+      "enabled": true
+    }
+  ]
+}

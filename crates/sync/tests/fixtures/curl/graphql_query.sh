@@ -1,0 +1,1 @@
+curl 'https://api.example.com/graphql' -H 'content-type: application/json' --data-raw '{"query":"query Users($first: Int) { users(first: $first) { id name } }","variables":{"first":10,"after":null},"operationName":"Users"}'

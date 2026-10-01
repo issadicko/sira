@@ -1,0 +1,41 @@
+{
+  "url": "https://api.example.com/v1/reports",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Authorization",
+      "value": "Bearer abc.def.ghi",
+      "enabled": true
+    },
+    {
+      "name": "X-Request-ID",
+      "value": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+      "enabled": true
+    },
+    {
+      "name": "X-Empty:",
+      "enabled": true
+    },
+    {
+      "name": "X-Spaces",
+      "value": "padded value   ",
+      "enabled": true
+    },
+    {
+      "name": "Accept",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

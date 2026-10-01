@@ -1,0 +1,22 @@
+{
+  "url": "https://self-signed.example.com/api",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Accept-Encoding",
+      "value": "deflate, gzip",
+      "enabled": true
+    }
+  ]
+}

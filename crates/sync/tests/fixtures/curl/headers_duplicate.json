@@ -1,0 +1,27 @@
+{
+  "url": "https://api.example.com/tags",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "X-Tag",
+      "value": "two",
+      "enabled": true
+    },
+    {
+      "name": "x-tag",
+      "value": "three",
+      "enabled": true
+    }
+  ]
+}

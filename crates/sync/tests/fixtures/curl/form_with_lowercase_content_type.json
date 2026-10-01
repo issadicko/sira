@@ -1,0 +1,38 @@
+{
+  "url": "https://api.example.com/odd-form",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "0",
+        "value": {
+          "name": "a",
+          "value": "1",
+          "type": "text",
+          "enabled": true
+        },
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "content-type",
+      "value": "application/x-www-form-urlencoded",
+      "enabled": true
+    },
+    {
+      "name": "Content-Type",
+      "value": "multipart/form-data",
+      "enabled": true
+    }
+  ]
+}

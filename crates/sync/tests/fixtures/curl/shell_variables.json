@@ -1,0 +1,27 @@
+{
+  "url": "https://api.example.com/env",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Authorization",
+      "value": "Bearer ",
+      "enabled": true
+    },
+    {
+      "name": "X-Home",
+      "value": " ",
+      "enabled": true
+    }
+  ]
+}

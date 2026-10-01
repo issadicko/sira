@@ -4907,6 +4907,8 @@ dependencies = [
 name = "xc-sync"
 version = "0.1.0"
 dependencies = [
+ "idna",
+ "idna_adapter",
  "regex",
  "serde",
  "serde_json",
