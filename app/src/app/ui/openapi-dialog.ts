@@ -95,7 +95,7 @@ const GROUPINGS: { value: GroupBy; label: string; hint: string }[] = [
         <section class="fld">
           <div class="sec-head"><span class="sec-title">Dossier parent</span><span class="sec-meta">la collection y est créée dans un nouveau dossier</span></div>
           <div class="row-fields">
-            <span class="input mono path-box" [class.empty]="!parent()" [title]="parent() ?? ''">{{ parent() ?? 'Aucun dossier choisi' }}</span>
+            <span class="input mono path-box" [class.is-empty]="!parent()" [title]="parent() ?? ''">{{ parent() ?? 'Aucun dossier choisi' }}</span>
             <button class="btn" (click)="chooseParent()"><app-ic name="folder-open" [size]="14" />Choisir…</button>
           </div>
           @if (target(); as t) {
@@ -103,7 +103,7 @@ const GROUPINGS: { value: GroupBy; label: string; hint: string }[] = [
           }
         </section>
 
-        <p class="hint"><app-ic name="disk" [size]="13" /><span>La spec d'origine et un instantané sont gardés dans <span class="mono">.oc-sync/</span> pour la future synchronisation.</span></p>
+        <p class="hint"><app-ic name="disk" [size]="13" /><span>La source de la spec et un instantané de chaque opération sont gardés dans <span class="mono">.oc-sync/</span> pour la future synchronisation.</span></p>
       }
 
       @if (importError(); as e) {
@@ -125,7 +125,7 @@ const GROUPINGS: { value: GroupBy; label: string; hint: string }[] = [
     .row-fields { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
     .row-fields .input { flex: 1 1 220px; min-width: 0; }
     .path-box { display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .path-box.empty { color: var(--faint); font-family: var(--font-ui); }
+    .path-box.is-empty { color: var(--faint); font-family: var(--font-ui); }
     .spec-card { border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
     .spec-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
     .spec-title { font-weight: 600; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 2px; }
