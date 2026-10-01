@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
+import { shortcutLabel } from '../core/commands';
 import { Workspace } from '../core/store';
 import { Icon } from './icon';
 
@@ -13,9 +14,12 @@ import { Icon } from './icon';
       <span class="mark big" aria-hidden="true"><app-ic name="bolt" [size]="22" /></span>
       <h1>Ouvre une collection</h1>
       <p>Un dossier qui contient <span class="mono">opencollection.yml</span>. Les collections Bruno s'ouvrent telles quelles, sans import : même format, mêmes fichiers, même dépôt Git.</p>
-      <button class="btn-primary lg" (click)="ws.pickAndOpen()" [disabled]="ws.loading()">
-        <app-ic name="folder-open" [size]="16" />{{ ws.loading() ? 'Ouverture…' : 'Ouvrir un dossier' }}
-      </button>
+      <div class="actions">
+        <button class="btn-primary lg" (click)="ws.pickAndOpen()" [disabled]="ws.loading()">
+          <app-ic name="folder-open" [size]="16" />{{ ws.loading() ? 'Ouverture…' : 'Ouvrir un dossier' }}
+        </button>
+        <button class="btn lg" (click)="ws.dialog.set('openapi')" [disabled]="ws.loading()"><app-ic name="import" [size]="16" />Importer une spec OpenAPI…</button>
+      </div>
       @if (ws.error(); as e) {
         <div class="banner err"><app-ic name="alert" [size]="15" /><span>{{ e }}</span></div>
       }
@@ -30,6 +34,7 @@ import { Icon } from './icon';
       @if (ws.demo) {
         <p class="faint demo-note">Mode démo du navigateur : données synthétiques en mémoire. Lance l'application Tauri pour travailler sur tes fichiers.</p>
       }
+      <p class="faint principles"><app-ic name="search" [size]="13" /><span>Ouvrir, importer, changer de thème : tout passe par la palette de commandes <kbd class="kbd">{{ key('mod+k') }}</kbd></span></p>
       <p class="faint principles"><app-ic name="disk" [size]="13" />Tout reste sur ton disque. Aucun compte, aucun appel réseau tant que tu n'envoies pas de requête.</p>
     </div>
   `,
@@ -39,15 +44,18 @@ import { Icon } from './icon';
     .mark.big { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 6px; }
     h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
     p { margin: 0; color: var(--muted); max-width: 60ch; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .recent { width: 100%; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
     .recent .file-row { width: 100%; margin: 0; }
     .err { background: var(--bad-soft); color: var(--bad); margin: 0; }
-    .principles { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 8px; }
+    .principles { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; margin-top: 8px; }
+    .principles .ic { margin-top: 2px; }
     .demo-note { font-size: 12px; }
   `,
 })
 export class Welcome {
   protected readonly ws = inject(Workspace);
+  protected readonly key = shortcutLabel;
 
   protected last(path: string) {
     return path.split(/[\\/]/).filter(Boolean).pop() ?? path;

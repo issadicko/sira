@@ -1,5 +1,5 @@
 import type { Api } from './api';
-import { CollectionInfo, KeyValue, Param, RequestDoc, Rung, SendResult, VariableInfo } from './model';
+import { CollectionInfo, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -25,10 +25,24 @@ const doc = (name: string, method: string, url: string, extra: Partial<RequestDo
 const pathParam = (name: string, value: string): Param => ({ name, value, kind: 'path', enabled: true });
 const header = (name: string, value: string): KeyValue => ({ name, value, enabled: true });
 
+const desktopOnly = (): Promise<never> => Promise.reject("Disponible dans l'application desktop");
+
 const files: Record<string, RequestDoc> = {
   'auth/connexion.yml': doc('Connexion', 'POST', '{{baseUrl}}/auth/connexion', {
     auth: { type: 'none' },
     body: { type: 'json', data: '{\n  "identifiant": "caisse-ouaga-01",\n  "motDePasse": "{{process.env.PSP_PASSWORD}}"\n}' },
+  }),
+  'auth/jeton.yml': doc('Jeton OAuth', 'POST', '{{baseUrl}}/auth/jeton', {
+    auth: { type: 'none' },
+    body: {
+      type: 'form-urlencoded',
+      fields: [
+        { name: 'grant_type', value: 'client_credentials', enabled: true, description: null },
+        { name: 'client_id', value: 'caisse-ouaga-01', enabled: true, description: 'Identifiant de la caisse' },
+        { name: 'client_secret', value: '{{process.env.PSP_SECRET}}', enabled: true, description: null },
+        { name: 'scope', value: 'transactions:lire', enabled: false, description: null },
+      ],
+    },
   }),
   'transactions/liste.yml': doc('Liste des transactions', 'GET', '{{baseUrl}}/transactions?page=1&statut=CONFIRMEE', {
     params: [
@@ -48,26 +62,40 @@ const files: Record<string, RequestDoc> = {
     params: [pathParam('id', '{{txId}}')],
     body: { type: 'json', data: '{\n  "motif": "Erreur de saisie",\n  "canal": "USSD"\n}' },
   }),
+  'transactions/justificatif.yml': doc('Joindre un justificatif', 'POST', '{{baseUrl}}/transactions/:id/justificatif', {
+    params: [pathParam('id', '{{txId}}')],
+    body: {
+      type: 'multipart-form',
+      fields: [
+        { name: 'motif', kind: 'text', value: 'Reçu client', enabled: true, contentType: null, description: null },
+        { name: 'justificatif', kind: 'file', value: ['pieces/recu-0042.pdf'], enabled: true, contentType: 'application/pdf', description: null },
+        { name: 'annexes', kind: 'file', value: ['pieces/photo-caisse.jpg', '../partage/signature.png'], enabled: true, contentType: null, description: null },
+        { name: 'commentaire', kind: 'text', value: '', enabled: false, contentType: null, description: null },
+      ],
+    },
+  }),
   [EXPORT]: doc('Export des transactions (10 Mo)', 'GET', '{{baseUrl}}/transactions/export'),
 };
+
+function treeRequest(path: string): TreeItem {
+  const { name, method, url } = files[path];
+  return { kind: 'request', path, name, method, requestType: 'http', url };
+}
 
 const collection: CollectionInfo = {
   root: ROOT,
   name: 'API Paiements (démo)',
   environments: ['dev', 'prod'],
   defaultEnvironment: 'dev',
-  requestCount: 5,
+  requestCount: 7,
   items: [
-    { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: [{ kind: 'request', path: 'auth/connexion.yml', name: 'Connexion', method: 'POST', requestType: 'http' }] },
+    { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: ['connexion', 'jeton'].map((f) => treeRequest(`auth/${f}.yml`)) },
     {
       kind: 'folder',
       path: 'transactions',
       name: 'Transactions',
       seq: 2,
-      children: ['liste', 'detail', 'annuler', 'export'].map((f) => {
-        const path = `transactions/${f}.yml`;
-        return { kind: 'request' as const, path, name: files[path].name, method: files[path].method, requestType: 'http' };
-      }),
+      children: ['liste', 'detail', 'annuler', 'justificatif', 'export'].map((f) => treeRequest(`transactions/${f}.yml`)),
     },
   ],
 };
@@ -125,11 +153,26 @@ function payload(path: string): { body: string; pretty: string } {
   return exported;
 }
 
+const SPEC: OpenApiPreview = {
+  folderName: 'Petstore (démo)',
+  summary: {
+    title: 'Petstore (démo)',
+    version: '1.0.0',
+    format: 'openapi',
+    formatVersion: '3.0.3',
+    operationCount: 19,
+    tags: ['pets', 'boutique', 'utilisateurs'],
+    servers: ['https://petstore.example/v1', 'https://recette.petstore.example/v1'],
+  },
+};
+
 const timers = new Map<string, () => void>();
 
 export const demoApi: Api = {
   demo: true,
   pickFolder: async () => ROOT,
+  pickSpecFile: async () => '~/démo/petstore.yaml',
+  pickFile: async () => `${ROOT}/pieces/recu-0043.pdf`,
   openCollection: async () => structuredClone(collection),
   readRequest: async (_root, path) => structuredClone(files[path]),
   saveRequest: async (_root, path, d) => {
@@ -181,4 +224,8 @@ export const demoApi: Api = {
     timers.get(id)?.();
     return timers.delete(id);
   },
+  parseCurl: desktopOnly,
+  createRequestFromCurl: desktopOnly,
+  previewOpenApi: async () => structuredClone(SPEC),
+  importOpenApi: desktopOnly,
 };

@@ -144,4 +144,12 @@
 
 <app-var-popover />
 <app-palette />
-<div class="toast" [class.show]="!!ws.toast()" role="status" aria-live="polite"><app-ic name="check-circle" [size]="15" /><span>{{ ws.toast() }}</span></div>
+@switch (ws.dialog()) {
+  @case ('curl') {
+    <app-curl-dialog />
+  }
+  @case ('openapi') {
+    <app-openapi-dialog />
+  }
+}
+<div class="toast" [class.show]="!!ws.toast()" [class.error]="ws.toastError()" role="status" aria-live="polite"><app-ic [name]="ws.toastError() ? 'alert' : 'check-circle'" [size]="15" /><span>{{ ws.toast() }}</span></div>

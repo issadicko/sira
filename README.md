@@ -64,11 +64,21 @@ cargo test --workspace
 
 Chaque test porte l'identifiant de l'exigence qu'il couvre (`ef_req_01_…`, `enf_comp_02_…`). Les fixtures de `crates/core/tests/fixtures` ont été produites par le sérialiseur de Bruno lui-même (`yaml` 2.3.4, mêmes options), ce qui garantit un aller-retour octet pour octet.
 
-La logique pure de l'interface (recherche floue, registre de commandes) a ses tests, même convention (`ef_ux_01_…`), lancés par Node.js 22.18 ou plus sans dépendance :
+La logique pure de l'interface (recherche floue, registre de commandes, collage cURL, chemins de fichiers, corps de formulaire) a ses tests, même convention (`ef_ux_01_…`, `ef_imp_01_…`, `ef_req_02_…`), lancés par Node.js 22.18 ou plus sans dépendance, et par la CI :
 
 ```bash
-cd app && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test 'src/**/*.spec.ts'
+cd app && npm test
 ```
+
+C'est un raccourci pour `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test "src/**/*.spec.ts"`.
+
+## Importer
+
+- **Coller un cURL** dans la barre d'URL : une commande qui commence par `curl` n'est pas collée telle quelle, elle est analysée comme Bruno le fait puis appliquée à la requête ouverte (URL, méthode, puis en-têtes, corps et authentification s'ils sont présents). L'onglet passe à « non enregistré ».
+- **Nouvelle requête depuis cURL…** (palette ⌘⇧P, ou écran « Aucune requête ouverte ») : crée un fichier de requête dans le dossier choisi de la collection.
+- **Importer une spec OpenAPI…** (palette ⌘⇧P, écran d'accueil ou « Aucune requête ouverte ») : OpenAPI 3.0 / 3.1 ou Swagger 2.0, fichier `.yaml`, `.yml`, `.json` ou URL ; aperçu, regroupement par tags ou par chemins, puis nouvelle collection dans le dossier parent choisi. La spec d'origine et un instantané sont gardés dans `.oc-sync/`.
+
+Dans le navigateur (`npm start`), ces actions sont limitées à un aperçu : l'analyse et l'écriture se font dans l'application desktop.
 
 ## Raccourcis
 
@@ -85,4 +95,4 @@ cd app && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test 'src/**/*.s
 | Barre latérale | ⌘B | Ctrl+B |
 | Empiler requête / réponse | ⌘\ | Ctrl+\ |
 
-Dans la palette : ↑ et ↓ pour naviguer (en boucle), ↵ pour exécuter, Échap pour fermer ; le préfixe `>` ne garde que les commandes. La recherche est floue (lettres dans l'ordre, sans casse ni accents) sur le nom, l'URL et le chemin du fichier des requêtes.
+Dans la palette : ↑ et ↓ pour naviguer (en boucle), ↵ pour exécuter, Échap pour fermer ; le préfixe `>` ne garde que les commandes. La recherche est floue (lettres dans l'ordre, sans casse ni accents) sur le nom, l'URL et le chemin du fichier des requêtes, dont l'URL vient de l'arbre de la collection sans relire les fichiers.

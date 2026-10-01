@@ -1,6 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { api } from './api';
+import { withCurl } from './curl';
 import { CollectionInfo, EnvVar, RequestDoc, SendResult, TreeItem, VariableInfo } from './model';
 import { withParams, withUrl } from './url';
 
@@ -24,6 +25,7 @@ export interface HistoryEntry {
 }
 
 export type View = 'collections' | 'env';
+export type Dialog = 'curl' | 'openapi';
 
 const RECENT_KEY = 'xc-recent';
 
@@ -64,6 +66,8 @@ export class Workspace {
   readonly recent = signal<string[]>(storage(RECENT_KEY, []));
   readonly theme = signal<'dark' | 'light'>(document.documentElement.dataset['theme'] === 'light' ? 'light' : 'dark');
   readonly toast = signal<string | null>(null);
+  readonly toastError = signal(false);
+  readonly dialog = signal<Dialog | null>(null);
   readonly hover = signal<{ name: string; rect: DOMRect } | null>(null);
   /** Saisie de la palette de commandes ; `null` quand elle est fermée. */
   readonly palette = signal<string | null>(null);
@@ -78,10 +82,11 @@ export class Workspace {
     return JSON.stringify(tab.doc) !== tab.saved;
   }
 
-  notify(message: string) {
+  notify(message: string, error = false) {
     this.toast.set(message);
+    this.toastError.set(error);
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 2600);
+    this.toastTimer = setTimeout(() => this.toast.set(null), error ? 5000 : 2600);
   }
 
   toggleTheme() {
@@ -100,7 +105,7 @@ export class Workspace {
     if (root) await this.open(root);
   }
 
-  async open(root: string) {
+  async open(root: string): Promise<boolean> {
     this.loading.set(true);
     this.error.set(null);
     try {
@@ -116,8 +121,10 @@ export class Workspace {
       await this.loadEnv();
       const first = firstRequest(c.items);
       if (first) await this.openRequest(first, true);
+      return true;
     } catch (e) {
       this.error.set(String(e));
+      return false;
     } finally {
       this.loading.set(false);
     }
@@ -141,6 +148,11 @@ export class Workspace {
     await this.loadEnv();
   }
 
+  reveal(path: string) {
+    const folders = path.split('/').slice(0, -1);
+    this.openFolders.update((open) => new Set([...open, ...folders.map((_, i) => folders.slice(0, i + 1).join('/'))]));
+  }
+
   toggleFolder(path: string) {
     const next = new Set(this.openFolders());
     if (next.has(path)) next.delete(path);
@@ -162,7 +174,7 @@ export class Workspace {
           return [...tabs, tab];
         });
       } catch (e) {
-        this.notify(String(e));
+        this.notify(String(e), true);
         return;
       }
     } else if (pin) {
@@ -196,8 +208,9 @@ export class Workspace {
     this.tabs.update((tabs) => tabs.map((t) => (t.path === path ? { ...t, ...patch } : t)));
   }
 
-  edit(change: (doc: RequestDoc) => RequestDoc) {
-    const tab = this.active();
+  /** Modifie le document de l'onglet `path` (l'onglet actif par défaut) et le marque comme non enregistré. */
+  edit(change: (doc: RequestDoc) => RequestDoc, path = this.activePath()) {
+    const tab = this.tabs().find((t) => t.path === path);
     if (!tab) return;
     this.patchTab(tab.path, { doc: change(tab.doc), preview: false });
     this.refreshVars();
@@ -211,6 +224,24 @@ export class Workspace {
     this.edit((d) => withParams(d, params));
   }
 
+  async pasteCurl(command: string): Promise<boolean> {
+    const path = this.activePath();
+    if (!path) return false;
+    try {
+      const curl = await api.parseCurl(command);
+      if (!curl?.url) {
+        this.notify('Commande cURL invalide', true);
+        return false;
+      }
+      this.edit((d) => withCurl(withUrl(d, curl.url), curl), path);
+      this.notify('Commande cURL appliquée à la requête');
+      return true;
+    } catch (e) {
+      this.notify(String(e), true);
+      return false;
+    }
+  }
+
   async save() {
     const c = this.collection();
     const tab = this.active();
@@ -220,13 +251,14 @@ export class Workspace {
       return;
     }
     try {
-      const nameChanged = JSON.parse(tab.saved).name !== tab.doc.name;
+      const before: RequestDoc = JSON.parse(tab.saved);
+      const listed = before.name !== tab.doc.name || before.method !== tab.doc.method || before.url !== tab.doc.url;
       await api.saveRequest(c.root, tab.path, tab.doc);
       this.patchTab(tab.path, { saved: JSON.stringify(tab.doc) });
       this.notify(`Enregistré dans ${tab.path}`);
-      if (nameChanged) await this.reload();
+      if (listed) await this.reload();
     } catch (e) {
-      this.notify(`Échec de l'enregistrement : ${e}`);
+      this.notify(`Échec de l'enregistrement : ${e}`, true);
     }
   }
 

@@ -1,4 +1,4 @@
-import { Param, RequestDoc } from './model';
+import type { Param, RequestDoc } from './model';
 
 export interface UrlSegment {
   text: string;

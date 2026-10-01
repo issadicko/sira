@@ -4,10 +4,12 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed,
 import { isTauri } from './core/api';
 import { COMMANDS, isMac, shortcutLabel } from './core/commands';
 import { View, Workspace } from './core/store';
+import { CurlDialog } from './ui/curl-dialog';
 import { Editor } from './ui/editor';
 import { EnvView } from './ui/env-view';
 import { Icon } from './ui/icon';
 import { methodClass, shortMethod } from './ui/method';
+import { OpenApiDialog } from './ui/openapi-dialog';
 import { Palette } from './ui/palette';
 import { Tree } from './ui/tree';
 import { VarPopover } from './ui/var-popover';
@@ -16,7 +18,7 @@ import { Welcome } from './ui/welcome';
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover, Palette],
+  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover, Palette, CurlDialog, OpenApiDialog],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -40,9 +42,11 @@ export class App {
     this.commands.register(
       { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => !!ws.active(), run: () => ws.send() },
       { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
+      { id: 'request.curl', title: 'Nouvelle requête depuis cURL…', group: 'Requête', icon: 'terminal', when: opened, run: () => ws.dialog.set('curl') },
       { id: 'request.save', title: 'Enregistrer la requête', group: 'Requête', icon: 'download', keys: 'mod+s', when: () => !!ws.active(), run: () => ws.save() },
       { id: 'tab.close', title: "Fermer l'onglet", group: 'Requête', icon: 'x', keys: 'mod+w', when: () => !!ws.activePath(), run: () => ws.closeTab(ws.activePath()!) },
       { id: 'collection.open', title: 'Ouvrir une collection…', group: 'Collection', icon: 'folder-open', keys: 'mod+o', run: () => ws.pickAndOpen() },
+      { id: 'collection.openapi', title: 'Importer une spec OpenAPI…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('openapi') },
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
       { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
       { id: 'view.env', title: 'Gérer les environnements', group: 'Collection', icon: 'variable', when: opened, run: () => this.show('env') },
