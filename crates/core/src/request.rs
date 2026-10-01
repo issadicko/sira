@@ -270,7 +270,7 @@ impl RequestDoc {
             name: info.str("name").unwrap_or_default().to_owned(),
             request_type,
             seq: info.get("seq").and_then(Value::as_i64),
-            method: http.str("method").unwrap_or("GET").to_owned(),
+            method: http.str("method").unwrap_or("GET").to_uppercase(),
             url: text(http.get("url")),
             params,
             headers: key_values(http.seq("headers")),

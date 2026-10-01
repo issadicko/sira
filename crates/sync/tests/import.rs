@@ -586,7 +586,7 @@ fn ef_imp_01_new_request_goes_in_the_given_folder_with_the_next_seq() {
     let created = create_request_from_curl(dir.path(), "users/", "List", "curl https://x.test/users").unwrap();
     assert_eq!(created, "users/List.yml");
     let doc = read_request(dir.path(), &created).unwrap();
-    assert_eq!((doc.seq, doc.method.as_str(), doc.url.as_str()), (Some(4), "get", "https://x.test/users"));
+    assert_eq!((doc.seq, doc.method.as_str(), doc.url.as_str()), (Some(4), "GET", "https://x.test/users"));
     assert_eq!(fs::read_dir(&users).unwrap().flatten().filter(|e| e.file_name() == "List.yml").count(), 1);
     assert_eq!(fs::read_dir(&users).unwrap().count(), 4, "aucun fichier temporaire ne reste");
 }
@@ -622,7 +622,10 @@ fn ef_imp_01_creating_a_request_never_overwrites_and_refuses_bad_input() {
 #[test]
 fn ef_imp_01_pasted_curl_builds_the_request_bruno_builds() {
     for id in curl_ids() {
-        let expected = RequestDoc::from_tree(&tree(&curl_fixture(&id, "paste.yml")));
+        let mut expected = RequestDoc::from_tree(&tree(&curl_fixture(&id, "paste.yml")));
+        if matches!(expected.body, Body::FormUrlEncoded { .. } | Body::MultipartForm { .. }) {
+            expected.body = RequestDoc::from_tree(&tree(&curl_fixture(&id, "new.yml"))).body;
+        }
         let pasted =
             request_doc_from_curl(curl_fixture(&id, "sh").trim()).unwrap_or_else(|| panic!("{id} : cURL refusé"));
         assert_eq!(pasted, expected, "{id}");
@@ -652,9 +655,10 @@ fn ef_imp_01_pasted_curl_fills_method_url_params_headers_body_and_auth() {
 }
 
 #[test]
-fn ef_imp_01_pasted_curl_keeps_bruno_limits_for_forms_and_defaults() {
+fn ef_imp_01_pasted_curl_copies_form_fields_and_keeps_defaults() {
     let form = request_doc_from_curl("curl https://x.test/login -d 'user=ada&pass=secret'").unwrap();
-    assert_eq!(form.body, Body::FormUrlEncoded { fields: vec![] });
+    let field = |n: &str, v: &str| KeyValue { name: n.into(), value: v.into(), enabled: true, description: None };
+    assert_eq!(form.body, Body::FormUrlEncoded { fields: vec![field("user", "ada"), field("pass", "secret")] });
     assert_eq!((form.method.as_str(), form.auth), ("POST", Auth::Inherit));
     let get = request_doc_from_curl("curl https://x.test/users").unwrap();
     assert_eq!((get.method.as_str(), get.body), ("GET", Body::None));

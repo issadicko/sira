@@ -98,3 +98,17 @@ fn ef_req_02_editing_only_touches_changed_sections() {
         "info:\n  name: Get\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: https://api.example.com/x?page=2\n  headers:\n    - name: X-Canal\n      value: \"{{canal}}\"\n  body:\n    type: json\n    data: |-\n      {\n        \"a\": 1\n      }\n  auth: inherit\n\nsettings:\n  encodeUrl: true\n  timeout: 0\n  followRedirects: true\n  maxRedirects: 5\n  forwardAuthorizationHeader: true\n"
     );
 }
+
+#[test]
+fn ef_req_01_lowercase_method_is_read_uppercase_and_left_untouched_on_save() {
+    let text =
+        "info:\n  name: List users\n  type: http\n  seq: 1\n\nhttp:\n  method: get\n  url: https://x.test/users\n";
+    let mut root = tree(text);
+    let doc = RequestDoc::from_tree(&root);
+    assert_eq!(doc.method, "GET");
+    let mut edited = doc.clone();
+    edited.url = "https://x.test/users?page=2".into();
+    edited.apply(&mut root, &doc);
+    let written = yaml::emit(&Value::Map(root), BLANK_BEFORE);
+    assert!(written.contains("method: get\n"), "{written}");
+}

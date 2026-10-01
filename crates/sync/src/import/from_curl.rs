@@ -119,17 +119,7 @@ fn pasted_headers(request: &Value) -> Vec<Value> {
 
 /// Bruno ne renseigne, au collage, que le contenu des corps json, text et xml ; les autres modes n'ont que leur mode.
 fn pasted_body(request: &Value) -> Value {
-    let body = request.get("body");
-    let mode = body.map_or("none", |b| text(b, "mode"));
-    let mut pasted = json!({
-        "mode": mode, "json": null, "text": null, "xml": null, "sparql": null,
-        "multipartForm": [], "formUrlEncoded": [], "file": []
-    });
-    let content = body.and_then(|b| b.get(mode)).filter(|c| !c.is_null() && c.as_str() != Some(""));
-    if let (true, Some(content)) = (["json", "text", "xml"].contains(&mode), content) {
-        pasted[mode] = content.clone();
-    }
-    pasted
+    request.get("body").cloned().unwrap_or_else(|| json!({ "mode": "none" }))
 }
 
 fn pasted_auth(request: &Value) -> Value {
@@ -179,7 +169,8 @@ fn pasted_item(request: &Value) -> Value {
 
 /// La requête HTTP que Bruno construit quand on colle `command` dans la barre d'URL d'une requête vierge
 /// (méthode en majuscules, paramètres tirés de l'URL, en-têtes, corps et authentification), ou `None` si le texte
-/// n'est pas une commande cURL reconnue. Comme Bruno, seuls les corps json, text et xml reçoivent leur contenu.
+/// n'est pas une commande cURL reconnue. Contrairement à Bruno, qui ne recopie que les corps json, text et xml,
+/// les champs form-urlencoded et multipart sont aussi recopiés.
 /// `name` et `seq` ne sont pas significatifs : l'appelant garde ceux de la requête ouverte.
 pub fn request_doc_from_curl(command: &str) -> Option<RequestDoc> {
     if !looks_like_curl(command) {
