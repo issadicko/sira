@@ -151,6 +151,7 @@ Chaque exigence a un identifiant stable pour le suivi et les tests d'acceptation
 | EF-GIT-01 | Git | Statut, diff, commit, pull et push depuis l'app (fonction payante chez Bruno, gratuite ici) |
 | EF-UX-01 | Interface | Thèmes clair et sombre, raccourcis clavier, palette de commandes, interface français et anglais |
 | EF-UX-02 | Interface | Historique local des requêtes envoyées, gestionnaire de cookies |
+| EF-UX-03 | Interface | Réglages d'apparence : famille et taille des polices de l'interface, de l'éditeur de requête et du résultat (préréglages hors ligne ou police installée), appliquées en direct et conservées localement |
 | EF-AI-01 | IA | Assistant optionnel (clé fournie par l'utilisateur) pour générer tests et scripts, désactivé par défaut |
 
 ## 6. Synchronisation OpenAPI non destructive

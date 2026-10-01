@@ -289,6 +289,8 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 
 **The Tabular Numbers Rule.** Compteurs, durées, numéros de ligne et badges utilisent `tabular-nums`.
 
+**The Settings Scale Rule.** Les tailles de l'interface se règlent dans Réglages > Apparence (11 à 18px, 13px par défaut) : `html { font-size }` les porte et chaque `font-size` de l'interface s'écrit `calc(N * var(--px))`, où N est la taille en px à 13px et `--px` vaut `1rem / 13` (13px s'écrit `1rem`). Espacements, hauteurs, rayons et icônes restent en px. Les éditeurs ont leurs propres réglages (10 à 24px, 12.5px par défaut) : la barre d'URL, CodeMirror, les valeurs des tableaux et les scripts lisent `--code-font` et `--code-size` (Éditeur de requête), la réponse les redéfinit (Résultat). `--font-mono` ne sert qu'au code hors éditeurs.
+
 ## Layout
 
 **Coquille.** Grille de fenêtre en trois rangées : barre de titre 40px, établi, barre d'état 26px (items de 20px). Barre de titre en trois colonnes : feux et espace de travail à gauche, centre de commande ⌘K au centre (240 à 460px), pastille de spec et environnement à droite.

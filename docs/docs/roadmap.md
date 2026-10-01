@@ -28,6 +28,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | MVP-β β.4 Palette ⌘K | Fait : requêtes, commandes (registre partagé avec les raccourcis), environnements | `app/src/app/ui/palette.ts` |
 | MVP-β β.5 CodeMirror 6 | Fait ; réponse JSON de 10 Mo affichée en 140 ms (Chrome, mode démo), formatage en Rust | `app/src/app/ui/code-editor.ts`, `crates/core/src/pretty.rs` |
 | Corps form-urlencoded et multipart (EF-REQ-02) | Fait : lecture, écriture, envoi et édition | `crates/core`, `app/src/app/ui/multipart-table.ts` |
+| Réglages d'apparence (EF-UX-03) | Fait : écran « Réglages » (barre d'activité, palette, ⌘,), thème puis famille et taille des polices de l'interface, de l'éditeur de requête et du résultat, appliquées en direct et enregistrées dans `localStorage` (`xc-settings`) ; tailles de l'interface relatives à la taille choisie | `app/src/app/core/settings.ts`, `app/src/app/ui/settings-view.ts`, `app/src/app/ui/appearance-settings.ts` |
 
 Écarts assumés du MVP-α : secrets d'environnement non saisissables (trousseau en V1, `{{process.env.X}}` fonctionne déjà), scripts conservés mais non exécutés, corps `file` (binaire) et `sparql` conservés mais non envoyés, HTTP/2 non négocié, redirections non suivies à l'envoi.
 

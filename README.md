@@ -80,7 +80,7 @@ cargo test --workspace
 
 Chaque test porte l'identifiant de l'exigence qu'il couvre (`ef_req_01_…`, `enf_comp_02_…`). Les fixtures de `crates/core/tests/fixtures` ont été produites par le sérialiseur de Bruno lui-même (`yaml` 2.3.4, mêmes options), ce qui garantit un aller-retour octet pour octet. Celles de `crates/sync/tests/fixtures` (cURL, OpenAPI, sérialiseur, import) viennent du vrai code de Bruno via `tools/oracle` : chaque import doit produire les mêmes octets que Bruno.
 
-La logique pure de l'interface (recherche floue, registre de commandes, collage cURL, chemins de fichiers, corps de formulaire) a ses tests, même convention (`ef_ux_01_…`, `ef_imp_01_…`, `ef_req_02_…`), lancés par Node.js 22.18 ou plus sans dépendance, et par la CI :
+La logique pure de l'interface (recherche floue, registre de commandes, collage cURL, chemins de fichiers, corps de formulaire, réglages) a ses tests, même convention (`ef_ux_01_…`, `ef_imp_01_…`, `ef_req_02_…`, `ef_ux_03_…`), lancés par Node.js 22.18 ou plus sans dépendance, et par la CI :
 
 ```bash
 cd app && npm test
@@ -104,6 +104,15 @@ C'est un raccourci pour `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --t
 
 Dans le navigateur (`npm start`), ces actions sont limitées à un aperçu : l'analyse et l'écriture se font dans l'application desktop.
 
+## Réglages
+
+Le bouton réglages de la barre d'activité, la commande « Ouvrir les réglages » de la palette ou ⌘, (Ctrl+, ailleurs) ouvrent un écran dans la zone éditeur : les sections à gauche, la section choisie à droite. Pour l'instant, **Apparence** :
+
+- le thème clair ou sombre ;
+- la famille et la taille de la police de l'**interface** (11 à 18 px, 13 par défaut), de l'**éditeur de requête** (barre d'URL, corps, valeurs des tableaux, scripts ; les éditeurs de la synchro le suivent) et du **résultat** (corps, en-têtes et timeline de la réponse), de 10 à 24 px, 12,5 par défaut.
+
+Les familles sont des préréglages hors ligne (Inter et JetBrains Mono, embarquées, ou la police du système) ou le nom d'une police installée, par exemple « Fira Code » : aucune police n'est téléchargée, et une police introuvable laisse la police par défaut. Les changements s'appliquent tout de suite et restent sur l'ordinateur, dans le `localStorage` de l'application (clé `xc-settings`, comme `xc-theme` pour le thème), jamais dans une collection ; « Rétablir les valeurs par défaut » existe pour chaque groupe.
+
 ## Raccourcis
 
 | Action | macOS | Windows / Linux |
@@ -118,6 +127,7 @@ Dans le navigateur (`npm start`), ces actions sont limitées à un aperçu : l'a
 | Fermer l'onglet | ⌘W | Ctrl+W |
 | Barre latérale | ⌘B | Ctrl+B |
 | Empiler requête / réponse | ⌘\ | Ctrl+\ |
+| Réglages | ⌘, | Ctrl+, |
 | Arbre : naviguer, ouvrir ou replier un dossier | ↑ ↓ ← → Début Fin | idem |
 | Arbre : renommer | F2 | F2 |
 | Arbre : dupliquer | ⌘D | Ctrl+D |
