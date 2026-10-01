@@ -7,3 +7,4 @@ node_modules/
 !examples/demo/.env
 /tools/oracle/bruno/
 /tools/oracle/bundle.js
+/.claude/worktrees/
