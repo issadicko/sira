@@ -1,0 +1,42 @@
+{
+  "type": "http-request",
+  "name": "Auth oauth2-implicit",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "oauth2",
+      "oauth2": {
+        "grantType": "implicit",
+        "authorizationUrl": "https://auth.test/authorize",
+        "callbackUrl": "https://app.test/cb",
+        "clientId": "cli",
+        "clientSecret": "ignored",
+        "scope": "profile",
+        "state": "s",
+        "additionalParameters": {
+          "authorization": [
+            {
+              "name": "nonce",
+              "value": "n",
+              "sendIn": "queryparams"
+            }
+          ],
+          "token": [
+            {
+              "name": "ignored",
+              "value": "x",
+              "sendIn": "body"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

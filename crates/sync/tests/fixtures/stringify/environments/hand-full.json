@@ -1,0 +1,73 @@
+{
+  "name": "Production",
+  "extends": " base ",
+  "color": "#ff6b00",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "https://api.x.test",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
+    },
+    {
+      "name": "token",
+      "value": "ne pas écrire",
+      "enabled": true,
+      "secret": true
+    },
+    {
+      "name": "port",
+      "value": 8080,
+      "enabled": false,
+      "secret": true,
+      "dataType": "number",
+      "description": null
+    },
+    {
+      "name": "ratio",
+      "value": 0.5,
+      "enabled": true,
+      "dataType": "number",
+      "description": "Ratio: 50 %"
+    },
+    {
+      "name": "debug",
+      "value": true,
+      "dataType": "boolean"
+    },
+    {
+      "name": "obj",
+      "value": {
+        "a": [
+          1,
+          2
+        ],
+        "b": {
+          "c": "d"
+        }
+      },
+      "dataType": "object",
+      "enabled": false
+    },
+    {
+      "name": "",
+      "value": ""
+    },
+    {
+      "name": "multi",
+      "value": "l1\nl2\n"
+    }
+  ],
+  "externalSecrets": {
+    "type": "vault",
+    "variables": [
+      {
+        "name": "db",
+        "path": "secret/db",
+        "key": "password"
+      },
+      null
+    ]
+  }
+}

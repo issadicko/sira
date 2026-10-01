@@ -1,0 +1,17 @@
+{
+  "type": "http-request",
+  "name": "Auth inherit",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "inherit"
+    }
+  }
+}

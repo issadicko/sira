@@ -1,0 +1,10 @@
+info:
+  name: pets
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Animaux
+  type: text/markdown

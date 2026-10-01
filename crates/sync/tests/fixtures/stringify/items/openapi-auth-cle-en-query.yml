@@ -1,0 +1,47 @@
+info:
+  name: Clé en query
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/query-key"
+  params:
+    - name: q
+      value: chaise
+      type: query
+    - name: api_key
+      value: "{{apiKey}}"
+      type: query
+  auth:
+    type: apikey
+    key: api_key
+    value: "{{apiKey}}"
+    placement: query
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/query-key"
+      method: GET
+      params:
+        - name: q
+          value: chaise
+          type: query
+        - name: api_key
+          value: "{{apiKey}}"
+          type: query
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

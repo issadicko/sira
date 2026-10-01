@@ -1,0 +1,21 @@
+{
+  "type": "http-request",
+  "name": "Auth oauth2-unknown-grant",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "oauth2",
+      "oauth2": {
+        "grantType": "device_code",
+        "clientId": "x"
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+info:
+  name: Dossier complet
+  type: folder
+  seq: 4
+  tags:
+    - a
+    - b
+
+request:
+  headers:
+    - name: X-Folder
+      value: oui
+    - name: X-Off
+      value: non
+      disabled: true
+  auth:
+    type: basic
+    username: alice
+    password: "{{password}}"
+  variables:
+    - name: folderVar
+      value: v
+    - name: n
+      value:
+        type: number
+        data: "3"
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.out
+        method: jsonq
+      variable:
+        name: out
+        scope: runtime
+  scripts:
+    - type: before-request
+      code: console.log("dossier");
+    - type: tests
+      code: test("dossier", () => {});
+
+docs:
+  content: |-
+    # Dossier
+
+    Doc du dossier.
+  type: text/markdown

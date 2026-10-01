@@ -1,0 +1,56 @@
+info:
+  name: Get user
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/users/:id"
+  headers:
+    - name: Accept-Language
+      value: fr
+  params:
+    - name: id
+      value: "007"
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/users/:id"
+      method: GET
+      headers:
+        - name: Accept-Language
+          value: fr
+      params:
+        - name: id
+          value: "007"
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "007",
+            "nom": "Bond",
+            "score": 1,
+            "meta": null,
+            "flags": [
+              true,
+              false
+            ]
+          }

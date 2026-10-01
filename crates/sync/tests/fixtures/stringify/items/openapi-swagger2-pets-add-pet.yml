@@ -1,0 +1,48 @@
+info:
+  name: Add pet
+  type: http
+  seq: 2
+  tags:
+    - pets
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Médor",
+        "age": 3
+      }
+  auth:
+    type: basic
+    username: "{{username}}"
+    password: "{{password}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    description: Created
+    request:
+      url: "{{baseUrl}}/pets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "name": "Médor",
+            "age": 3
+          }
+    response:
+      status: 201
+      statusText: Created
+      body:
+        type: text
+        data: ""

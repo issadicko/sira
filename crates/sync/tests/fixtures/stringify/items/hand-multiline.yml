@@ -1,0 +1,45 @@
+info:
+  name: Multi-lignes
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.x.test/r
+  body:
+    type: text
+    data: |+
+      
+
+      Début après deux lignes vides
+        indenté
+      	 tab
+
+      fin
+
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const a = 1;
+
+
+        const b = 2;
+    - type: tests
+      code: |-
+        test("x", () => {
+          
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+docs: |2
+    # Titre indenté
+
+  Texte

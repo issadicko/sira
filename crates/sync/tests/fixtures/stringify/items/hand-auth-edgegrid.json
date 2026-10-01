@@ -1,0 +1,27 @@
+{
+  "type": "http-request",
+  "name": "Auth edgegrid",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "akamai-edgegrid",
+      "akamaiEdgegrid": {
+        "accessToken": "akab-a",
+        "clientToken": "akab-c",
+        "clientSecret": "s",
+        "baseURL": "https://akab.test",
+        "nonce": null,
+        "timestamp": "",
+        "headersToSign": "X-A,X-B",
+        "maxBodySize": 131072
+      }
+    }
+  }
+}

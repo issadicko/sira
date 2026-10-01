@@ -1,0 +1,57 @@
+info:
+  name: GraphQL complet
+  type: graphql
+  seq: 2
+
+graphql:
+  method: POST
+  url: "{{baseUrl}}/graphql"
+  headers:
+    - name: X-Op
+      value: Me
+  params:
+    - name: cache
+      value: no
+      type: query
+  body:
+    query: |-
+      query Me {
+        me { id name }
+      }
+    variables: |-
+      {
+        "id": 1
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  variables:
+    - name: v
+      value: "1"
+  scripts:
+    - type: after-response
+      code: bru.setVar("x", 1);
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.data.me.id
+        method: jsonq
+      variable:
+        name: id
+        scope: request
+
+settings:
+  encodeUrl: false
+  timeout: 100
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+docs: Requête GraphQL

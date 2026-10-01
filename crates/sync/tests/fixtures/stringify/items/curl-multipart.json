@@ -1,0 +1,59 @@
+{
+  "type": "http-request",
+  "name": "cURL multipart",
+  "seq": 4,
+  "request": {
+    "method": "post",
+    "url": "https://api.x.test/upload",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "multipart/form-data",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "multipartForm",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [
+        {
+          "name": "file",
+          "value": "/tmp/photo.png",
+          "type": "file",
+          "enabled": true
+        },
+        {
+          "name": "caption",
+          "value": "Bonjour le monde",
+          "type": "text",
+          "enabled": true
+        },
+        {
+          "name": "meta",
+          "value": "{\"a\":1};type=application/json",
+          "type": "text",
+          "enabled": true
+        }
+      ],
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

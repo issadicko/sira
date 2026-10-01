@@ -1,0 +1,15 @@
+{
+  "request": {
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    }
+  },
+  "meta": {
+    "name": "{postId}"
+  }
+}

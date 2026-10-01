@@ -1,0 +1,160 @@
+info:
+  name: Lister les produits
+  type: http
+  seq: 1
+  tags:
+    - produits
+
+http:
+  method: GET
+  url: "{{baseUrl}}/produits"
+  headers:
+    - name: X-Request-Id
+      value: "{{$uuid}}"
+      description: Identifiant de corrélation
+  params:
+    - name: page
+      value: "1"
+      type: query
+    - name: tri
+      value: nom
+      type: query
+      disabled: true
+    - name: tri
+      value: prix
+      type: query
+    - name: tri
+      value: date
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: Aucun produit
+    request:
+      url: "{{baseUrl}}/produits"
+      method: GET
+      headers:
+        - name: X-Request-Id
+          value: "{{$uuid}}"
+          description: Identifiant de corrélation
+      params:
+        - name: page
+          value: "1"
+          type: query
+        - name: tri
+          value: nom
+          type: query
+          disabled: true
+        - name: tri
+          value: prix
+          type: query
+        - name: tri
+          value: date
+          type: query
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: "[]"
+  - name: Deux produits
+    request:
+      url: "{{baseUrl}}/produits"
+      method: GET
+      headers:
+        - name: X-Request-Id
+          value: "{{$uuid}}"
+          description: Identifiant de corrélation
+      params:
+        - name: page
+          value: "1"
+          type: query
+        - name: tri
+          value: nom
+          type: query
+          disabled: true
+        - name: tri
+          value: prix
+          type: query
+        - name: tri
+          value: date
+          type: query
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": 1,
+              "nom": "Table",
+              "prix": 120.5,
+              "tags": [
+                "bois"
+              ]
+            },
+            {
+              "id": 2,
+              "nom": "Lampe #2",
+              "prix": 15,
+              "tags": []
+            }
+          ]
+  - name: 500 Response
+    description: Erreur interne
+    request:
+      url: "{{baseUrl}}/produits"
+      method: GET
+      headers:
+        - name: X-Request-Id
+          value: "{{$uuid}}"
+          description: Identifiant de corrélation
+      params:
+        - name: page
+          value: "1"
+          type: query
+        - name: tri
+          value: nom
+          type: query
+          disabled: true
+        - name: tri
+          value: prix
+          type: query
+        - name: tri
+          value: date
+          type: query
+          disabled: true
+    response:
+      status: 500
+      statusText: Internal Server Error
+      headers:
+        - name: Content-Type
+          value: text/plain
+      body:
+        type: text
+        data: |-
+          Erreur: base indisponible
+          Réessayer plus tard
+
+docs: |
+  Retourne la liste paginée.
+
+  - `page` commence à 1
+  - `taille` ≤ 100

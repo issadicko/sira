@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "name": "Dossier complet",
+    "seq": 4,
+    "tags": [
+      "a",
+      " a ",
+      "b",
+      "",
+      5,
+      "b"
+    ]
+  },
+  "request": {
+    "headers": [
+      {
+        "name": "X-Folder",
+        "value": "oui",
+        "enabled": true
+      },
+      {
+        "name": "X-Off",
+        "value": "non",
+        "enabled": false
+      }
+    ],
+    "auth": {
+      "mode": "basic",
+      "basic": {
+        "username": "alice",
+        "password": "{{password}}"
+      }
+    },
+    "vars": {
+      "req": [
+        {
+          "name": "folderVar",
+          "value": "v",
+          "enabled": true
+        },
+        {
+          "name": "n",
+          "value": 3,
+          "dataType": "number",
+          "enabled": true
+        }
+      ],
+      "res": [
+        {
+          "name": "out",
+          "value": "res.body.out",
+          "local": false
+        }
+      ]
+    },
+    "script": {
+      "req": "console.log(\"dossier\");",
+      "res": ""
+    },
+    "tests": "test(\"dossier\", () => {});"
+  },
+  "docs": "# Dossier\n\nDoc du dossier."
+}

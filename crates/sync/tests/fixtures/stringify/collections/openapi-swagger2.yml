@@ -1,0 +1,14 @@
+opencollection: 1.0.0
+
+info:
+  name: Legacy Petstore
+
+docs:
+  content: Ancienne API Swagger 2.0
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

@@ -1,0 +1,43 @@
+{
+  "type": "graphql-request",
+  "name": "cURL graphql",
+  "seq": 7,
+  "request": {
+    "method": "post",
+    "url": "https://api.x.test/graphql",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "graphql",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": {
+        "query": "query Me($id: ID!) { user(id: $id) { id name } }",
+        "variables": "{\n  \"id\": \"42\"\n}"
+      },
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

@@ -1,0 +1,31 @@
+info:
+  name: cURL get-headers
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: https://api.x.test/search?q=chaise%20bois&page=2&flag
+  headers:
+    - name: Accept
+      value: application/json
+    - name: X-Trace
+      value: "{{traceId}}"
+  params:
+    - name: q
+      value: chaise%20bois
+      type: query
+    - name: page
+      value: "2"
+      type: query
+    - name: flag
+      value: ""
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

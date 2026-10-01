@@ -1,0 +1,101 @@
+{
+  "type": "http-request",
+  "name": "Exemples",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "{{baseUrl}}/produits",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    }
+  },
+  "examples": [
+    {
+      "name": "Créé",
+      "description": "Réponse nominale",
+      "request": {
+        "url": "{{baseUrl}}/produits",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "dry",
+            "value": "true",
+            "enabled": false,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "json",
+          "json": "{\"nom\":\"Banc\"}"
+        }
+      },
+      "response": {
+        "status": "201",
+        "statusText": "Created",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "enabled": false,
+            "description": "ignorée"
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": {
+            "200": "ok",
+            "id": 7,
+            "nom": "Banc",
+            "prix": 49,
+            "tags": [],
+            "meta": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "",
+      "request": {
+        "url": "",
+        "method": ""
+      },
+      "response": {
+        "status": 0,
+        "statusText": "  ",
+        "body": {
+          "type": "text",
+          "content": "Erreur: interne\n"
+        }
+      }
+    },
+    {
+      "name": "Sans corps",
+      "response": {
+        "status": "404",
+        "body": {
+          "type": "json",
+          "content": null
+        }
+      }
+    },
+    {
+      "name": "Corps sans type",
+      "response": {
+        "status": 500.5,
+        "body": {
+          "type": "",
+          "content": "x"
+        }
+      }
+    }
+  ]
+}

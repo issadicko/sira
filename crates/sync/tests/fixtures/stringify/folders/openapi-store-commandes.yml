@@ -1,0 +1,10 @@
+info:
+  name: commandes
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: "Gestion des commandes: création, suivi"
+  type: text/markdown

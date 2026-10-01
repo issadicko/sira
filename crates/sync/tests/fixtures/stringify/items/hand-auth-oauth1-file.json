@@ -1,0 +1,34 @@
+{
+  "type": "http-request",
+  "name": "Auth oauth1-file",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "oauth1",
+      "oauth1": {
+        "consumerKey": "ck",
+        "consumerSecret": "cs",
+        "accessToken": "at",
+        "accessTokenSecret": "ats",
+        "callbackUrl": "https://cb.test",
+        "verifier": "v",
+        "signatureMethod": "RSA-SHA1",
+        "privateKey": "/keys/private.pem",
+        "privateKeyType": "file",
+        "timestamp": "",
+        "nonce": "",
+        "version": "1.0",
+        "realm": "r",
+        "placement": "header",
+        "includeBodyHash": true
+      }
+    }
+  }
+}

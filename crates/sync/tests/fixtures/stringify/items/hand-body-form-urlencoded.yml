@@ -1,0 +1,28 @@
+info:
+  name: Body form-urlencoded
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.x.test/r
+  body:
+    type: form-urlencoded
+    data:
+      - name: user
+        value: bob
+      - name: pass
+        value: ""
+        disabled: true
+      - name: note
+        value: a & b
+        description: Note libre
+      - name: n
+        value: "10"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

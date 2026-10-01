@@ -1,0 +1,9 @@
+{
+  "name": "Legacy Petstore",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "opencollection": "1.0.0"
+}

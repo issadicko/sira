@@ -1,0 +1,114 @@
+{
+  "name": "Passer une commande",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "commandes"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/commandes",
+    "method": "POST",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "formUrlEncoded",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [
+        {
+          "name": "produit",
+          "value": "42",
+          "description": "",
+          "enabled": true
+        },
+        {
+          "name": "quantite",
+          "value": "3",
+          "description": "",
+          "enabled": true
+        },
+        {
+          "name": "note",
+          "value": "",
+          "description": "Note libre: optionnelle",
+          "enabled": true
+        }
+      ],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "ZvUSTsfWKgEqYcVCh5WAm",
+      "name": "201 Response",
+      "description": "Commande créée",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/commandes",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "formUrlEncoded",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [
+            {
+              "name": "produit",
+              "value": "42",
+              "description": "",
+              "enabled": true
+            },
+            {
+              "name": "quantite",
+              "value": "3",
+              "description": "",
+              "enabled": true
+            },
+            {
+              "name": "note",
+              "value": "",
+              "description": "Note libre: optionnelle",
+              "enabled": true
+            }
+          ],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 201,
+        "statusText": "Created",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "{\n  \"id\": \"c-1\",\n  \"total\": 1000,\n  \"lignes\": {\n    \"1\": \"Table\",\n    \"b\": \"x\"\n  }\n}"
+        }
+      }
+    }
+  ],
+  "seq": 1
+}

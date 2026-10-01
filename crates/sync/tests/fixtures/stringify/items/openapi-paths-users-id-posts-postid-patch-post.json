@@ -1,0 +1,97 @@
+{
+  "name": "Patch post",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/users/:id/posts/:postId",
+    "method": "PATCH",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "id",
+        "value": "",
+        "description": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "postId",
+        "value": "",
+        "description": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"titre\": \"Bonjour\\nle monde\",\n  \"brouillon\": false\n}",
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "1NjJn3JBHgnfuAzy7lDbo",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/users/:id/posts/:postId",
+        "method": "PATCH",
+        "headers": [],
+        "params": [
+          {
+            "name": "id",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          },
+          {
+            "name": "postId",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"titre\": \"Bonjour\\nle monde\",\n  \"brouillon\": false\n}",
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 1
+}

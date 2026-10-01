@@ -1,0 +1,3 @@
+externalSecrets:
+  type: aws
+  variables: []

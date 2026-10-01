@@ -1,0 +1,8 @@
+info:
+  name: Scripts
+  type: folder
+
+request:
+  scripts:
+    - type: tests
+      code: test("t", () => {});

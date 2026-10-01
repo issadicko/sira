@@ -1,0 +1,26 @@
+{
+  "name": "Régional: {region}",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "https://{{region}}.boutique.test/{{version}}",
+      "type": "text",
+      "enabled": true,
+      "secret": false
+    },
+    {
+      "name": "region",
+      "value": "eu",
+      "type": "text",
+      "enabled": true,
+      "secret": false
+    },
+    {
+      "name": "version",
+      "value": "v2",
+      "type": "text",
+      "enabled": true,
+      "secret": false
+    }
+  ]
+}

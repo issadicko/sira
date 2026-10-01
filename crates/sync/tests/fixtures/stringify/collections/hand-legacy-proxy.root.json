@@ -1,0 +1,14 @@
+{
+  "request": {
+    "auth": {
+      "mode": "inherit"
+    },
+    "headers": [
+      {
+        "name": "X",
+        "value": "1",
+        "enabled": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "type": "http-request",
+  "name": "Auth oauth2-authorization-code-minimal",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "oauth2",
+      "oauth2": {
+        "grantType": "authorization_code",
+        "authorizationUrl": "",
+        "accessTokenUrl": "  ",
+        "clientId": "",
+        "pkce": false,
+        "tokenPlacement": "url",
+        "tokenQueryKey": "access_token",
+        "tokenSource": "",
+        "additionalParameters": null
+      }
+    }
+  }
+}

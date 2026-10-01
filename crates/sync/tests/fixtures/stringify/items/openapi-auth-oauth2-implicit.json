@@ -1,0 +1,82 @@
+{
+  "name": "OAuth2 implicit",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/implicit",
+    "method": "GET",
+    "auth": {
+      "mode": "oauth2",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": {
+        "grantType": "implicit",
+        "authorizationUrl": "https://auth.test/authorize",
+        "accessTokenUrl": "{{oauth_token_url}}",
+        "refreshTokenUrl": "{{oauth_refresh_url}}",
+        "callbackUrl": "{{oauth_callback_url}}",
+        "clientId": "{{oauth_client_id}}",
+        "clientSecret": "{{oauth_client_secret}}",
+        "scope": "profile",
+        "state": "{{oauth_state}}",
+        "credentialsPlacement": "header",
+        "tokenPlacement": "header",
+        "tokenHeaderPrefix": "Bearer",
+        "autoFetchToken": false,
+        "autoRefreshToken": true
+      }
+    },
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "wY3zvmQVGCfrXbjvH1BwP",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/implicit",
+        "method": "GET",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 9
+}

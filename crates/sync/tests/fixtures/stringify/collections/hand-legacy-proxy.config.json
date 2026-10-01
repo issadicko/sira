@@ -1,0 +1,11 @@
+{
+  "name": "Ancien proxy",
+  "version": null,
+  "proxy": {
+    "inherit": true,
+    "config": {}
+  },
+  "presets": {
+    "defaultEnvironment": "prod"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "type": "http-request",
+  "name": "Auth bearer",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "bearer",
+      "bearer": {
+        "token": "{{token}}"
+      }
+    }
+  }
+}

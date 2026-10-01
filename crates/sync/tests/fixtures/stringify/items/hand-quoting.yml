@@ -1,0 +1,94 @@
+info:
+  name: "L'été: \"tests\""
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://api.x.test/a?b=1&c={{c}}#frag
+  headers:
+    - name: X-Empty
+      value: ""
+    - name: X-Bool
+      value: "true"
+    - name: X-Null
+      value: "null"
+    - name: X-Num
+      value: "123"
+    - name: X-Float
+      value: "1e3"
+    - name: X-Hex
+      value: "0x1F"
+    - name: X-Hash
+      value: "#tag"
+    - name: X-Inline-Hash
+      value: "a #b"
+    - name: X-Colon
+      value: "a: b"
+    - name: X-Colon-End
+      value: "fin:"
+    - name: X-Var
+      value: "{{var}}"
+    - name: X-Json
+      value: '{"a":1}'
+    - name: X-Both
+      value: l'a "b"
+    - name: X-Lead
+      value: " lead"
+    - name: X-Trail
+      value: "trail "
+    - name: X-Tab
+      value: a	b
+    - name: X-Ctrl
+      value: "bell\aesc\e"
+    - name: X-Dash
+      value: "- x"
+    - name: X-Dashes
+      value: ---
+    - name: X-Q
+      value: "? x"
+    - name: X-At
+      value: "@x"
+    - name: X-Tick
+      value: "`x`"
+    - name: X-Pct
+      value: "%x"
+    - name: X-Star
+      value: "*ref"
+    - name: X-Amp
+      value: "&anc"
+    - name: X-Bang
+      value: "!tag"
+    - name: X-Pipe
+      value: "|x"
+    - name: X-Gt
+      value: ">x"
+    - name: X-Utf
+      value: Ouédraogo é 😀
+    - name: X-Nbsp
+      value:  x
+    - name: X-Tilde
+      value: "~"
+    - name: X-Comma
+      value: a,b
+    - name: X-Brackets
+      value: "[x]"
+    - name: X-Version
+      value: 1.0.0
+    - name: X-Yes
+      value: yes
+    - name: X-Crlf-Long
+      value: "première ligne du texte\r
+
+        seconde ligne du texte assez longue"
+    - name: X-Crlf-Short
+      value: "a\r\nb"
+    - name: X-Space-Nl
+      value: "a\ \nb\r"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

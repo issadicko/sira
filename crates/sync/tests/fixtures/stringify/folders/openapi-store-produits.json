@@ -1,0 +1,16 @@
+{
+  "request": {
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    }
+  },
+  "meta": {
+    "name": "produits"
+  },
+  "docs": "Catalogue des produits.\nDeux lignes."
+}

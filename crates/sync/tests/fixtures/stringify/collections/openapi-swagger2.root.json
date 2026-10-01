@@ -1,0 +1,16 @@
+{
+  "request": {
+    "auth": {
+      "mode": "none",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    }
+  },
+  "meta": {
+    "name": "Legacy Petstore"
+  },
+  "docs": "Ancienne API Swagger 2.0"
+}

@@ -1,0 +1,24 @@
+{
+  "type": "http-request",
+  "name": "Tags et app",
+  "seq": 7,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    }
+  },
+  "tags": [
+    "a",
+    "b c",
+    "1"
+  ],
+  "description": "Description: courte",
+  "app": {
+    "enabled": true,
+    "code": "export default () => 1;\n"
+  }
+}

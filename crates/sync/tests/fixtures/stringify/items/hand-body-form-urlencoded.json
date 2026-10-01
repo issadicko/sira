@@ -1,0 +1,37 @@
+{
+  "type": "http-request",
+  "name": "Body form-urlencoded",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "formUrlEncoded",
+      "formUrlEncoded": [
+        {
+          "name": "user",
+          "value": "bob",
+          "enabled": true
+        },
+        {
+          "name": "pass",
+          "value": "",
+          "enabled": false
+        },
+        {
+          "name": "note",
+          "value": "a & b",
+          "enabled": true,
+          "description": "Note libre"
+        },
+        {
+          "name": "n",
+          "value": "10",
+          "enabled": true
+        }
+      ]
+    }
+  }
+}

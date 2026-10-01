@@ -1,0 +1,15 @@
+{
+  "type": "http-request",
+  "name": "Body text",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "text",
+      "text": "Bonjour,\n\nmerci.\n"
+    }
+  }
+}

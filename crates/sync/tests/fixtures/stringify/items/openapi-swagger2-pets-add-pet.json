@@ -1,0 +1,72 @@
+{
+  "name": "Add pet",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "pets"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/pets",
+    "method": "POST",
+    "auth": {
+      "mode": "basic",
+      "basic": {
+        "username": "{{username}}",
+        "password": "{{password}}"
+      },
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"name\": \"Médor\",\n  \"age\": 3\n}",
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "IpSIAYrTFeGszM88ccrBQ",
+      "name": "201 Response",
+      "description": "Created",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/pets",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"name\": \"Médor\",\n  \"age\": 3\n}",
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 201,
+        "statusText": "Created",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 2
+}

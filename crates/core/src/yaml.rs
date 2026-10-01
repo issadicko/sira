@@ -156,13 +156,14 @@ fn convert(y: Yaml) -> Result<Value, YamlError> {
     })
 }
 
-/// Émet un document. `blank_before` liste les clés de premier niveau précédées d'une ligne vide.
+/// Émet un document. `blank_before` liste les clés de premier niveau précédées d'une ligne vide,
+/// sauf si la ligne précédente est déjà blanche (comme le post-traitement de Bruno).
 pub fn emit(value: &Value, blank_before: &[&str]) -> String {
     let mut out = String::new();
     match value {
         Value::Map(m) if !m.is_empty() => {
             for (i, (k, v)) in m.0.iter().enumerate() {
-                if i > 0 && blank_before.contains(&k.as_str()) {
+                if i > 0 && blank_before.contains(&k.as_str()) && !ends_with_blank_line(&out) {
                     out.push('\n');
                 }
                 out.push_str(&key(k));
@@ -171,11 +172,16 @@ pub fn emit(value: &Value, blank_before: &[&str]) -> String {
             }
         }
         other => {
-            out.push_str(&inline(other));
+            out.push_str(&inline(other, 0));
             out.push('\n');
         }
     }
     out
+}
+
+fn ends_with_blank_line(out: &str) -> bool {
+    let body = out.strip_suffix('\n').unwrap_or(out);
+    body.rsplit('\n').next().is_some_and(|line| line.trim().is_empty())
 }
 
 fn pad(out: &mut String, n: usize) {
@@ -186,36 +192,23 @@ fn after_key(out: &mut String, v: &Value, indent: usize) {
     match v {
         Value::Map(m) if !m.is_empty() => {
             out.push('\n');
-            map_block(out, m, indent + 2);
+            map_block(out, m, indent + 2, false);
         }
         Value::Seq(s) if !s.is_empty() => {
             out.push('\n');
-            seq_block(out, s, indent + 2);
-        }
-        Value::Str(s) if is_block(s) => {
-            out.push(' ');
-            block(out, s, indent + 2);
+            seq_block(out, s, indent + 2, false);
         }
         _ => {
             out.push(' ');
-            out.push_str(&inline(v));
+            out.push_str(&inline(v, indent + 2));
             out.push('\n');
         }
     }
 }
 
-fn map_block(out: &mut String, m: &Map, indent: usize) {
-    for (k, v) in &m.0 {
-        pad(out, indent);
-        out.push_str(&key(k));
-        out.push(':');
-        after_key(out, v, indent);
-    }
-}
-
-fn map_after_dash(out: &mut String, m: &Map, indent: usize) {
+fn map_block(out: &mut String, m: &Map, indent: usize, after_dash: bool) {
     for (i, (k, v)) in m.0.iter().enumerate() {
-        if i > 0 {
+        if i > 0 || !after_dash {
             pad(out, indent);
         }
         out.push_str(&key(k));
@@ -224,79 +217,157 @@ fn map_after_dash(out: &mut String, m: &Map, indent: usize) {
     }
 }
 
-fn seq_block(out: &mut String, s: &[Value], indent: usize) {
-    for item in s {
-        pad(out, indent);
+fn seq_block(out: &mut String, s: &[Value], indent: usize, after_dash: bool) {
+    for (i, item) in s.iter().enumerate() {
+        if i > 0 || !after_dash {
+            pad(out, indent);
+        }
         out.push_str("- ");
         match item {
-            Value::Map(m) if !m.is_empty() => map_after_dash(out, m, indent + 2),
-            Value::Seq(inner) if !inner.is_empty() => {
-                out.push('\n');
-                seq_block(out, inner, indent + 2);
-            }
-            Value::Str(text) if is_block(text) => block(out, text, indent + 2),
+            Value::Map(m) if !m.is_empty() => map_block(out, m, indent + 2, true),
+            Value::Seq(inner) if !inner.is_empty() => seq_block(out, inner, indent + 2, true),
             other => {
-                out.push_str(&inline(other));
+                out.push_str(&inline(other, indent + 2));
                 out.push('\n');
             }
         }
     }
 }
 
-fn is_block(s: &str) -> bool {
-    s.contains('\n') && !s.contains('\r')
-}
-
-fn block(out: &mut String, s: &str, indent: usize) {
-    let body = s.trim_end_matches('\n');
-    let trailing = s.len() - body.len();
-    out.push('|');
-    if s.starts_with(' ') {
-        out.push('2');
-    }
-    out.push_str(match trailing {
-        0 => "-",
-        1 => "",
-        _ => "+",
-    });
-    out.push('\n');
-    let content = if trailing > 1 { &s[..s.len() - 1] } else { body };
-    for line in content.split('\n') {
-        if !line.is_empty() {
-            pad(out, indent);
-            out.push_str(line);
-        }
-        out.push('\n');
-    }
-}
-
-fn inline(v: &Value) -> String {
+fn inline(v: &Value, indent: usize) -> String {
     match v {
         Value::Null => "null".into(),
         Value::Bool(b) => b.to_string(),
         Value::Int(i) => i.to_string(),
         Value::Float(f) => f.clone(),
-        Value::Str(s) => scalar(s),
+        Value::Str(s) => string(s, indent, false),
         Value::Seq(_) => "[]".into(),
         Value::Map(_) => "{}".into(),
     }
 }
 
 fn key(k: &str) -> String {
-    scalar(k)
+    string(k, 0, true)
 }
 
-fn scalar(s: &str) -> String {
-    if plain_safe(s) {
-        return s.to_owned();
+/// Rendu d'une chaîne dont le contexte est indenté de `indent` espaces (`stringifyString` de `yaml`).
+fn string(s: &str, indent: usize, implicit_key: bool) -> String {
+    if s.chars().any(forces_double_quotes) {
+        return double_quoted(s, indent, implicit_key);
     }
-    if s.contains('"') && !s.contains('\'') && !s.chars().any(char::is_control) {
-        return format!("'{s}'");
+    let multiline = s.contains('\n');
+    if implicit_key && multiline {
+        return quoted(s, indent, implicit_key);
     }
-    double_quoted(s)
+    if s.is_empty() || plain_forbidden(s) {
+        return if implicit_key || !multiline { quoted(s, indent, implicit_key) } else { block(s, indent) };
+    }
+    if multiline {
+        return block(s, indent);
+    }
+    if looks_like_non_string(s) {
+        return quoted(s, indent, implicit_key);
+    }
+    s.to_owned()
 }
 
-fn double_quoted(s: &str) -> String {
+fn forces_double_quotes(c: char) -> bool {
+    matches!(c, '\0'..='\x08' | '\x0b'..='\x1f' | '\x7f'..='\u{9f}')
+}
+
+fn plain_forbidden(s: &str) -> bool {
+    let b = s.as_bytes();
+    if b"\n\t ,[]{}#&*!|>'\"%@`".contains(&b[0]) {
+        return true;
+    }
+    if matches!(b[0], b'?' | b'-') && b.get(1).is_none_or(|c| matches!(c, b' ' | b'\t')) {
+        return true;
+    }
+    let inside = b.windows(2).any(|w| {
+        matches!((w[0], w[1]), (b'\n' | b':', b' ' | b'\t') | (b' ' | b'\t', b'\n') | (b'\n' | b'\t' | b' ', b'#'))
+    });
+    inside || matches!(b[b.len() - 1], b'\n' | b'\t' | b' ' | b':')
+}
+
+fn quoted(s: &str, indent: usize, implicit_key: bool) -> String {
+    if s.contains('"') && !s.contains('\'') {
+        single_quoted(s, indent, implicit_key)
+    } else {
+        double_quoted(s, indent, implicit_key)
+    }
+}
+
+fn single_quoted(s: &str, indent: usize, implicit_key: bool) -> String {
+    let space_around_newline =
+        s.as_bytes().windows(2).any(|w| matches!((w[0], w[1]), (b' ' | b'\t', b'\n') | (b'\n', b' ' | b'\t')));
+    if (implicit_key && s.contains('\n')) || space_around_newline {
+        return double_quoted(s, indent, implicit_key);
+    }
+    let suffix = format!("\n{}", " ".repeat(indent));
+    format!("'{}'", after_newline_runs(&s.replace('\'', "''"), &suffix, false))
+}
+
+fn double_quoted(s: &str, indent: usize, implicit_key: bool) -> String {
+    let json = json_string(s);
+    let b = json.as_bytes();
+    let fold = !implicit_key && json.encode_utf16().count() >= 40;
+    let mut out = String::new();
+    let mut start = 0;
+    let mut i = 0;
+    while i < b.len() {
+        let mut ch = b[i];
+        if ch == b' ' && b.get(i + 1) == Some(&b'\\') && b.get(i + 2) == Some(&b'n') {
+            out.push_str(&json[start..i]);
+            out.push_str("\\ ");
+            i += 1;
+            start = i;
+            ch = b'\\';
+        }
+        if ch == b'\\' {
+            match b.get(i + 1) {
+                Some(b'u') => {
+                    out.push_str(&json[start..i]);
+                    match &json[i + 2..i + 6] {
+                        "0000" => out.push_str("\\0"),
+                        "0007" => out.push_str("\\a"),
+                        "000b" => out.push_str("\\v"),
+                        "001b" => out.push_str("\\e"),
+                        code => {
+                            out.push_str("\\x");
+                            out.push_str(&code[2..]);
+                        }
+                    }
+                    i += 5;
+                    start = i + 1;
+                }
+                Some(b'n') if fold && b.get(i + 2) != Some(&b'"') => {
+                    out.push_str(&json[start..i]);
+                    out.push_str("\n\n");
+                    while b.get(i + 2) == Some(&b'\\') && b.get(i + 3) == Some(&b'n') && b.get(i + 4) != Some(&b'"') {
+                        out.push('\n');
+                        i += 2;
+                    }
+                    pad(&mut out, indent);
+                    if b.get(i + 2) == Some(&b' ') {
+                        out.push('\\');
+                    }
+                    i += 1;
+                    start = i + 1;
+                }
+                _ => i += 1,
+            }
+        }
+        i += 1;
+    }
+    if start == 0 {
+        return json;
+    }
+    out.push_str(&json[start..]);
+    out
+}
+
+/// Chaîne JSON telle que l'écrit `JSON.stringify`.
+pub fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
     for c in s.chars() {
@@ -306,7 +377,9 @@ fn double_quoted(s: &str) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
-            c if c.is_control() => out.push_str(&format!("\\x{:02X}", c as u32)),
+            '\x08' => out.push_str("\\b"),
+            '\x0c' => out.push_str("\\f"),
+            c if c < ' ' => out.push_str(&format!("\\u{:04x}", c as u32)),
             c => out.push(c),
         }
     }
@@ -314,42 +387,63 @@ fn double_quoted(s: &str) -> String {
     out
 }
 
-fn plain_safe(s: &str) -> bool {
-    let Some(first) = s.chars().next() else { return false };
-    if s.starts_with(' ') || s.ends_with(' ') || s.chars().any(char::is_control) {
-        return false;
+fn block(s: &str, indent: usize) -> String {
+    let trimmed = s.trim_end_matches([' ', '\t']);
+    if (trimmed.len() < s.len() && trimmed.ends_with('\n')) || s.chars().all(is_js_space) {
+        return quoted(s, indent, false);
     }
-    if "[]{}#&*!|>'\"%@`,".contains(first) {
-        return false;
+    let ind = " ".repeat(indent);
+    let (value, end) = s.split_at(s.trim_end_matches(['\n', '\t', ' ']).len());
+    let chomp = match end.find('\n') {
+        None => "-",
+        Some(p) if value.is_empty() || p != end.len() - 1 => "+",
+        Some(_) => "",
+    };
+    let end = after_newline_runs(end.strip_suffix('\n').unwrap_or(end), &ind, true);
+    let lead = &value[..value.len() - value.trim_start_matches([' ', '\n']).len()];
+    let (start, rest) = value.split_at(lead.rfind('\n').map_or(0, |p| p + 1));
+    let width = match (lead.contains(' '), indent) {
+        (false, _) => "",
+        (true, 0) => "1",
+        (true, _) => "2",
+    };
+    format!(
+        "|{width}{chomp}\n{ind}{}{}{end}",
+        after_newline_runs(start, &ind, false),
+        after_newline_runs(rest, &ind, false)
+    )
+}
+
+/// Ajoute `suffix` après chaque suite de sauts de ligne, sauf en fin de texte si `except_at_end`.
+fn after_newline_runs(s: &str, suffix: &str, except_at_end: bool) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        out.push(c);
+        let next = chars.peek();
+        if c == '\n' && next != Some(&'\n') && !(except_at_end && next.is_none()) {
+            out.push_str(suffix);
+        }
     }
-    if "-?:".contains(first) && s.chars().nth(1).is_none_or(|c| c == ' ') {
-        return false;
-    }
-    if s.contains(": ") || s.ends_with(':') || s.contains(" #") {
-        return false;
-    }
-    if s.starts_with("---") || s.starts_with("...") {
-        return false;
-    }
-    !looks_like_non_string(s)
+    out
+}
+
+/// Blanc au sens de `\s` (et de `String.prototype.trim`) en JavaScript.
+pub fn is_js_space(c: char) -> bool {
+    (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}'
 }
 
 fn looks_like_non_string(s: &str) -> bool {
-    const WORDS: [&str; 15] = [
-        "null", "Null", "NULL", "~", "true", "True", "TRUE", "false", "False", "FALSE", ".nan", ".NaN", ".NAN", ".inf",
-        ".Inf",
-    ];
-    if WORDS.contains(&s) || matches!(s.trim_start_matches(['+', '-']), ".inf" | ".Inf" | ".INF") {
+    const WORDS: [&str; 10] = ["~", "null", "Null", "NULL", "true", "True", "TRUE", "false", "False", "FALSE"];
+    let digits = |t: &str, radix: u32| !t.is_empty() && t.chars().all(|c| c.is_digit(radix));
+    if WORDS.contains(&s) || s.strip_prefix("0o").is_some_and(|o| digits(o, 8)) {
         return true;
     }
-    let digits = |t: &str, radix: u32| !t.is_empty() && t.chars().all(|c| c.is_digit(radix));
-    if let Some(h) = s.strip_prefix("0x") {
-        return digits(h, 16);
+    if s.strip_prefix("0x").is_some_and(|h| digits(h, 16)) {
+        return true;
     }
-    if let Some(o) = s.strip_prefix("0o") {
-        return digits(o, 8);
-    }
-    is_float(s.trim_start_matches(['+', '-']))
+    let unsigned = s.strip_prefix(['+', '-']).unwrap_or(s);
+    matches!(unsigned, ".inf" | ".Inf" | ".INF" | ".nan" | ".NaN" | ".NAN") || is_float(unsigned)
 }
 
 fn is_float(s: &str) -> bool {
@@ -357,17 +451,14 @@ fn is_float(s: &str) -> bool {
         Some(i) => (&s[..i], Some(&s[i + 1..])),
         None => (s, None),
     };
+    let digits = |t: &str| t.chars().all(|c| c.is_ascii_digit());
     let mantissa_ok = match mantissa.split_once('.') {
-        Some((int, frac)) => {
-            (!int.is_empty() || !frac.is_empty())
-                && int.chars().all(|c| c.is_ascii_digit())
-                && frac.chars().all(|c| c.is_ascii_digit())
-        }
-        None => !mantissa.is_empty() && mantissa.chars().all(|c| c.is_ascii_digit()),
+        Some((int, frac)) => (!int.is_empty() || !frac.is_empty()) && digits(int) && digits(frac),
+        None => !mantissa.is_empty() && digits(mantissa),
     };
     let exponent_ok = exponent.is_none_or(|e| {
-        let e = e.trim_start_matches(['+', '-']);
-        !e.is_empty() && e.chars().all(|c| c.is_ascii_digit())
+        let e = e.strip_prefix(['+', '-']).unwrap_or(e);
+        !e.is_empty() && digits(e)
     });
     mantissa_ok && exponent_ok
 }
@@ -404,10 +495,21 @@ mod tests {
             ("{\"a\":1}", "'{\"a\":1}'"),
             ("\tx", "\"\\tx\""),
             ("crlf\r\nline", "\"crlf\\r\\nline\""),
+            ("a\tb", "a\tb"),
+            ("---x", "---x"),
+            ("--1", "--1"),
+            ("+.nan", "\"+.nan\""),
+            ("bell\x07\x1f\x7f", "\"bell\\a\\x1f\x7f\""),
         ];
         for (input, expected) in cases {
-            assert_eq!(scalar(input), expected, "scalaire {input:?}");
+            assert_eq!(string(input, 2, false), expected, "scalaire {input:?}");
         }
+    }
+
+    #[test]
+    fn long_double_quoted_strings_fold_like_bruno() {
+        let crlf = "first line of the text\r\nsecond line of the text";
+        assert_eq!(string(crlf, 2, false), "\"first line of the text\\r\n\n  second line of the text\"");
     }
 
     #[test]
@@ -417,6 +519,9 @@ mod tests {
         assert_eq!(doc("a\nb\n"), "k: |\n  a\n  b\n");
         assert_eq!(doc("a\n\nb"), "k: |-\n  a\n\n  b\n");
         assert_eq!(doc(" a\nb"), "k: |2-\n   a\n  b\n");
+        assert_eq!(doc("\n\na"), "k: |-\n  \n\n  a\n");
+        assert_eq!(doc("a\n \n"), "k: |+\n  a\n   \n");
+        assert_eq!(doc("a\n  "), "k: \"a\\n  \"\n");
     }
 
     #[test]

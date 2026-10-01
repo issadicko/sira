@@ -1,0 +1,8 @@
+name: "Régional: {region}"
+variables:
+  - name: baseUrl
+    value: https://{{region}}.boutique.test/{{version}}
+  - name: region
+    value: eu
+  - name: version
+    value: v2

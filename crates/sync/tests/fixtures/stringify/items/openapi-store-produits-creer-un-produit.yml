@@ -1,0 +1,91 @@
+info:
+  name: Créer un produit
+  type: http
+  seq: 2
+  tags:
+    - produits
+
+http:
+  method: POST
+  url: "{{baseUrl}}/produits"
+  body:
+    type: json
+    data: |-
+      {
+        "id": 7,
+        "nom": "Banc",
+        "prix": 49
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) {
+          bru.setVar('lireProduit_produitId', res.body.id);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response (simple)
+    description: Créé
+    request:
+      url: "{{baseUrl}}/produits"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "id": 7,
+            "nom": "Banc",
+            "prix": 49
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": 42,
+            "nom": "Chaise: chêne",
+            "prix": 19.9,
+            "tags": [],
+            "actif": false
+          }
+  - name: 400 Response (simple)
+    description: Requête invalide
+    request:
+      url: "{{baseUrl}}/produits"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "id": 7,
+            "nom": "Banc",
+            "prix": 49
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "code": 400,
+            "message": "nom requis"
+          }

@@ -1,0 +1,62 @@
+info:
+  name: Passer une commande
+  type: http
+  seq: 1
+  tags:
+    - commandes
+
+http:
+  method: POST
+  url: "{{baseUrl}}/commandes"
+  body:
+    type: form-urlencoded
+    data:
+      - name: produit
+        value: "42"
+      - name: quantite
+        value: "3"
+      - name: note
+        value: ""
+        description: "Note libre: optionnelle"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    description: Commande créée
+    request:
+      url: "{{baseUrl}}/commandes"
+      method: POST
+      body:
+        type: form-urlencoded
+        data:
+          - name: produit
+            value: "42"
+          - name: quantite
+            value: "3"
+          - name: note
+            value: ""
+            description: "Note libre: optionnelle"
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "c-1",
+            "total": 1000,
+            "lignes": {
+              "1": "Table",
+              "b": "x"
+            }
+          }

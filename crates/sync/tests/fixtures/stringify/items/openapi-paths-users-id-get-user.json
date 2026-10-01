@@ -1,0 +1,104 @@
+{
+  "name": "Get user",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/users/:id",
+    "method": "GET",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [
+      {
+        "name": "Accept-Language",
+        "value": "fr",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [
+      {
+        "name": "id",
+        "value": "007",
+        "description": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "5BHR7FXOmLkfSLMcHk1qE",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/users/:id",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "Accept-Language",
+            "value": "fr",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "id",
+            "value": "007",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "{\n  \"id\": \"007\",\n  \"nom\": \"Bond\",\n  \"score\": 1,\n  \"meta\": null,\n  \"flags\": [\n    true,\n    false\n  ]\n}"
+        }
+      }
+    }
+  ],
+  "seq": 1
+}

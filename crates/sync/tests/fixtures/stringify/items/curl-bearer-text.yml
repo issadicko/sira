@@ -1,0 +1,26 @@
+info:
+  name: cURL bearer-text
+  type: http
+  seq: 6
+
+http:
+  method: patch
+  url: https://api.x.test/note
+  headers:
+    - name: Authorization
+      value: Bearer abc.def
+    - name: Content-Type
+      value: text/plain
+  body:
+    type: text
+    data: |-
+      ligne 1
+      ligne 2
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
