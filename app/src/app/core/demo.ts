@@ -2,6 +2,7 @@ import type { Api } from './api';
 import { CollectionInfo, KeyValue, Param, RequestDoc, Rung, SendResult, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
+const EXPORT = 'transactions/export.yml';
 
 const doc = (name: string, method: string, url: string, extra: Partial<RequestDoc> = {}): RequestDoc => ({
   name,
@@ -47,6 +48,7 @@ const files: Record<string, RequestDoc> = {
     params: [pathParam('id', '{{txId}}')],
     body: { type: 'json', data: '{\n  "motif": "Erreur de saisie",\n  "canal": "USSD"\n}' },
   }),
+  [EXPORT]: doc('Export des transactions (10 Mo)', 'GET', '{{baseUrl}}/transactions/export'),
 };
 
 const collection: CollectionInfo = {
@@ -54,7 +56,7 @@ const collection: CollectionInfo = {
   name: 'API Paiements (démo)',
   environments: ['dev', 'prod'],
   defaultEnvironment: 'dev',
-  requestCount: 4,
+  requestCount: 5,
   items: [
     { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: [{ kind: 'request', path: 'auth/connexion.yml', name: 'Connexion', method: 'POST', requestType: 'http' }] },
     {
@@ -62,7 +64,7 @@ const collection: CollectionInfo = {
       path: 'transactions',
       name: 'Transactions',
       seq: 2,
-      children: ['liste', 'detail', 'annuler'].map((f) => {
+      children: ['liste', 'detail', 'annuler', 'export'].map((f) => {
         const path = `transactions/${f}.yml`;
         return { kind: 'request' as const, path, name: files[path].name, method: files[path].method, requestType: 'http' };
       }),
@@ -97,6 +99,32 @@ const body = (path: string) =>
     ? { id: 'TX-2026-0042', montant: 15000, frais: 150, devise: 'XOF', statut: 'CONFIRMEE', client: { id: 'CL-00318', nom: 'Aminata Ouédraogo' }, creeLe: '2026-09-29T10:42:11Z' }
     : { ok: true, source: 'mode démo du navigateur' };
 
+const transactions = (count: number) =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `TX-2026-${String(i).padStart(6, '0')}`,
+    montant: 1500 + (i % 997) * 25,
+    frais: 150,
+    devise: 'XOF',
+    statut: i % 7 ? 'CONFIRMEE' : 'ANNULEE',
+    canal: 'MOBILE',
+    client: { id: `CL-${String(i % 9000).padStart(5, '0')}`, nom: 'Aminata Ouédraogo' },
+    creeLe: '2026-09-29T10:42:11Z',
+  }));
+
+let exported: { body: string; pretty: string } | undefined;
+
+function payload(path: string): { body: string; pretty: string } {
+  if (path !== EXPORT) {
+    const text = JSON.stringify(body(path), null, 2);
+    return { body: text, pretty: text };
+  }
+  if (!exported) {
+    const value = { total: 56_000, donnees: transactions(56_000) };
+    exported = { body: JSON.stringify(value), pretty: JSON.stringify(value, null, 2) };
+  }
+  return exported;
+}
+
 const timers = new Map<string, () => void>();
 
 export const demoApi: Api = {
@@ -124,7 +152,7 @@ export const demoApi: Api = {
           if (v == null) unresolved.push(n.trim());
           return v ?? all;
         });
-        const text = JSON.stringify(body(path), null, 2);
+        const { body: text, pretty } = payload(path);
         const total = 90 + Math.round(Math.random() * 60);
         resolve({
           method: d.method,
@@ -138,6 +166,7 @@ export const demoApi: Api = {
             remoteAddr: '127.0.0.1:443',
             headers: [['content-type', 'application/json'], ['content-length', String(text.length)]],
             body: text,
+            pretty,
             size: text.length,
             timings: { dnsMs: 4, tcpMs: 11, tlsMs: 28, ttfbMs: total - 55, downloadMs: 12, totalMs: total },
           },

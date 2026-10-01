@@ -1,17 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
-import { formatSize, highlightJsonLine, jsonPath } from '../core/highlight';
+import { formatSize, hasLongLine, jsonPath } from '../core/highlight';
 import { Timings } from '../core/model';
 import { Workspace } from '../core/store';
+import { CodeEditor, CodeLanguage } from './code-editor';
 import { Icon } from './icon';
 
 type Section = 'body' | 'headers' | 'timeline' | 'tests';
-const HIGHLIGHT_LIMIT = 400_000;
+const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', text: 'Texte' };
 
 @Component({
   selector: 'app-response-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, CodeEditor],
   host: { class: 'pane', 'aria-label': 'Réponse' },
   template: `
     @if (ws.active(); as tab) {
@@ -38,14 +39,14 @@ const HIGHLIGHT_LIMIT = 400_000;
       @if (tab.result && section() === 'body') {
         <div class="res-tools">
           <div class="seg" role="group" aria-label="Format">
-            <button [attr.aria-pressed]="!raw()" (click)="raw.set(false)">{{ isJson() ? 'JSON' : 'Texte' }}</button>
+            <button [attr.aria-pressed]="!raw()" (click)="raw.set(false)">{{ formats[language()] }}</button>
             <button [attr.aria-pressed]="raw()" (click)="raw.set(true)">Brut</button>
           </div>
           @if (isJson()) {
-            <label class="jp" [class.has-error]="!filtered().ok"><app-ic name="filter" [size]="13" /><input type="text" spellcheck="false" placeholder="$.client.nom" [value]="filter()" (input)="filter.set($any($event.target).value)" aria-label="Filtre JSONPath" /></label>
+            <label class="jp" [class.has-error]="filtered()?.ok === false"><app-ic name="filter" [size]="13" /><input type="text" spellcheck="false" placeholder="$.client.nom" [value]="filter()" (input)="filter.set($any($event.target).value)" aria-label="Filtre JSONPath" /></label>
           }
           <span class="grow"></span>
-          <button class="icon-btn sm" (click)="wrap.set(!wrap())" [attr.aria-pressed]="wrap()" title="Retour à la ligne" aria-label="Retour à la ligne"><app-ic name="wrap" [size]="15" /></button>
+          <button class="icon-btn sm" (click)="wrap.set(!wrap())" [attr.aria-pressed]="wrap()" [disabled]="longLine()" [title]="longLine() ? 'Ligne trop longue pour le retour à la ligne' : 'Retour à la ligne'" aria-label="Retour à la ligne"><app-ic name="wrap" [size]="15" /></button>
           <button class="icon-btn sm" (click)="copy()" title="Copier le corps" aria-label="Copier le corps"><app-ic name="copy" [size]="15" /></button>
         </div>
       }
@@ -59,14 +60,10 @@ const HIGHLIGHT_LIMIT = 400_000;
           }
           @switch (section()) {
             @case ('body') {
-              @if (filtered().ok) {
-                <div class="code" [class.wrap]="wrap() || raw()">
-                  @for (line of lines(); track $index; let i = $index) {
-                    <div class="ln"><span class="ln-no">{{ i + 1 }}</span><span class="ln-g"></span><span class="ln-t" [innerHTML]="line"></span></div>
-                  }
-                </div>
-              } @else {
+              @if (filtered()?.ok === false) {
                 <div class="empty" style="min-height: 160px"><h2>{{ $any(filtered()).error }}</h2><p>Exemples : <span class="mono">$.client</span>, <span class="mono">$.historique[0].statut</span></p></div>
+              } @else {
+                <app-code-editor class="res-code" [value]="text()" [language]="language()" [readonly]="true" [wrap]="(wrap() || raw()) && !longLine()" label="Corps de la réponse" />
               }
             }
             @case ('headers') {
@@ -139,6 +136,10 @@ const HIGHLIGHT_LIMIT = 400_000;
     }
   `,
   styles: `
+    .res-body { display: flex; flex-direction: column; }
+    .res-code { flex: 1; }
+    .is-sending > .res-code { opacity: 0.35; transition: opacity 0.2s; }
+    .icon-btn:disabled { color: var(--faint); background: transparent; }
     .warn-banner { margin: 10px 12px 0; }
     .ok-ic { color: var(--good); display: grid; }
     .ko-ic { color: var(--bad); display: grid; }
@@ -147,6 +148,7 @@ const HIGHLIGHT_LIMIT = 400_000;
 export class ResponsePane {
   protected readonly ws = inject(Workspace);
   protected readonly String = String;
+  protected readonly formats = FORMATS;
   protected readonly section = signal<Section>('body');
   protected readonly raw = signal(false);
   protected readonly wrap = signal(false);
@@ -155,25 +157,23 @@ export class ResponsePane {
   private readonly response = computed(() => this.ws.active()?.result?.response ?? null);
   protected readonly passed = computed(() => this.ws.active()?.result?.assertions.filter((a) => a.passed).length ?? 0);
   protected readonly size = computed(() => formatSize(this.response()?.size ?? 0));
-  private readonly parsed = computed(() => {
-    const body = this.response()?.body ?? '';
-    try {
-      return { json: true, value: JSON.parse(body) as unknown };
-    } catch {
-      return { json: false, value: body as unknown };
-    }
+  protected readonly isJson = computed(() => this.response()?.pretty != null);
+  protected readonly language = computed<CodeLanguage>(() => {
+    const type = this.response()?.headers.find(([name]) => name.toLowerCase() === 'content-type')?.[1] ?? '';
+    return this.isJson() ? 'json' : /xml|html/i.test(type) ? 'xml' : 'text';
   });
-  protected readonly isJson = computed(() => this.parsed().json);
-  protected readonly filtered = computed(() => (this.isJson() ? jsonPath(this.parsed().value, this.filter()) : { ok: true as const, value: this.parsed().value }));
-
-  protected readonly lines = computed(() => {
-    const body = this.response()?.body ?? '';
+  private readonly filtering = computed(() => this.isJson() && !['', '$'].includes(this.filter().trim()));
+  private readonly parsed = computed(() => (this.filtering() ? (JSON.parse(this.response()!.body) as unknown) : undefined));
+  protected readonly filtered = computed(() => (this.filtering() ? jsonPath(this.parsed(), this.filter()) : null));
+  protected readonly text = computed(() => {
+    const r = this.response();
     const f = this.filtered();
-    if (!f.ok) return [];
-    if (this.raw() || !this.isJson()) return escapeLines(this.raw() ? body : String(f.value));
-    const text = JSON.stringify(f.value, null, 2) ?? 'undefined';
-    return text.length > HIGHLIGHT_LIMIT ? escapeLines(text) : text.split('\n').map(highlightJsonLine);
+    if (!r) return '';
+    if (this.raw()) return r.body;
+    if (f?.ok) return JSON.stringify(f.value, null, 2) ?? 'undefined';
+    return r.pretty ?? r.body;
   });
+  protected readonly longLine = computed(() => hasLongLine(this.text()));
 
   protected ms(v: number) {
     return v < 10 ? v.toFixed(1).replace('.', ',') : Math.round(v).toString();
@@ -203,8 +203,4 @@ export class ResponsePane {
       () => this.ws.notify('Copie impossible'),
     );
   }
-}
-
-function escapeLines(text: string): string[] {
-  return text.split('\n').map((l) => l.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!));
 }

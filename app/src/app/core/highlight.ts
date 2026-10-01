@@ -1,17 +1,3 @@
-const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-
-/** Colore une ligne de JSON déjà indentée. Le résultat est échappé, donc sûr pour innerHTML. */
-export function highlightJsonLine(line: string): string {
-  return escapeHtml(line).replace(
-    /(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)/g,
-    (_m, str: string, colon: string, kw: string, num: string) => {
-      if (str) return colon ? `<span class="t-key">${str}</span>${colon}` : `<span class="t-str">${str}</span>`;
-      if (kw) return `<span class="t-kw">${kw}</span>`;
-      return `<span class="t-num">${num}</span>`;
-    },
-  );
-}
-
 export function prettyJson(text: string): string | null {
   try {
     return JSON.stringify(JSON.parse(text), null, 2);
@@ -32,6 +18,16 @@ export function jsonPath(value: unknown, path: string): { ok: true; value: unkno
     if (cur === undefined) return { ok: false, error: `Rien à ${p}` };
   }
   return { ok: true, value: cur };
+}
+
+/** Vrai si une ligne dépasse `limit` caractères : le retour à la ligne y figerait l'éditeur. */
+export function hasLongLine(text: string, limit = 200_000): boolean {
+  let start = 0;
+  for (let end = text.indexOf('\n'); end !== -1; end = text.indexOf('\n', start)) {
+    if (end - start > limit) return true;
+    start = end + 1;
+  }
+  return text.length - start > limit;
 }
 
 export function formatSize(bytes: number): string {

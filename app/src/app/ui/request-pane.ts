@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Assertion, Auth, Body, KeyValue, Param } from '../core/model';
 import { Workspace } from '../core/store';
 import { prettyJson } from '../core/highlight';
+import { CodeEditor } from './code-editor';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
 
@@ -26,7 +27,7 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable],
+  imports: [Icon, KvTable, CodeEditor],
   host: { class: 'pane', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -72,7 +73,9 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
                   <button class="btn ghost" style="height: 24px" (click)="formatBody()">Formater</button>
                 }
               </div>
-              <textarea class="code-input" spellcheck="false" [value]="$any(tab.doc.body).data" (input)="setBodyData($any($event.target).value)" aria-label="Corps de la requête"></textarea>
+              @for (path of [tab.path]; track path) {
+                <app-code-editor class="body-editor" [value]="$any(tab.doc.body).data" [language]="$any(tab.doc.body).type" label="Corps de la requête" (valueChange)="setBodyData($event)" />
+              }
             } @else {
               <div class="empty" style="min-height: 200px">
                 <span class="empty-ic"><app-ic name="file" [size]="18" /></span>
@@ -168,6 +171,8 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
     .code-input { display: block; width: 100%; min-height: 260px; height: calc(100% - 64px); resize: none; margin-top: 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 12.5px/20px var(--font-mono); font-variant-ligatures: none; tab-size: 2; outline: 0; }
     .code-input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .code-input.docs { font-family: var(--font-ui); font-size: 13px; height: 100%; margin: 0; }
+    .body-editor { height: calc(100% - 64px); min-height: 260px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); }
+    .body-editor:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .body-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 12px; }
     .field { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
     .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: 12.5px var(--font-mono); outline: 0; }
