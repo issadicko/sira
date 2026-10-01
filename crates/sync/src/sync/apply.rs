@@ -37,7 +37,7 @@ impl Plan {
             .iter()
             .map(|(ours, text)| Ok((resolve_visible_path(root, &ours.file)?, text)))
             .collect::<Result<_, CoreError>>()?;
-        write_parallel(&jobs, |(path, text)| write_atomic(path, text))?;
+        write_parallel(&jobs, |(path, text)| write_atomic(root, path, text))?;
 
         let mut run = Run::new(root, self.state.claimed_files());
         run.report.written.extend(writes.iter().map(|(ours, _)| ours.file.clone()));

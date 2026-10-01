@@ -1,110 +1,128 @@
 //! Réordonner et déplacer par glisser-déposer (`handleCollectionItemDrop` de Bruno).
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use xc_core::collection::{write_atomic, TreeItem, FOLDER_FILE, REQUEST_EXT};
+use xc_core::collection::{TreeItem, FOLDER_FILE, REQUEST_EXT};
 use xc_core::yaml::Value;
 use xc_core::CoreError;
 
 use super::copy::relocate;
-use super::item::{end_seq, info_file, minimal_folder_file, siblings, taken_names, updated_info};
-use super::paths::{locate, split, visible, Item};
+use super::info::{commit, plan, symlink_error, Edit, Kind, Update};
+use super::item::{end_seq, minimal_folder_file, siblings};
+use super::names::{claim_unique, Wanted};
+use super::paths::{split, Item, Scope};
 use super::track::Tracking;
 use super::{DropPosition, ManageError};
 use crate::import::join;
-use crate::sync::write_parallel;
-
-/// Fichier qui porte `seq` d'un frère de la collection.
-fn sibling_file(root: &Path, sibling: &TreeItem) -> PathBuf {
-    let path = root.join(sibling.path());
-    match sibling {
-        TreeItem::Folder { .. } => path.join(FOLDER_FILE),
-        TreeItem::Request { .. } => path,
-    }
-}
 
 /// Frères dont le `seq` est à réécrire, avec leur nouveau `seq`.
 type Renumbered<'a> = Vec<(&'a TreeItem, i64)>;
 
-/// `seq` de l'élément déplacé et `seq` à réécrire chez les frères `others` (hors l'élément déplacé). Déposer dans un
-/// dossier place l'élément en fin de liste sans toucher aux frères ; déposer avant ou après le frère `anchor`
-/// renumérote le dossier de 1 à n, et seuls les frères dont le `seq` change sont à réécrire.
-fn numbering<'a>(
-    others: &'a [TreeItem],
-    anchor: Option<&str>,
-    after: bool,
-) -> Result<(i64, Renumbered<'a>), ManageError> {
-    let Some(anchor) = anchor else { return Ok((end_seq(others.iter()), Vec::new())) };
+/// Index où l'élément déplacé s'insère parmi les frères `others` : avant ou après le frère `anchor`, ou à la fin.
+fn slot(others: &[TreeItem], anchor: Option<&str>, after: bool) -> Result<usize, ManageError> {
+    let Some(anchor) = anchor else { return Ok(others.len()) };
     let at = others.iter().position(|s| s.path() == anchor).ok_or_else(|| ManageError::NotFound(anchor.to_owned()))?;
+    Ok(at + usize::from(after))
+}
+
+/// `seq` de l'élément déplacé et `seq` à réécrire chez les frères `others` (hors l'élément déplacé). Déposer dans un
+/// dossier (`slot` absent) place l'élément en fin de liste sans toucher aux frères ; déposer avant ou après un frère
+/// renumérote le dossier de 1 à n, et seuls les frères dont le `seq` change sont à réécrire.
+fn numbering(others: &[TreeItem], slot: Option<usize>) -> (i64, Renumbered<'_>) {
+    let Some(slot) = slot else { return (end_seq(others.iter()), Vec::new()) };
     let mut order: Vec<Option<&TreeItem>> = others.iter().map(Some).collect();
-    order.insert(at + usize::from(after), None);
+    order.insert(slot, None);
     let (mut moved, mut changed) = (0, Vec::new());
-    for (slot, seq) in order.into_iter().zip(1..) {
-        match slot {
+    for (entry, seq) in order.into_iter().zip(1..) {
+        match entry {
             None => moved = seq,
             Some(sibling) if sibling.seq() != Some(seq) => changed.push((sibling, seq)),
             Some(_) => {}
         }
     }
-    Ok((moved, changed))
+    (moved, changed)
 }
 
-/// Nouveau texte des fichiers des frères dont `seq` change, lu avant toute écriture : rien n'est écrit si l'un d'eux
-/// est illisible.
-fn sibling_writes(root: &Path, changed: &Renumbered) -> Result<Vec<(PathBuf, String)>, ManageError> {
-    let mut writes = Vec::new();
-    for (sibling, seq) in changed {
-        let file = sibling_file(root, sibling);
-        let created =
-            matches!(sibling, TreeItem::Folder { .. }).then(|| minimal_folder_file(sibling.name(), Some(*seq)));
-        if let Some(text) = updated_info(&file, &[("seq", Value::Int(*seq))], created)? {
-            writes.push((file, text));
+/// Écritures de `seq` des frères renumérotés. Un frère qui ne peut pas être réécrit (YAML illisible, fichier qui n'est
+/// pas une requête, lien symbolique) garde son `seq` : il ne fait pas échouer toute l'action.
+fn sibling_edits(root: &Path, changed: &Renumbered) -> Vec<Edit> {
+    let edits = changed.iter().filter_map(|(sibling, seq)| {
+        let path = root.join(sibling.path());
+        let update = match sibling {
+            TreeItem::Folder { name, .. } => {
+                let created = Some(minimal_folder_file(name, Some(*seq)));
+                plan(&path.join(FOLDER_FILE), Kind::Folder, &[("seq", Value::Int(*seq))], created)
+            }
+            TreeItem::Request { .. } => plan(&path, Kind::Request, &[("seq", Value::Int(*seq))], None),
+        };
+        match update {
+            Update::Write(edit) => Some(edit),
+            Update::Keep | Update::Link | Update::Foreign => None,
         }
-    }
-    Ok(writes)
+    });
+    edits.collect()
 }
 
 /// Déplace la requête ou le dossier `path` par rapport à `target`, et renvoie son nouveau chemin relatif. `target` est
 /// le frère de référence pour `Before` et `After`, le dossier d'accueil (`""` pour la racine) pour `Inside`.
 ///
-/// Dans le même dossier, seuls les `seq` sont réécrits (ligne `info.seq`). Vers un autre dossier, l'élément est
-/// renommé de façon atomique (copie vérifiée puis suppression de la source si les volumes diffèrent), avec un suffixe
-/// ` n` si le nom est pris. Déposer un dossier dans lui-même ou dans un de ses descendants est refusé.
+/// Ne rien changer (même dossier, même position) n'écrit rien. Les `seq` sont écrits d'abord, sur place (ligne
+/// `info.seq` seulement) ; l'élément est ensuite renommé, en dernier, de façon atomique et sans jamais remplacer un
+/// élément existant (copie vérifiée puis suppression de la source si les volumes diffèrent), puis `source.yml` est mis
+/// à jour aussitôt. Dans un autre dossier, l'élément garde son nom de fichier s'il y est libre, sinon un suffixe ` n`
+/// le distingue. Déposer un dossier dans lui-même ou dans un de ses descendants est refusé, comme déplacer un lien
+/// symbolique ou changer la position d'un fichier qui n'est pas une requête.
 pub fn move_item(root: &Path, path: &str, target: &str, position: DropPosition) -> Result<String, ManageError> {
-    let item = locate(root, path)?;
+    let scope = Scope::open(root)?;
+    let item = scope.locate(path)?;
+    item.refuse_link()?;
     let tracking = Tracking::load(root)?;
     let (parent, name) = split(path);
     let (folder, anchor) = match position {
         DropPosition::Inside => (target, None),
         DropPosition::Before | DropPosition::After => {
-            locate(root, target)?;
+            scope.locate(target)?;
             (split(target).0, Some(target))
         }
     };
     if anchor == Some(path) {
         return Ok(path.to_owned());
     }
-    let dest = visible(root, folder)?;
-    let others: Vec<TreeItem> = siblings(root, folder)?.into_iter().filter(|s| s.path() != path).collect();
+    let dest = scope.visible(folder)?;
+    let current = siblings(root, folder)?;
+    let others: Vec<TreeItem> = current.iter().filter(|s| s.path() != path).cloned().collect();
     if item.is_dir && lies_within(&dest, &item.path)? {
         return Err(ManageError::IntoItself(path.to_owned()));
     }
-    let (moved_seq, changed) = numbering(&others, anchor, position == DropPosition::After)?;
-    let mut writes = sibling_writes(root, &changed)?;
-    let created = item.is_dir.then(|| minimal_folder_file(name, Some(moved_seq)));
-    let moved_text = updated_info(&info_file(&item), &[("seq", Value::Int(moved_seq))], created)?;
-
-    let new_path = if folder == parent { path.to_owned() } else { relocated(&item, &dest, folder, name)? };
-    if let Some(text) = moved_text {
-        let moved = Item { path: root.join(&new_path), is_dir: item.is_dir };
-        writes.push((info_file(&moved), text));
+    let slot = slot(&others, anchor, position == DropPosition::After)?;
+    if folder == parent && keeps_order(&current, &others, slot, path) {
+        return Ok(path.to_owned());
     }
-    write_parallel(&writes, |(file, text)| write_atomic(file, text))?;
+    let (moved_seq, changed) = numbering(&others, anchor.map(|_| slot));
+    let mut edits = sibling_edits(root, &changed);
+    let created = item.is_dir.then(|| minimal_folder_file(name, Some(moved_seq)));
+    match plan(&item.info_file(), item.kind(), &[("seq", Value::Int(moved_seq))], created) {
+        Update::Write(edit) => edits.push(edit),
+        Update::Keep => {}
+        Update::Link => return Err(symlink_error(&item.info_file())),
+        Update::Foreign if folder == parent => return Err(ManageError::NotRequest(path.to_owned())),
+        Update::Foreign => {}
+    }
+    commit(root, &edits)?;
+
+    let new_path = if folder == parent { path.to_owned() } else { relocated(&scope, &item, &dest, folder, name)? };
     if new_path != path {
-        tracking.moved(path, &new_path)?;
+        tracking.moved(path, &new_path, "l'élément est bien déplacé")?;
     }
     Ok(new_path)
+}
+
+/// Placer `path` à l'index `slot` parmi `others` donne l'ordre actuel `current` du dossier.
+fn keeps_order(current: &[TreeItem], others: &[TreeItem], slot: usize, path: &str) -> bool {
+    let mut order: Vec<&str> = others.iter().map(TreeItem::path).collect();
+    order.insert(slot, path);
+    order.iter().copied().eq(current.iter().map(TreeItem::path))
 }
 
 /// `dest` est `folder` ou s'y trouve, liens symboliques résolus.
@@ -114,12 +132,12 @@ fn lies_within(dest: &Path, folder: &Path) -> Result<bool, CoreError> {
 }
 
 /// Déplace `item` dans `dest` (le dossier relatif `folder`) et renvoie son nouveau chemin relatif.
-fn relocated(item: &Item, dest: &Path, folder: &str, name: &str) -> Result<String, ManageError> {
+fn relocated(scope: &Scope, item: &Item, dest: &Path, folder: &str, name: &str) -> Result<String, ManageError> {
     let (stem, ext) = match item.is_dir {
         true => (name, ""),
         false => (name.strip_suffix(REQUEST_EXT).unwrap_or(name), REQUEST_EXT),
     };
-    let target = taken_names(dest, Some(folder.is_empty()), None)?.claim(stem, ext);
-    relocate(&item.path, &dest.join(&target))?;
+    let names = scope.directory(dest, folder.is_empty(), None)?;
+    let target = claim_unique(dest, names, Wanted::new(stem, ext).preferring(name), |to| relocate(&item.path, to))?;
     Ok(join(folder, &target))
 }

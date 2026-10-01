@@ -25,6 +25,7 @@ xc-engine.workspace = true
 xc-sync.workspace = true
 
 [dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 tempfile = "3"
 
 [lints]

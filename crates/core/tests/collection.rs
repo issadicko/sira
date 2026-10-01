@@ -4,7 +4,8 @@ use std::path::Path;
 
 use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{
-    count_entries, is_hidden, list_folder, resolve_path, resolve_visible_path, with_info, write_atomic, write_new,
+    count_entries, ensure_collection, ignore_name, ignored_names, info_type, is_hidden, list_folder, resolve_path,
+    resolve_visible_path, with_info, write_atomic, write_new,
 };
 use xc_core::request::BLANK_BEFORE;
 use xc_core::vars::{Context, Scope};
@@ -215,7 +216,7 @@ fn ef_col_01_requests_expose_their_raw_url() {
 fn enf_comp_02_atomic_write_supports_names_at_the_filesystem_limit() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(format!("{}.yml", "n".repeat(251)));
-    write_atomic(&path, "info:\n  name: long\n").unwrap();
+    write_atomic(dir.path(), &path, "info:\n  name: long\n").unwrap();
     assert_eq!(fs::read_to_string(&path).unwrap(), "info:\n  name: long\n");
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
 }
@@ -225,7 +226,7 @@ fn enf_comp_02_atomic_write_leaves_no_temporary_file_when_the_target_cannot_be_r
     let dir = tempfile::tempdir().unwrap();
     let target = dir.path().join("occupied");
     fs::create_dir_all(target.join("inside")).unwrap();
-    assert!(write_atomic(&target, "info:\n  name: x\n").is_err());
+    assert!(write_atomic(dir.path(), &target, "info:\n  name: x\n").is_err());
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
 }
 
@@ -237,11 +238,11 @@ fn enf_comp_02_atomic_write_keeps_the_permissions_of_the_file_it_replaces() {
     let path = dir.path().join("a.yml");
     fs::write(&path, "avant").unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
-    write_atomic(&path, "après").unwrap();
+    write_atomic(dir.path(), &path, "après").unwrap();
     assert_eq!(fs::read_to_string(&path).unwrap(), "après");
     assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o640);
     let fresh = dir.path().join("b.yml");
-    write_atomic(&fresh, "neuf").unwrap();
+    write_atomic(dir.path(), &fresh, "neuf").unwrap();
     assert_eq!(fs::read_to_string(&fresh).unwrap(), "neuf");
 }
 
@@ -253,7 +254,7 @@ fn enf_sec_01_atomic_write_through_a_symbolic_link_of_the_collection_writes_its_
     write(root, "pets/real.yml", "avant");
     std::os::unix::fs::symlink(root.join("pets/real.yml"), root.join("pets/alias.yml")).unwrap();
     let path = resolve_path(root, "pets/alias.yml").unwrap();
-    write_atomic(&path, "après").unwrap();
+    write_atomic(root, &path, "après").unwrap();
     assert!(fs::symlink_metadata(root.join("pets/alias.yml")).unwrap().file_type().is_symlink(), "le lien reste");
     assert_eq!(fs::read_to_string(root.join("pets/real.yml")).unwrap(), "après");
     assert_eq!(fs::read_dir(root.join("pets")).unwrap().count(), 2, "aucun fichier temporaire ne reste");
@@ -480,4 +481,183 @@ fn ef_col_04_with_info_normalizes_comments_and_layout_of_hand_written_files() {
 fn ef_col_04_with_info_refuses_a_document_that_is_not_a_table() {
     let error = with_info(Path::new("liste.yml"), "- a\n- b\n", &fields([("seq", Value::Int(1))])).unwrap_err();
     assert!(matches!(error, CoreError::Yaml { .. }), "{error}");
+}
+
+#[test]
+fn ef_col_04_with_info_refuses_a_multi_document_stream_and_an_info_that_is_not_a_table() {
+    let path = Path::new("liste.yml");
+    let seq = fields([("seq", Value::Int(1))]);
+    let multi = "apiVersion: v1\nkind: ConfigMap\n---\napiVersion: v1\nkind: Secret\n";
+    let error = with_info(path, multi, &seq).unwrap_err();
+    assert!(matches!(&error, CoreError::Yaml { message, .. } if message.contains("plusieurs documents")), "{error}");
+    for scalar in ["info: just a string\nother: 1\n", "info:\n  - a\n  - b\n"] {
+        let error = with_info(path, scalar, &seq).unwrap_err();
+        assert!(matches!(&error, CoreError::Yaml { message, .. } if message.contains("table")), "{error}");
+    }
+    assert!(with_info(path, "info:\nhttp:\n  method: GET\n", &seq).unwrap().starts_with("info:\n  seq: 1\n"));
+}
+
+#[test]
+fn ef_col_04_with_info_keeps_the_bom_and_the_crlf_line_endings() {
+    let path = Path::new("liste.yml");
+    let crlf = CANONICAL.replace('\n', "\r\n");
+    let renamed = with_info(path, &crlf, &fields([("name", Value::str("Toutes les listes"))])).unwrap();
+    assert_eq!(renamed, crlf.replace("name: Liste", "name: Toutes les listes"));
+    let bom = format!("\u{feff}{CANONICAL}");
+    let renumbered = with_info(path, &bom, &fields([("seq", Value::Int(7))])).unwrap();
+    assert_eq!(renumbered, bom.replace("seq: 1", "seq: 7"));
+    let both = format!("\u{feff}{crlf}");
+    let renamed = with_info(path, &both, &fields([("name", Value::str("Autre"))])).unwrap();
+    assert_eq!(renamed, both.replace("name: Liste", "name: Autre"));
+    let same = fields([("name", Value::str("Liste"))]);
+    assert_eq!(with_info(path, &both, &same).unwrap(), both);
+    assert!(!with_info(path, CANONICAL, &fields([("seq", Value::Int(2))])).unwrap().contains('\r'));
+}
+
+#[test]
+fn ef_col_01_a_request_with_a_bom_is_read_like_any_other() {
+    let dir = sample();
+    let root = dir.path();
+    write(root, "bom.yml", &format!("\u{feff}{}", CANONICAL.replace("Liste", "Avec BOM")));
+    let doc = read_request(root, "bom.yml").unwrap();
+    assert_eq!((doc.name.as_str(), doc.seq), ("Avec BOM", Some(1)));
+    assert_eq!(
+        info_type(Path::new("bom.yml"), &fs::read_to_string(root.join("bom.yml")).unwrap()).unwrap().as_deref(),
+        Some("http")
+    );
+    assert!(!save_request(root, "bom.yml", &doc).unwrap(), "rien à écrire : pas de BOM perdu");
+    assert!(fs::read_to_string(root.join("bom.yml")).unwrap().starts_with('\u{feff}'));
+}
+
+#[test]
+fn ef_col_01_info_type_tells_requests_from_other_documents() {
+    let path = Path::new("a.yml");
+    assert_eq!(info_type(path, CANONICAL).unwrap().as_deref(), Some("http"));
+    assert_eq!(info_type(path, "info:\n  type: folder\n").unwrap().as_deref(), Some("folder"));
+    assert_eq!(info_type(path, "openapi: 3.0.0\ninfo:\n  title: T\n").unwrap(), None);
+    assert_eq!(info_type(path, "info: texte\n").unwrap(), None);
+    assert!(info_type(path, "info: [non fermé\n").is_err());
+}
+
+#[test]
+fn ef_col_01_ensure_collection_and_ignored_names_read_opencollection_yml() {
+    let dir = sample();
+    let root = dir.path();
+    assert!(ensure_collection(root).is_ok());
+    assert!(matches!(ensure_collection(&root.join("auth")), Err(CoreError::NotACollection(_))));
+    assert!(ignored_names(root).unwrap().is_empty());
+    ignore_name(root, "dist").unwrap();
+    ignore_name(root, "dist").unwrap();
+    assert_eq!(ignored_names(root).unwrap(), ["dist"]);
+    assert!(matches!(ignored_names(&root.join("auth")), Err(CoreError::NotACollection(_))));
+    assert!(matches!(
+        save_request(&root.join("auth"), "connexion.yml", &read_request(root, "auth/connexion.yml").unwrap()),
+        Err(CoreError::NotACollection(_))
+    ));
+}
+
+#[test]
+fn ef_col_04_ignore_name_keeps_the_bom_and_the_crlf_of_opencollection_yml() {
+    let dir = sample();
+    let root = dir.path();
+    let file = root.join("opencollection.yml");
+    let original = fs::read_to_string(&file).unwrap();
+    let styled = format!("\u{feff}{}", original.replace('\n', "\r\n"));
+    fs::write(&file, &styled).unwrap();
+    ignore_name(root, ".oc-sync").unwrap();
+    let after = fs::read_to_string(&file).unwrap();
+    assert!(after.starts_with('\u{feff}') && after.contains("\r\n") && !after.replace("\r\n", "").contains('\n'));
+    assert_eq!(ignored_names(root).unwrap(), [".oc-sync"]);
+}
+
+#[test]
+fn ef_col_01_io_errors_are_told_in_french() {
+    use std::io::{Error, ErrorKind};
+    let message = |kind: ErrorKind| match CoreError::io(Path::new("/x/a.yml"), Error::from(kind)) {
+        CoreError::Io { path, message } => format!("{path} : {message}"),
+        other => panic!("{other}"),
+    };
+    assert_eq!(message(ErrorKind::NotFound), "/x/a.yml : introuvable");
+    assert_eq!(message(ErrorKind::PermissionDenied), "/x/a.yml : permission refusée");
+    assert_eq!(message(ErrorKind::AlreadyExists), "/x/a.yml : existe déjà");
+    assert_eq!(message(ErrorKind::DirectoryNotEmpty), "/x/a.yml : dossier non vide");
+    assert_eq!(message(ErrorKind::ReadOnlyFilesystem), "/x/a.yml : volume en lecture seule");
+    assert_eq!(message(ErrorKind::StorageFull), "/x/a.yml : volume plein");
+    assert_eq!(xc_core::io_message(&Error::from_raw_os_error(9999)), "erreur système 9999");
+    let english = ["No such file", "denied", "exists", "os error"];
+    let real = fs::read_to_string("/absent/a.yml").unwrap_err();
+    let shown = CoreError::io(Path::new("/absent/a.yml"), real).to_string();
+    assert!(english.iter().all(|word| !shown.contains(word)), "{shown}");
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_atomic_write_never_writes_through_a_link_leading_out_of_the_collection() {
+    let dir = sample();
+    let root = dir.path();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("kubeconfig.yml");
+    fs::write(&target, "avant").unwrap();
+    std::os::unix::fs::symlink(&target, root.join("lien.yml")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.join("dossier")).unwrap();
+    for path in [root.join("lien.yml"), root.join("dossier/kubeconfig.yml"), root.join("dossier/neuf.yml")] {
+        let error = write_atomic(root, &path, "après").unwrap_err();
+        assert!(matches!(error, CoreError::OutsideCollection(_)), "{path:?} : {error}");
+    }
+    assert_eq!(fs::read_to_string(&target).unwrap(), "avant");
+    assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 1, "aucun fichier temporaire dehors");
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_ignore_name_refuses_a_symbolic_opencollection_yml() {
+    let dir = sample();
+    let root = dir.path();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("config.yml");
+    let text = fs::read_to_string(root.join("opencollection.yml")).unwrap();
+    fs::write(&target, &text).unwrap();
+    fs::remove_file(root.join("opencollection.yml")).unwrap();
+    std::os::unix::fs::symlink(&target, root.join("opencollection.yml")).unwrap();
+    assert!(matches!(ignore_name(root, ".oc-sync"), Err(CoreError::Symlink(_))));
+    assert_eq!(fs::read_to_string(&target).unwrap(), text);
+    assert!(root.join("opencollection.yml").is_symlink());
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_the_tree_does_not_read_a_folder_yml_leading_out_of_the_collection() {
+    let dir = sample();
+    let root = dir.path();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("kubeconfig.yml");
+    fs::write(&target, "info:\n  name: Secret du cluster\n  seq: 1\n").unwrap();
+    write(root, "Evil/Inner.yml", CANONICAL);
+    std::os::unix::fs::symlink(&target, root.join("Evil/folder.yml")).unwrap();
+    write(root, "Internal/Inner.yml", CANONICAL);
+    std::os::unix::fs::symlink(root.join("transactions/folder.yml"), root.join("Internal/folder.yml")).unwrap();
+    let items = list_folder(root, "").unwrap().unwrap();
+    let evil = items.iter().find(|item| item.path() == "Evil").unwrap();
+    assert_eq!((evil.name(), evil.seq()), ("Evil", None), "la cible hors de la racine n'est pas lue");
+    let internal = items.iter().find(|item| item.path() == "Internal").unwrap();
+    assert_eq!((internal.name(), internal.seq()), ("Transactions", Some(2)), "un lien interne est lu");
+}
+
+#[test]
+fn ef_col_04_ignore_name_refuses_a_multi_document_stream_and_values_it_would_replace() {
+    let dir = sample();
+    let root = dir.path();
+    let file = root.join("opencollection.yml");
+    let original = fs::read_to_string(&file).unwrap();
+    for hostile in [
+        format!("{original}---\nautre: document\n"),
+        original.replace("extensions:\n  bruno:\n    presets:", "extensions: texte\nx:\n  presets:"),
+        original.replace("  bruno:\n    presets:", "  bruno: texte\n  y:\n    presets:"),
+        original.replace("    presets:", "    ignore: texte\n    presets:"),
+    ] {
+        fs::write(&file, &hostile).unwrap();
+        let error = ignore_name(root, ".oc-sync").unwrap_err();
+        assert!(matches!(error, CoreError::Yaml { .. }), "{error}");
+        assert_eq!(fs::read_to_string(&file).unwrap(), hostile, "rien n'est perdu");
+    }
 }

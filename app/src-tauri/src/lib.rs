@@ -11,7 +11,7 @@ use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, Prepared, RequestDoc};
 use xc_engine::Timings;
 use xc_sync::import::{fetch_spec, OpenApiPreview};
-use xc_sync::manage::{self, DropPosition, FolderKind, ManageError};
+use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
@@ -20,6 +20,7 @@ struct AppState {
     runtime: Mutex<HashMap<String, HashMap<String, String>>>,
     inflight: Mutex<HashMap<String, tokio::task::AbortHandle>>,
     plans: Arc<Plans>,
+    writes: tokio::sync::Mutex<()>,
 }
 
 /// Plans de synchro en cours, sous un identifiant ; un plan par collection au plus.
@@ -64,9 +65,25 @@ fn root(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-/// Exécute une action de gestion de collection hors du fil principal.
-async fn managing<T: Send + 'static>(action: impl FnOnce() -> Result<T, ManageError> + Send + 'static) -> Reply<T> {
+/// Exécute une action sur le disque hors du fil principal.
+async fn blocking<T, E>(action: impl FnOnce() -> Result<T, E> + Send + 'static) -> Reply<T>
+where
+    T: Send + 'static,
+    E: std::fmt::Display + Send + 'static,
+{
     tokio::task::spawn_blocking(action).await.map_err(err)?.map_err(err)
+}
+
+/// Exécute une action qui écrit dans une collection, une seule à la fois : deux écritures concurrentes (un
+/// glisser-déposer pendant une duplication, un enregistrement pendant une synchro) liraient les mêmes `seq` ou les
+/// mêmes noms libres et se contrediraient.
+async fn writing<T, E>(state: &AppState, action: impl FnOnce() -> Result<T, E> + Send + 'static) -> Reply<T>
+where
+    T: Send + 'static,
+    E: std::fmt::Display + Send + 'static,
+{
+    let _turn = state.writes.lock().await;
+    blocking(action).await
 }
 
 #[derive(Serialize)]
@@ -116,8 +133,8 @@ fn read_request(root: String, path: String) -> Reply<RequestDoc> {
 }
 
 #[tauri::command]
-fn save_request(root: String, path: String, doc: RequestDoc) -> Reply<bool> {
-    xc_core::save_request(Path::new(&root), &path, &doc).map_err(err)
+async fn save_request(state: State<'_, AppState>, root: String, path: String, doc: RequestDoc) -> Reply<bool> {
+    writing(&state, move || xc_core::save_request(Path::new(&root), &path, &doc)).await
 }
 
 #[tauri::command]
@@ -189,13 +206,14 @@ async fn parse_curl(command: String) -> Option<RequestDoc> {
 }
 
 #[tauri::command]
-async fn create_request_from_curl(root: String, folder: String, name: String, command: String) -> Reply<String> {
-    tokio::task::spawn_blocking(move || {
-        xc_sync::import::create_request_from_curl(Path::new(&root), &folder, &name, &command)
-    })
-    .await
-    .map_err(err)?
-    .map_err(err)
+async fn create_request_from_curl(
+    state: State<'_, AppState>,
+    root: String,
+    folder: String,
+    name: String,
+    command: String,
+) -> Reply<String> {
+    writing(&state, move || xc_sync::import::create_request_from_curl(Path::new(&root), &folder, &name, &command)).await
 }
 
 #[tauri::command]
@@ -205,57 +223,63 @@ async fn preview_openapi(source: String) -> Reply<OpenApiPreview> {
 }
 
 #[tauri::command]
-async fn import_openapi(source: String, location: String, group_by: String) -> Reply<String> {
+async fn import_openapi(
+    state: State<'_, AppState>,
+    source: String,
+    location: String,
+    group_by: String,
+) -> Reply<String> {
     let group_by: GroupBy = group_by.parse().map_err(err)?;
     let text = fetch_spec(&source).await.map_err(err)?;
-    let created = tokio::task::spawn_blocking(move || {
-        xc_sync::import::import_spec(&text, &source, Path::new(&location), group_by)
-    })
-    .await
-    .map_err(err)?;
-    created.map(|root| root.display().to_string()).map_err(err)
+    let created =
+        writing(&state, move || xc_sync::import::import_spec(&text, &source, Path::new(&location), group_by)).await?;
+    Ok(created.display().to_string())
 }
 
 #[tauri::command]
 async fn inspect_folder(path: String) -> Reply<FolderKind> {
-    managing(move || manage::inspect_folder(Path::new(&path))).await
+    blocking(move || manage::inspect_folder(Path::new(&path))).await
 }
 
 #[tauri::command]
-async fn create_collection(parent: String, name: String) -> Reply<String> {
-    managing(move || manage::create_collection(Path::new(&parent), &name).map(|root| root.display().to_string())).await
+async fn create_collection(state: State<'_, AppState>, parent: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::create_collection(Path::new(&parent), &name).map(|root| root.display().to_string()))
+        .await
 }
 
 #[tauri::command]
-async fn init_collection(dir: String, name: String) -> Reply<String> {
-    managing(move || manage::init_collection(Path::new(&dir), &name).map(|root| root.display().to_string())).await
+async fn init_collection(state: State<'_, AppState>, dir: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::init_collection(Path::new(&dir), &name).map(|root| root.display().to_string()))
+        .await
 }
 
 #[tauri::command]
-async fn create_request(root: String, folder: String, name: String) -> Reply<String> {
-    managing(move || manage::create_request(Path::new(&root), &folder, &name)).await
+async fn create_request(state: State<'_, AppState>, root: String, folder: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::create_request(Path::new(&root), &folder, &name)).await
 }
 
 #[tauri::command]
-async fn create_folder(root: String, parent: String, name: String) -> Reply<String> {
-    managing(move || manage::create_folder(Path::new(&root), &parent, &name)).await
+async fn create_folder(state: State<'_, AppState>, root: String, parent: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::create_folder(Path::new(&root), &parent, &name)).await
 }
 
 #[tauri::command]
-async fn rename_item(root: String, path: String, name: String) -> Reply<String> {
-    managing(move || manage::rename_item(Path::new(&root), &path, &name)).await
+async fn rename_item(state: State<'_, AppState>, root: String, path: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::rename_item(Path::new(&root), &path, &name)).await
 }
 
 #[tauri::command]
-async fn clone_item(root: String, path: String, name: String) -> Reply<String> {
-    managing(move || manage::clone_item(Path::new(&root), &path, &name)).await
+async fn clone_item(state: State<'_, AppState>, root: String, path: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::clone_item(Path::new(&root), &path, &name)).await
 }
 
 /// Envoie la requête ou le dossier à la corbeille du système.
 #[tauri::command]
-async fn delete_item(root: String, path: String) -> Reply<()> {
-    managing(move || manage::delete_item(Path::new(&root), &path, |item| trash_context().delete(item).map_err(err)))
-        .await
+async fn delete_item(state: State<'_, AppState>, root: String, path: String) -> Reply<()> {
+    writing(&state, move || {
+        manage::delete_item(Path::new(&root), &path, |item| trash_context().delete(item).map_err(trash_message))
+    })
+    .await
 }
 
 /// Sur macOS, `NSFileManager` plutôt que le Finder : aucune autorisation « contrôler le Finder » n'est demandée.
@@ -267,9 +291,28 @@ fn trash_context() -> trash::TrashContext {
     context
 }
 
+/// Raison en français d'un échec de la corbeille.
+fn trash_message(e: trash::Error) -> String {
+    match e {
+        trash::Error::TargetedRoot => "la racine d'un volume ne peut pas être mise à la corbeille".into(),
+        trash::Error::CouldNotAccess { .. } => "élément introuvable ou inaccessible".into(),
+        trash::Error::CanonicalizePath { .. } | trash::Error::ConvertOsString { .. } => "chemin illisible".into(),
+        trash::Error::Os { code, .. } => format!("la corbeille a refusé l'élément (code {code})"),
+        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android")))]
+        trash::Error::FileSystem { source, .. } => xc_core::io_message(&source),
+        _ => "la corbeille a refusé l'élément".into(),
+    }
+}
+
 #[tauri::command]
-async fn move_item(root: String, path: String, target: String, position: DropPosition) -> Reply<String> {
-    managing(move || manage::move_item(Path::new(&root), &path, &target, position)).await
+async fn move_item(
+    state: State<'_, AppState>,
+    root: String,
+    path: String,
+    target: String,
+    position: DropPosition,
+) -> Reply<String> {
+    writing(&state, move || manage::move_item(Path::new(&root), &path, &target, position)).await
 }
 
 #[tauri::command]
@@ -309,7 +352,7 @@ async fn sync_op_view(state: State<'_, AppState>, plan_id: String, key: String, 
 #[tauri::command]
 async fn sync_apply(state: State<'_, AppState>, plan_id: String, decisions: Decisions) -> Reply<Report> {
     let plans = Arc::clone(&state.plans);
-    tokio::task::spawn_blocking(move || plans.apply(&plan_id, &decisions)).await.map_err(err)?
+    writing(&state, move || plans.apply(&plan_id, &decisions)).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -351,10 +394,17 @@ pub fn run() {
 mod tests {
     use std::fs;
 
+    use tauri::Manager;
     use xc_sync::import::import_spec;
     use xc_sync::merge::Choice;
 
     use super::*;
+
+    fn app() -> tauri::App<tauri::test::MockRuntime> {
+        let app = tauri::test::mock_app();
+        app.manage(AppState::default());
+        app
+    }
 
     const V1: &str = "openapi: 3.0.0
 info: {title: T, version: '1'}
@@ -417,20 +467,22 @@ paths:
 
     #[tokio::test]
     async fn ef_col_04_commands_create_a_collection_then_manage_its_items() {
+        let app = app();
+        let state = || app.state::<AppState>();
         let dir = tempfile::tempdir().unwrap();
         let parent = dir.path().display().to_string();
         assert_eq!(inspect_folder(parent.clone()).await.unwrap(), FolderKind::Empty);
-        let root = create_collection(parent, "Ma Collection".into()).await.unwrap();
+        let root = create_collection(state(), parent, "Ma Collection".into()).await.unwrap();
         assert_eq!(Path::new(&root), dir.path().join("Ma Collection"));
         assert_eq!(inspect_folder(root.clone()).await.unwrap(), FolderKind::Collection);
 
-        let folder = create_folder(root.clone(), String::new(), "Commandes".into()).await.unwrap();
-        let request = create_request(root.clone(), folder, "Lister".into()).await.unwrap();
+        let folder = create_folder(state(), root.clone(), String::new(), "Commandes".into()).await.unwrap();
+        let request = create_request(state(), root.clone(), folder, "Lister".into()).await.unwrap();
         assert_eq!(request, "Commandes/Lister.yml");
-        let renamed = rename_item(root.clone(), request, "Détails".into()).await.unwrap();
+        let renamed = rename_item(state(), root.clone(), request, "Détails".into()).await.unwrap();
         assert_eq!(renamed, "Commandes/Détails.yml");
-        let copy = clone_item(root.clone(), renamed, "Détails copie".into()).await.unwrap();
-        let moved = move_item(root.clone(), copy, String::new(), DropPosition::Inside).await.unwrap();
+        let copy = clone_item(state(), root.clone(), renamed, "Détails copie".into()).await.unwrap();
+        let moved = move_item(state(), root.clone(), copy, String::new(), DropPosition::Inside).await.unwrap();
         assert_eq!(moved, "Détails copie.yml");
         let info = xc_core::open_collection(Path::new(&root)).unwrap();
         assert_eq!(info.request_count, 2);
@@ -438,16 +490,66 @@ paths:
 
     #[tokio::test]
     async fn ef_col_04_commands_report_errors_as_french_strings() {
+        let app = app();
+        let state = || app.state::<AppState>();
         let dir = tempfile::tempdir().unwrap();
-        let root = create_collection(dir.path().display().to_string(), "Ma Collection".into()).await.unwrap();
-        let outside = rename_item(root.clone(), "../x.yml".into(), "a".into()).await.unwrap_err();
+        let parent = dir.path().display().to_string();
+        let root = create_collection(state(), parent, "Ma Collection".into()).await.unwrap();
+        let outside = rename_item(state(), root.clone(), "../x.yml".into(), "a".into()).await.unwrap_err();
         assert!(outside.contains("hors de la collection"), "{outside}");
-        let again = init_collection(root.clone(), "Autre".into()).await.unwrap_err();
+        let again = init_collection(state(), root.clone(), "Autre".into()).await.unwrap_err();
         assert!(again.contains("contient déjà une collection"), "{again}");
-        let reserved = create_folder(root.clone(), String::new(), "environments".into()).await.unwrap_err();
+        let reserved = create_folder(state(), root.clone(), String::new(), "environments".into()).await.unwrap_err();
         assert!(reserved.starts_with("nom invalide"), "{reserved}");
         let missing = inspect_folder(dir.path().join("absent").display().to_string()).await.unwrap_err();
         assert!(missing.starts_with("dossier introuvable"), "{missing}");
+        let absent = rename_item(state(), root.clone(), "absent.yml".into(), "a".into()).await.unwrap_err();
+        assert!(absent.contains("introuvable"), "{absent}");
+        let not_a_collection = dir.path().display().to_string();
+        let refused = create_request(state(), not_a_collection, String::new(), "x".into()).await.unwrap_err();
+        assert!(refused.contains("n'est pas une collection"), "{refused}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn ef_col_01_concurrent_writes_are_serialized_and_keep_the_seq_unique() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        for _ in 0..10 {
+            let dir = tempfile::tempdir().unwrap();
+            let root = create_collection(state(), dir.path().display().to_string(), "C".into()).await.unwrap();
+            for name in ["A", "B", "C", "D", "E", "F"] {
+                create_request(state(), root.clone(), String::new(), name.into()).await.unwrap();
+            }
+            let (first, second, third, fourth) = tokio::join!(
+                move_item(state(), root.clone(), "F.yml".into(), "A.yml".into(), DropPosition::Before),
+                move_item(state(), root.clone(), "E.yml".into(), "A.yml".into(), DropPosition::Before),
+                create_request(state(), root.clone(), String::new(), "G".into()),
+                clone_item(state(), root.clone(), "B.yml".into(), "B bis".into()),
+            );
+            [first, second, third, fourth].into_iter().for_each(|reply| drop(reply.unwrap()));
+            let items = xc_core::collection::list_folder(Path::new(&root), "").unwrap().unwrap();
+            let mut seqs: Vec<i64> = items.iter().map(|item| item.seq().unwrap()).collect();
+            seqs.sort_unstable();
+            seqs.dedup();
+            assert_eq!(seqs.len(), items.len(), "aucun seq en double : {items:?}");
+        }
+    }
+
+    #[test]
+    fn ef_col_04_trash_failures_are_told_in_french() {
+        let os = trash::Error::Os { code: 513, description: "The file couldn't be saved: no permission".into() };
+        let unknown = trash::Error::Unknown { description: "unknown failure".into() };
+        let missing = trash::Error::CouldNotAccess { target: "/x".into() };
+        let messages = [
+            trash_message(trash::Error::TargetedRoot),
+            trash_message(missing),
+            trash_message(os),
+            trash_message(unknown),
+        ];
+        assert_eq!(messages[1], "élément introuvable ou inaccessible");
+        assert_eq!(messages[2], "la corbeille a refusé l'élément (code 513)");
+        assert_eq!(messages[3], "la corbeille a refusé l'élément");
+        assert!(messages.iter().all(|message| !message.contains("permission") && !message.contains("unknown")));
     }
 
     #[test]

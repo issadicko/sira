@@ -3,13 +3,13 @@
 //! récupération de la spec (fichier ou URL) et requêtes créées depuis une commande cURL.
 //!
 //! Écarts voulus avec Bruno, tous au profit du principe « non destructif » : deux éléments dont les noms
-//! assainis se confondent (sans tenir compte de la casse) reçoivent un suffixe ` 1`, ` 2`… au lieu de
-//! s'écraser, les noms réservés de la collection (`opencollection.yml`, `folder.yml`, `environments`,
-//! `.oc-sync`), les noms que l'arbre cacherait (`node_modules`, `mocks` à la racine, un point de tête qui est retiré)
-//! et les noms de périphériques Windows (`con`, `nul`, `com1`…) sont évités de même, et les noms trop longs sont
-//! tronqués aussi en octets. Un nom réduit à des caractères interdits devient `Untitled Request`, `Untitled Folder`,
-//! `Untitled Environment` ou `Untitled Collection`. L'import se construit dans un dossier de préparation caché,
-//! renommé à la fin ; `source.yml` ne contient ni identifiants d'URL ni paramètres secrets.
+//! assainis se confondent (sans tenir compte de la casse ni de la normalisation Unicode) reçoivent un suffixe
+//! ` 1`, ` 2`… au lieu de s'écraser, les noms réservés de la collection (`opencollection.yml`, `folder.yml`,
+//! `environments`, `.oc-sync`), les noms que l'arbre cacherait (`node_modules`, `mocks` à la racine, un point de tête
+//! qui est retiré) et les noms de périphériques Windows (`con`, `nul`, `com1`…) sont évités de même, et les noms trop
+//! longs sont tronqués aussi en octets. Un nom réduit à des caractères interdits devient `Untitled Request`,
+//! `Untitled Folder`, `Untitled Environment` ou `Untitled Collection`. L'import se construit dans un dossier de
+//! préparation caché, renommé à la fin ; `source.yml` ne contient ni identifiants d'URL ni paramètres secrets.
 
 mod from_curl;
 mod naming;
@@ -28,7 +28,7 @@ use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSu
 
 pub use from_curl::{create_request_from_curl, request_doc_from_curl};
 pub(crate) use naming::{
-    fit, folder_dir_name, is_device_name, request_file_name, sanitize_name, stem, validate_name, Directory, Slot,
+    fit, fold, folder_dir_name, is_device_name, request_file_name, sanitize_name, stem, validate_name, Directory, Slot,
 };
 pub use source::{fetch_spec, is_url, source_value};
 pub use write::write_collection;

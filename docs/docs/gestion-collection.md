@@ -6,7 +6,7 @@ Partir de zéro et organiser une collection comme dans Bruno.
 
 - Les fichiers **créés** sont identiques à ceux de Bruno, ce que vérifient les fixtures produites par `tools/oracle`.
 - Les fichiers **modifiés** ne le sont que sur la ligne concernée. Bruno, lui, re-sérialise tout le fichier et perd au passage les clés inconnues.
-- **Écarts volontaires** : Bruno supprime définitivement et renomme de façon non atomique ; nous non (§ 7).
+- **Écarts volontaires** : Bruno supprime définitivement et renomme de façon non atomique ; nous non (§ 7). Nous ne remplaçons jamais un élément existant et ne suivons ni ne réécrivons jamais un lien symbolique.
 
 ## 1. Ouvrir un dossier qui n'est pas une collection
 
@@ -76,14 +76,15 @@ Ne pas écraser un `.gitignore` existant (classe `other`).
  "settings":{"encodeUrl":true,"forwardAuthorizationHeader":false}}
 ```
 
-- `seq` = nombre de dossiers et de requêtes du dossier parent, plus 1 (comme pour cURL au MVP-β).
-- Nom refusé : `collection` et `folder`.
+- `seq` = **fin de liste** du dossier parent : au-delà du plus grand `seq` et du nombre de dossiers et de requêtes qu'il contient, ce qui ne dépend pas des trous laissés par les suppressions. Écart voulu avec Bruno, qui prend le nombre de frères plus 1 et donne des `seq` en double après une suppression (§ 7). Les requêtes créées depuis une commande cURL (MVP-β) gardent le nombre de frères plus 1.
+- Noms refusés : `collection` et `folder`, et ceux de `extensions.bruno.ignore` de `opencollection.yml`, que l'arbre ne montrerait pas (sans tenir compte de la casse ni de la normalisation Unicode).
 - Si le fichier existe déjà, on suffixe ` 1`, ` 2`… sur le nom de fichier seulement, avec une création exclusive. `info.name` garde le nom saisi.
+- Les noms pris se comparent après normalisation Unicode NFC et repli de casse (`unicode-normalization`) : `été.yml` écrit en NFD est le même nom que `été.yml` en NFC sur APFS et HFS+, et deux noms qui ne diffèrent que par la casse se confondent sur un volume insensible à la casse.
 
 **Dossier** (E:1254-1274) :
 
 - `sanitizeName(nom)` dans le dossier parent, avec un suffixe ` n` si le nom est pris.
-- `folder.yml` est écrit tout de suite par `stringify::folder({meta:{name, seq}, request:{auth:{mode:'inherit'}}})` :
+- `folder.yml` est écrit tout de suite par `stringify::folder({meta:{name, seq}, request:{auth:{mode:'inherit'}}})`, avec le `seq` de fin de liste :
 
 ```yaml
 info:
@@ -98,29 +99,41 @@ request:
 - Noms refusés, sans tenir compte de la casse :
   - à la racine : `environments`, `mocks`, `opencollection.yml` ;
   - partout : `.oc-sync`, `.git`, `node_modules` ;
-  - tout nom que l'arbre masquerait (`xc_core::collection::is_hidden`).
+  - tout nom que l'arbre masquerait (`xc_core::collection::is_hidden`) ;
+  - tout nom de `extensions.bruno.ignore`.
 
 ## 4. Renommer, dupliquer, supprimer
+
+Règles communes à toutes les actions de ce paragraphe et du suivant :
+
+- **Seuls une requête et un dossier sont réécrits.** Une requête est un fichier dont `info.type` est `http`, `graphql`, `grpc` ou `websocket` ; un dossier se réécrit par son `folder.yml`. Une spec OpenAPI, un fichier illisible, un flux de plusieurs documents YAML ou un fichier dont `info` n'est pas une table ne sont jamais réécrits : `with_info` les refuse (erreur, rien n'est perdu) et les actions les laissent tels quels.
+- **Un lien symbolique n'est jamais suivi ni réécrit.** Renommer, déplacer ou dupliquer une requête qui est un lien (même interne), ou un dossier dont `folder.yml` est un lien, est refusé avec un message clair, et aucun chemin ne traverse un dossier lien symbolique ; `opencollection.yml` lien est refusé par `ignore_name`. L'arbre ne lit pas un `folder.yml` dont la cible sort de la collection. `write_atomic` prend la racine et refuse tout fichier ou dossier-lien qui sort d'elle, quel que soit l'appelant ; la synchro (MVP-γ) continue d'écrire la cible d'un lien **interne**. Supprimer un lien envoie le lien, pas sa cible, à la corbeille.
+- **Rien n'est jamais remplacé.** Les noms pris se comparent après NFC et repli de casse (§ 3). Le renommage lui-même ne remplace pas : `renamex_np(RENAME_EXCL)` sur macOS, `renameat2(RENAME_NOREPLACE)` sur Linux, `MoveFileExW` sans `MOVEFILE_REPLACE_EXISTING` sur Windows. Si la cible existe, y compris quand elle est apparue entre le choix du nom et le renommage, le suffixe ` n` suivant est essayé. Repli documenté : sur un volume qui ne sait pas renommer sans remplacer, la cible est vérifiée puis le renommage fait, et la course entre les deux reste ouverte. Un renommage qui ne change que la casse ou la normalisation du nom est permis (la cible est alors l'élément lui-même).
+- **Pas d'écrasement d'une mise à jour concurrente.** Chaque fichier est relu juste avant d'être écrit ; s'il a changé depuis la lecture initiale, l'action est annulée sans rien écrire (« a changé depuis sa lecture »).
+- **Le BOM et les fins de ligne CRLF d'un fichier sont conservés** ; seule la ligne visée change. Un `folder.yml` absent est créé en création exclusive.
 
 **Renommer** une requête change à la fois le nom affiché et le nom du fichier, comme Bruno quand le nom de fichier suit le nom affiché.
 
 - Seule la ligne `info.name` est modifiée, par `xc_core::collection::with_info` (`RequestDoc::apply` n'écrit pas `info.seq` et ne sert pas à un `folder.yml`). L'arbre YAML est conservé, clés inconnues comprises, puis réécrit par l'émetteur : un fichier tel que Bruno ou l'application l'écrit ne change qu'à cette ligne, mais les commentaires et la mise en forme d'un fichier écrit à la main sont normalisés, comme à chaque enregistrement.
-- Le fichier est ensuite renommé de façon atomique, avec un suffixe ` n` si le nouveau nom est pris.
+- Le fichier est ensuite renommé sans jamais remplacer (règle ci-dessus), avec un suffixe ` n` si le nouveau nom est pris.
 - Si le nom de fichier assaini est inchangé, seul `info.name` change.
-- Pour un dossier : `info.name` de `folder.yml` (fichier créé, minimal, s'il manque, comme E:1188-1207), puis renommage du dossier.
+- Un fichier illisible ou qui n'est pas une requête est renommé sans que son contenu soit touché ; l'arbre l'affiche alors sous le nom de son fichier (ou sous son `info.name` s'il en a un).
+- Pour un dossier : `info.name` de `folder.yml` (fichier créé, minimal, s'il manque, comme E:1188-1207), puis renommage du dossier. Un `folder.yml` illisible n'est pas touché : le dossier est renommé et l'arbre l'affiche sous le nom de son dossier.
+- Un nom de `extensions.bruno.ignore` est refusé comme un nom caché.
 
 **Dupliquer** une requête :
 
-- copie à l'octet du fichier, puis seules les lignes `info.name` et `info.seq` changent ;
+- copie à l'octet, puis seules les lignes `info.name` et `info.seq` changent ; un fichier qui n'est pas une requête est copié tel quel, sans changer une ligne ;
 - nom proposé : « <nom> copie » ;
 - `seq` = fin de liste du dossier : au-delà du plus grand `seq` et du nombre de frères, ce qui ne dépend pas des trous laissés par les suppressions ;
 - même dossier, nom de fichier suffixé si besoin.
 
-Pour un dossier : copie complète de l'arborescence, sans perte de fichier (Bruno ne recopie que les requêtes http/graphql/grpc), puis seules `info.name` et `info.seq` du `folder.yml` de la copie changent. Un lien symbolique dans le dossier fait refuser la copie, qui ne lit jamais hors de la collection et ne perd rien en silence ; la copie incomplète est supprimée.
+Pour un dossier : copie complète de l'arborescence, sans perte de fichier (Bruno ne recopie que les requêtes http/graphql/grpc), puis seules `info.name` et `info.seq` du `folder.yml` de la copie changent. Les fichiers sont copiés en création exclusive et seul ce que la copie a créé est supprimé en cas d'échec, jamais une destination qui existait déjà. Un lien symbolique dans le dossier fait refuser la copie, qui ne lit jamais hors de la collection et ne perd rien en silence ; la copie incomplète est supprimée.
 
 **Supprimer** une requête ou un dossier :
 
 - toujours vers la **corbeille du système**, après confirmation dans l'interface ;
+- `source.yml` est lu avant la corbeille et écrit aussitôt après ; si cette écriture échoue, l'erreur dit que l'élément est bien dans la corbeille ;
 - les frères ne sont pas renumérotés, les trous de `seq` sont tolérés par le tri ;
 - les onglets ouverts sur l'élément supprimé se ferment ;
 - sur macOS, par `NSFileManager` (`trashItemAtURL`) plutôt que par le Finder : aucune autorisation « contrôler le Finder » n'est demandée, un refus ne peut pas bloquer la suppression ; l'élément se récupère en le faisant glisser hors de la corbeille (le Finder ne propose pas toujours « Remettre »).
@@ -134,24 +147,31 @@ Position de dépôt : `before`, `after` (d'un frère) ou `inside` (d'un dossier)
   2. On déplace l'élément.
   3. On renumérote de 1 à n.
   4. On écrit seulement les `seq` qui changent, toujours y compris celui de l'élément déplacé : c'est un écart voulu, Bruno peut laisser deux `seq` égaux. Seule la ligne `info.seq` change (requête ou `folder.yml`).
+  5. Un frère qui ne peut pas être réécrit (YAML invalide, fichier qui n'est pas une requête, lien symbolique) garde son `seq` et sa place dans la numérotation : il ne fait pas échouer l'action.
 - **Déplacer vers un autre dossier** :
-  - renommage atomique du fichier ou du dossier entier ;
-  - copie, vérification, puis suppression de la source seulement si les volumes diffèrent ;
-  - suffixe ` n` si le nom est pris ;
+  - renommage atomique du fichier ou du dossier entier, sans jamais remplacer (§ 4) ;
+  - copie, vérification **du contenu octet par octet** (pas seulement des noms et des tailles), puis suppression de la source seulement si les volumes diffèrent ; en cas d'échec, seul ce que la copie a créé est supprimé, jamais une destination qui existait déjà ;
+  - l'élément **garde son nom de fichier** s'il est libre dans le dossier cible (`aux.yml` reste `aux.yml`), sinon le suffixe ` n` le distingue ;
   - `inside` : `seq` en fin de liste, comme pour la copie (au-delà du plus grand `seq` et du nombre de frères), sans renuméroter les frères ; déposer dans son propre dossier met l'élément à la fin ;
   - `before` / `after` : renumérotation du dossier cible comme ci-dessus.
+- **Ordre des écritures** : d'abord les `seq` (sur place, avant de renommer, relus un à un juste avant d'être écrits), puis le renommage, en dernier, puis `source.yml` aussitôt. Si le renommage échoue, l'élément reste où il était (son `seq` a pu changer) et `source.yml` n'a pas bougé.
+- **Déplacement sans effet** : un dépôt qui ne change ni le dossier ni la position (par exemple `before` du frère suivant) n'écrit rien et renvoie le chemin inchangé.
 - Déposer un dossier dans lui-même ou dans un de ses descendants est refusé.
+- Un fichier qui n'est pas une requête n'a pas de `seq` : changer sa position dans son dossier est refusé, le déplacer vers un autre dossier reste permis.
+- Chaque écriture est synchronisée sur le disque, fichier par fichier (`fsync`) : un réordonnancement de plusieurs centaines de frères y passe l'essentiel de son temps, écart de vitesse assumé au profit de la sûreté.
 
 ## 6. Synchro OpenAPI (EF-SYN-01)
 
 Si `.oc-sync/openapi/source.yml` existe, chaque action le met à jour dans la même opération, en dernier et de façon atomique :
 
-- **Renommer ou déplacer une requête** : l'entrée dont le `file` correspond prend le nouveau chemin.
+- **Renommer ou déplacer une requête** : l'entrée dont le `file` correspond prend le nouveau chemin. Les chemins se comparent exactement, sans repli de casse : ce sont les noms réels que l'import, la synchro et ces actions écrivent, et deux dossiers qui ne diffèrent que par la casse sont distincts.
 - **Renommer ou déplacer un dossier** : toutes les entrées dont le `file` commence par l'ancien préfixe.
 - **Dupliquer** : la copie n'est pas suivie.
 - **Supprimer une requête suivie** : son entrée passe à `ignored: true`, sans `file`, car l'équipe ne la veut plus. Supprimer un dossier fait de même pour toutes ses entrées.
 
-En plus, connecter une collection à une spec (vue de synchro, première synchro) ajoute `.oc-sync` à `extensions.bruno.ignore` de `opencollection.yml`, comme l'import, pour que Bruno ne l'affiche pas. Seule cette liste change (`xc_core::collection::ignore_name`, appelée par `Plan::apply` avant l'écriture de `source.yml`, sans effet quand `.oc-sync` y figure déjà).
+`source.yml` est lu avant l'action : un fichier illisible la refuse avant toute écriture. Si son écriture échoue après le renommage, le déplacement ou la corbeille, l'erreur le dit (« l'élément est bien renommé, déplacé ou dans la corbeille, mais `source.yml` n'a pas pu être mis à jour ») ; la synchro reprend alors le fichier déplacé s'il est le seul candidat de même méthode et de même chemin normalisé.
+
+En plus, connecter une collection à une spec (vue de synchro, première synchro) ajoute `.oc-sync` à `extensions.bruno.ignore` de `opencollection.yml`, comme l'import, pour que Bruno ne l'affiche pas. Seule cette liste change (`xc_core::collection::ignore_name`, appelée par `Plan::apply` avant l'écriture de `source.yml`, sans effet quand `.oc-sync` y figure déjà, refusée quand `opencollection.yml` est un lien symbolique).
 
 ## 7. Écarts volontaires avec Bruno
 
@@ -161,8 +181,18 @@ En plus, connecter une collection à une spec (vue de synchro, première synchro
 | Renommer : `unlink` puis `writeFile`, re-sérialisation complète (clés inconnues perdues) | Renommage atomique, seule `info.name` change | Non destructif, diff Git minimal |
 | Réordonner : re-sérialisation complète, brouillon inclus | Seule `info.seq` change ; le brouillon non enregistré reste un brouillon | Idem |
 | Le `seq` de l'élément déplacé n'est pas toujours réécrit | Toujours réécrit | Évite les `seq` en double |
+| Nouvelle requête ou nouveau dossier : `seq` = nombre de frères + 1 | `seq` de fin de liste : au-delà du plus grand `seq` et du nombre de frères | Évite les `seq` en double quand une suppression a laissé un trou |
 | Dupliquer un dossier perd les fichiers non-requêtes | Copie complète | Non destructif |
 | Renumérotation des frères après suppression | Aucune | Diff minimal |
+
+Décisions de sûreté propres à l'application, sans équivalent dans Bruno :
+
+- aucune action ne remplace un élément existant (renommage exclusif, comparaison des noms par NFC et repli de casse) ;
+- aucun lien symbolique n'est suivi, renommé, déplacé, dupliqué ni réécrit, et rien n'est écrit hors de la collection ;
+- seuls une requête (`info.type` connu) et un `folder.yml` sont réécrits, le reste (spec OpenAPI, YAML illisible) est laissé tel quel ;
+- les noms de `extensions.bruno.ignore` sont refusés comme des noms cachés ;
+- un fichier modifié entre sa lecture et son écriture annule l'action ;
+- une seule écriture à la fois dans l'application (§ 8).
 
 ## 8. Interface IPC (Tauri)
 
@@ -183,7 +213,14 @@ type DropPosition = 'before' | 'after' | 'inside';
 | `delete_item(root, path) -> void` | Vers la corbeille |
 | `move_item(root, path, target, position) -> string` | `target` = chemin relatif du frère (`before` / `after`) ou du dossier (`inside`, `""` = racine) ; renvoie le nouveau chemin relatif |
 
-Les erreurs arrivent sous forme de chaînes en français. Chaque commande relit ensuite l'arbre côté interface (`ws.reload()`).
+Règles communes :
+
+- `root` doit contenir `opencollection.yml` : sinon la commande est refusée avant toute lecture ou écriture.
+- Les chemins relatifs sont canoniques : segments non vides, ni `.` ni `..`, ni `\`, pas de `/` final ; un chemin qui sort de la collection, qui est caché ou réservé (même prédicat de casse que l'arbre, `is_hidden`), qui figure dans `extensions.bruno.ignore` ou qui désigne, par son identité de fichier (alias Unicode, nom 8.3, point ou espace final sous Windows), `opencollection.yml`, `environments`, `mocks` ou `.oc-sync`, est refusé. Les chemins renvoyés sont toujours canoniques.
+- **Une écriture à la fois** : un verrou (`tokio::sync::Mutex` de l'état Tauri) est pris par toutes les commandes qui écrivent dans une collection, c'est-à-dire celles ci-dessus sauf `inspect_folder`, plus `save_request`, `sync_apply`, `create_request_from_curl` et `import_openapi`. Deux glisser-déposer ou une duplication pendant un enregistrement ne lisent plus les mêmes `seq` ni les mêmes noms libres.
+- Les erreurs arrivent sous forme de chaînes en français, y compris les erreurs du système (introuvable, permission refusée, existe déjà, dossier non vide, volume en lecture seule ou plein…) et celles de la corbeille.
+
+Chaque commande relit ensuite l'arbre côté interface (`ws.reload()`).
 
 ## 9. Interface utilisateur
 

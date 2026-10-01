@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use xc_core::collection::{ignore_name, list_folder};
 use xc_core::request::BLANK_BEFORE;
-use xc_core::{normalize, read_request};
+use xc_core::{normalize, read_request, CoreError};
 use xc_sync::import::import_spec;
 use xc_sync::manage::{
     clone_item, create_collection, create_folder, create_request, delete_item, init_collection, inspect_folder,
@@ -681,7 +681,7 @@ fn ef_col_01_clone_folder_refuses_a_symbolic_link_and_leaves_no_partial_copy() {
     std::os::unix::fs::symlink(w.root.join("Commandes/A.yml"), w.root.join("Commandes/lien.yml")).unwrap();
     let before = w.snapshot();
     let error = err(clone_item(&w.root, "Commandes", "Copie"));
-    assert!(matches!(error, ManageError::Symlink(_)) && error.is_input(), "{error}");
+    assert!(matches!(error, ManageError::Core(CoreError::Symlink(_))) && error.is_input(), "{error}");
     assert!(!w.exists("Copie"));
     assert_eq!(w.snapshot(), before);
 }
@@ -1143,4 +1143,516 @@ fn ef_syn_01_hiding_oc_sync_changes_only_the_ignore_list_of_a_full_collection_fi
         fs::read_to_string(&file).unwrap(),
         minimal.replace("extensions: {}\n", "extensions:\n  bruno:\n    ignore:\n      - .oc-sync\n")
     );
+}
+
+fn core_symlink(error: &ManageError) -> bool {
+    matches!(error, ManageError::Core(CoreError::Symlink(_))) && error.is_input()
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_a_folder_yml_link_leading_outside_is_never_read_nor_written() {
+    let w = World::new();
+    let outside = w.dir.path().join("dehors");
+    fs::create_dir(&outside).unwrap();
+    let kubeconfig = outside.join("kubeconfig.yml");
+    let original = "# mon cluster\ninfo:\n  name: Cluster   # garde\n  seq: 9\nclusters: []\n";
+    fs::write(&kubeconfig, original).unwrap();
+    w.write("Evil/Inner.yml", &request("Inner", 1));
+    std::os::unix::fs::symlink(&kubeconfig, w.root.join("Evil/folder.yml")).unwrap();
+    w.requests(&[("A", 2), ("B", 3)]);
+    let items = list_folder(&w.root, "").unwrap().unwrap();
+    let evil = items.iter().find(|item| item.path() == "Evil").unwrap();
+    assert_eq!((evil.name(), evil.seq()), ("Evil", None), "la cible hors de la collection n'est pas lue");
+
+    assert_eq!(move_item(&w.root, "B.yml", "A.yml", DropPosition::Before).unwrap(), "B.yml");
+    assert_eq!(fs::read_to_string(&kubeconfig).unwrap(), original, "le frère lien garde son seq, rien n'est écrit");
+    assert_eq!(w.order(""), ["Evil", "B.yml", "A.yml"]);
+
+    let errors = [
+        err(rename_item(&w.root, "Evil", "Renamed")),
+        err(move_item(&w.root, "Evil", "A.yml", DropPosition::After)),
+        err(move_item(&w.root, "Evil", "", DropPosition::Inside)),
+        err(clone_item(&w.root, "Evil", "Copie")),
+    ];
+    for error in errors {
+        assert!(core_symlink(&error), "{error}");
+        assert!(error.to_string().contains("lien symbolique"), "{error}");
+    }
+    assert_eq!(fs::read_to_string(&kubeconfig).unwrap(), original);
+    assert!(w.exists("Evil/Inner.yml") && !w.exists("Renamed") && !w.exists("Copie"));
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_a_symbolic_link_request_is_neither_renamed_moved_nor_duplicated_but_can_be_deleted() {
+    let w = World::new();
+    w.write("a/real.yml", &request("Real", 1));
+    w.write("b/folder.yml", &folder("b", 2));
+    std::os::unix::fs::symlink("real.yml", w.root.join("a/lien.yml")).unwrap();
+    let before = w.snapshot();
+    let errors = [
+        err(rename_item(&w.root, "a/lien.yml", "Autre")),
+        err(clone_item(&w.root, "a/lien.yml", "Copie")),
+        err(move_item(&w.root, "a/lien.yml", "b", DropPosition::Inside)),
+        err(move_item(&w.root, "a/lien.yml", "a/real.yml", DropPosition::Before)),
+    ];
+    for error in errors {
+        assert!(core_symlink(&error), "{error}");
+    }
+    assert_eq!(w.snapshot(), before);
+    assert!(w.root.join("a/lien.yml").is_symlink());
+    w.delete("a/lien.yml").unwrap();
+    assert_eq!(w.trashed(), ["lien.yml"]);
+    assert_eq!(w.read("a/real.yml"), request("Real", 1), "la cible du lien est intacte");
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_no_action_goes_through_a_symbolic_link_to_a_folder() {
+    let w = World::new();
+    w.write("Reel/A.yml", &request("A", 1));
+    w.write("Reel/folder.yml", &folder("Reel", 1));
+    w.write("Autre/B.yml", &request("B", 1));
+    std::os::unix::fs::symlink(w.root.join("Reel"), w.root.join("Lien")).unwrap();
+    let before = w.snapshot();
+    assert_eq!(w.order(""), ["Reel", "Autre"], "l'arbre ne suit pas un lien vers un dossier");
+    for error in [
+        err(rename_item(&w.root, "Lien/A.yml", "Z")),
+        err(clone_item(&w.root, "Lien/A.yml", "Z")),
+        err(w.delete("Lien/A.yml")),
+        err(move_item(&w.root, "Lien/A.yml", "Autre", DropPosition::Inside)),
+        err(move_item(&w.root, "Autre/B.yml", "Lien/A.yml", DropPosition::Before)),
+        err(create_request(&w.root, "Lien", "x")),
+        err(create_folder(&w.root, "Lien", "x")),
+    ] {
+        assert!(error.is_input(), "{error}");
+    }
+    assert!(core_symlink(&err(rename_item(&w.root, "Lien/A.yml", "Z"))));
+    assert!(matches!(err(create_request(&w.root, "Lien", "x")), ManageError::FolderNotFound(_)));
+    assert_eq!(w.snapshot(), before);
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_a_symbolic_opencollection_yml_is_not_rewritten_when_connecting_a_spec() {
+    let w = World::new();
+    let outside = w.dir.path().join("config.yml");
+    let text = w.read("opencollection.yml");
+    fs::write(&outside, &text).unwrap();
+    fs::remove_file(w.root.join("opencollection.yml")).unwrap();
+    std::os::unix::fs::symlink(&outside, w.root.join("opencollection.yml")).unwrap();
+    let error = ignore_name(&w.root, ".oc-sync").unwrap_err();
+    assert!(matches!(error, CoreError::Symlink(_)), "{error}");
+    assert_eq!(fs::read_to_string(&outside).unwrap(), text);
+}
+
+#[test]
+fn ef_col_04_a_name_that_differs_only_by_unicode_normalization_is_taken() {
+    let (nfd, nfc) = ("e\u{301}te\u{301}", "\u{e9}t\u{e9}");
+    let w = World::new();
+    w.write(&format!("{nfd}.yml"), &request("VICTIME", 1));
+    w.requests(&[("Autre", 2)]);
+    assert_eq!(rename_item(&w.root, "Autre.yml", nfc).unwrap(), format!("{nfc} 1.yml"));
+    assert_eq!(create_request(&w.root, "", nfc).unwrap(), format!("{nfc} 2.yml"));
+    assert_eq!(w.read(&format!("{nfd}.yml")), request("VICTIME", 1), "l'élément existant n'est jamais écrasé");
+
+    w.write(&format!("{nfd}D/folder.yml"), &folder("D", 3));
+    w.write("Src/folder.yml", &folder("Src", 4));
+    assert_eq!(rename_item(&w.root, "Src", &format!("{nfc}D")).unwrap(), format!("{nfc}D 1"));
+    assert_eq!(create_folder(&w.root, "", &format!("{nfc}D")).unwrap(), format!("{nfc}D 2"));
+    assert!(w.exists(&format!("{nfd}D/folder.yml")));
+}
+
+#[test]
+fn ef_col_01_move_never_replaces_a_name_that_differs_only_by_normalization_or_case() {
+    let (nfd, nfc) = ("e\u{301}te\u{301}", "\u{e9}t\u{e9}");
+    let w = World::new();
+    w.write(&format!("{nfd}.yml"), &request("VICTIME", 1));
+    w.write("Tout.yml", &request("Tout", 2));
+    w.write(&format!("F/{nfc}.yml"), &request("DEPLACE", 1));
+    w.write("F/TOUT.yml", &request("MAJ", 2));
+    assert_eq!(move_item(&w.root, &format!("F/{nfc}.yml"), "", DropPosition::Inside).unwrap(), format!("{nfc} 1.yml"));
+    assert_eq!(move_item(&w.root, "F/TOUT.yml", "", DropPosition::Inside).unwrap(), "TOUT 1.yml");
+    assert_eq!(w.read(&format!("{nfd}.yml")), request("VICTIME", 1));
+    assert_eq!(w.read("Tout.yml"), request("Tout", 2));
+    assert_eq!(read_request(&w.root, &format!("{nfc} 1.yml")).unwrap().name, "DEPLACE");
+}
+
+#[test]
+fn ef_col_04_files_that_are_not_requests_are_never_rewritten() {
+    let w = World::new();
+    let spec = "# Petstore - maintenu à la main\nopenapi: 3.0.0\ninfo:\n  title: Petstore   # nom\n  version: 1.0.0\npaths:\n  /pets:\n    get:\n      summary: 'List'\n";
+    let multi = "apiVersion: v1\nkind: ConfigMap\ninfo:\n  owner: a\n---\napiVersion: v1\nkind: Secret\n";
+    w.write("specs/petstore.yml", spec);
+    w.write("specs/k8s.yml", multi);
+    w.write("specs/scalar.yml", "info: just a string\nother: 1\n");
+    w.write("specs/A.yml", &request("A", 1));
+    w.write("specs/B.yml", &request("B", 2));
+    w.write("F/folder.yml", &folder("F", 2));
+    let foreign = ["specs/petstore.yml", "specs/k8s.yml", "specs/scalar.yml"];
+    let texts: Vec<String> = foreign.iter().map(|file| w.read(file)).collect();
+    let untouched = |w: &World, files: &[&str]| files.iter().map(|file| w.read(file)).collect::<Vec<_>>() == texts;
+
+    assert_eq!(move_item(&w.root, "specs/B.yml", "specs/A.yml", DropPosition::Before).unwrap(), "specs/B.yml");
+    assert!(untouched(&w, &foreign), "les voisins d'un déplacement ne sont pas réécrits");
+    only_line_changed(&request("B", 2), &w.read("specs/B.yml"), "seq: 2", "seq: 1");
+    only_line_changed(&request("A", 1), &w.read("specs/A.yml"), "seq: 1", "seq: 2");
+
+    for file in foreign {
+        let stem = file.trim_start_matches("specs/").trim_end_matches(".yml");
+        let renamed = rename_item(&w.root, file, &format!("{stem} renomme")).unwrap();
+        assert_eq!(renamed, format!("specs/{stem} renomme.yml"));
+        assert_eq!(w.read(&renamed), texts[foreign.iter().position(|f| *f == file).unwrap()], "{file}");
+    }
+    let items = list_folder(&w.root, "specs").unwrap().unwrap();
+    assert!(items.iter().any(|item| item.name() == "petstore renomme"), "le nom affiché vient du nom de fichier");
+
+    let error = err(move_item(&w.root, "specs/petstore renomme.yml", "specs/A.yml", DropPosition::After));
+    assert!(matches!(error, ManageError::NotRequest(_)) && error.is_input(), "{error}");
+    assert!(error.to_string().contains("ordre ne peut pas être modifié"), "{error}");
+    assert_eq!(
+        move_item(&w.root, "specs/petstore renomme.yml", "F", DropPosition::Inside).unwrap(),
+        "F/petstore renomme.yml"
+    );
+    assert_eq!(w.read("F/petstore renomme.yml"), spec);
+    assert_eq!(w.seq("F"), Some(2));
+
+    let copy = clone_item(&w.root, "specs/k8s renomme.yml", "k8s copie").unwrap();
+    assert_eq!(w.read(&copy), multi, "un fichier qui n'est pas une requête est copié tel quel");
+}
+
+#[test]
+fn ef_col_01_an_unreadable_sibling_keeps_its_seq_and_does_not_fail_the_action() {
+    let w = World::new();
+    w.requests(&[("A", 1), ("B", 2), ("C", 3)]);
+    let broken = "info: [non fermé\n  name: x\n";
+    w.write("Cassee.yml", broken);
+    w.write("F/folder.yml", "info: {name: F, seq: ");
+    w.write("F/X.yml", &request("X", 1));
+    let items = list_folder(&w.root, "").unwrap().unwrap();
+    assert!(items.iter().any(|item| item.path() == "Cassee.yml"));
+    assert_eq!(move_item(&w.root, "C.yml", "A.yml", DropPosition::Before).unwrap(), "C.yml");
+    assert_eq!(w.read("Cassee.yml"), broken);
+    assert_eq!(w.read("F/folder.yml"), "info: {name: F, seq: ");
+    let sequence: Vec<_> = ["C", "A", "B"].iter().map(|name| w.seq(&format!("{name}.yml"))).collect();
+    assert_eq!(sequence.iter().flatten().count(), 3);
+    assert!(sequence.windows(2).all(|pair| pair[0] < pair[1]), "{sequence:?}");
+
+    let renamed = rename_item(&w.root, "Cassee.yml", "Reparee").unwrap();
+    assert_eq!(renamed, "Reparee.yml");
+    assert_eq!(w.read(&renamed), broken, "un fichier illisible est renommé sans toucher à son contenu");
+    assert!(!w.exists("Cassee.yml"));
+    let items = list_folder(&w.root, "").unwrap().unwrap();
+    let shown = items.iter().find(|item| item.path() == "Reparee.yml").unwrap();
+    assert_eq!(shown.name(), "Reparee", "le nom affiché vient du nom du fichier");
+
+    assert_eq!(rename_item(&w.root, "F", "G").unwrap(), "G", "le dossier est renommé, son folder.yml illisible intact");
+    assert_eq!(w.read("G/folder.yml"), "info: {name: F, seq: ");
+}
+
+#[test]
+fn ef_col_04_rename_and_reorder_keep_the_crlf_line_endings_and_the_bom() {
+    let w = World::new();
+    let crlf = |text: String| text.replace('\n', "\r\n");
+    w.write("A.yml", &crlf(request("A", 1)));
+    w.write("B.yml", &format!("\u{feff}{}", crlf(request("B", 2))));
+    w.write("C.yml", &format!("\u{feff}{}", request("C", 3)));
+    let items = list_folder(&w.root, "").unwrap().unwrap();
+    assert_eq!(
+        items.iter().map(|item| (item.name(), item.seq())).collect::<Vec<_>>(),
+        [("A", Some(1)), ("B", Some(2)), ("C", Some(3))]
+    );
+
+    move_item(&w.root, "C.yml", "A.yml", DropPosition::Before).unwrap();
+    assert_eq!(w.read("A.yml"), crlf(request("A", 2)), "seule la ligne seq change, les fins de ligne restent");
+    assert_eq!(w.read("B.yml"), format!("\u{feff}{}", crlf(request("B", 3))));
+    assert_eq!(w.read("C.yml"), format!("\u{feff}{}", request("C", 1)));
+
+    rename_item(&w.root, "A.yml", "Renommée").unwrap();
+    assert_eq!(w.read("Renommée.yml"), crlf(request("Renommée", 2)));
+    rename_item(&w.root, "B.yml", "Aussi").unwrap();
+    assert_eq!(w.read("Aussi.yml"), format!("\u{feff}{}", crlf(request("Aussi", 3))));
+    let copy = clone_item(&w.root, "Renommée.yml", "Copie").unwrap();
+    assert_eq!(w.read(&copy), crlf(request("Copie", 4)));
+}
+
+#[test]
+fn ef_col_04_actions_on_a_root_without_opencollection_yml_are_refused_before_anything_happens() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir_all(dir.path().join("Documents/sub")).unwrap();
+    fs::write(dir.path().join("Documents/sub/a.yml"), request("a", 1)).unwrap();
+    fs::write(dir.path().join("notes.yml"), request("notes", 2)).unwrap();
+    let before = files_under(dir.path());
+    let root = dir.path();
+    let trashed = std::cell::Cell::new(false);
+    let errors = [
+        err(delete_item(root, "Documents", |_| {
+            trashed.set(true);
+            Ok(())
+        })),
+        err(rename_item(root, "notes.yml", "Zed")),
+        err(clone_item(root, "notes.yml", "Zed")),
+        err(move_item(root, "notes.yml", "Documents", DropPosition::Inside)),
+        err(create_request(root, "", "Zed")),
+        err(create_folder(root, "", "Zed")),
+    ];
+    for error in errors {
+        assert!(matches!(error, ManageError::Core(CoreError::NotACollection(_))) && error.is_input(), "{error}");
+        assert!(error.to_string().contains("opencollection.yml"), "{error}");
+    }
+    assert!(!trashed.get(), "la corbeille n'est pas appelée");
+    assert_eq!(files_under(dir.path()), before);
+}
+
+#[test]
+fn ef_col_04_an_alias_of_a_reserved_root_entry_is_refused_by_file_identity() {
+    let w = World::new();
+    w.write("environments/dev.yml", "variables: []\n");
+    w.write("mocks/m.yml", "x: 1\n");
+    w.write(".oc-sync/openapi/source.yml", "source: api.yaml\n");
+    fs::hard_link(w.root.join("opencollection.yml"), w.root.join("Copie.yml")).unwrap();
+    w.requests(&[("A", 1)]);
+    let before = w.snapshot();
+    for target in
+        ["Copie.yml", "OpenCollection.yml", "Environments", "Environments/dev.yml", "MOCKS", "MOCKS/m.yml", ".OC-SYNC"]
+    {
+        let errors = [
+            err(rename_item(&w.root, target, "Autre")),
+            err(clone_item(&w.root, target, "Copie 2")),
+            err(w.delete(target)),
+            err(move_item(&w.root, target, "", DropPosition::Inside)),
+            err(move_item(&w.root, "A.yml", target, DropPosition::Inside)),
+            err(create_request(&w.root, target, "x")),
+        ];
+        for error in errors {
+            assert!(error.is_input(), "{target} : {error}");
+        }
+    }
+    assert!(w.trashed().is_empty());
+    assert_eq!(w.snapshot(), before);
+}
+
+#[test]
+fn ef_col_04_actions_refuse_the_names_of_the_ignore_list() {
+    let w = World::new();
+    ignore_name(&w.root, "dist").unwrap();
+    ignore_name(&w.root, "Generated.yml").unwrap();
+    w.write("dist/Gen.yml", &request("Gen", 1));
+    w.write("Commandes/folder.yml", &folder("Commandes", 1));
+    w.requests(&[("A", 2)]);
+    let before = w.snapshot();
+    assert!(w.order("").iter().all(|path| path != "dist"), "l'arbre ne montre pas un nom ignoré");
+    invalid_name(err(create_folder(&w.root, "", "dist")));
+    invalid_name(err(create_folder(&w.root, "Commandes", "DIST")));
+    invalid_name(err(create_request(&w.root, "", "Generated")));
+    invalid_name(err(rename_item(&w.root, "A.yml", "Generated")));
+    invalid_name(err(rename_item(&w.root, "Commandes", "dist")));
+    invalid_name(err(clone_item(&w.root, "A.yml", "generated")));
+    for error in [
+        err(rename_item(&w.root, "dist", "Autre")),
+        err(rename_item(&w.root, "dist/Gen.yml", "Autre")),
+        err(clone_item(&w.root, "dist", "Autre")),
+        err(w.delete("dist")),
+        err(move_item(&w.root, "dist", "", DropPosition::Inside)),
+        err(move_item(&w.root, "A.yml", "dist", DropPosition::Inside)),
+        err(move_item(&w.root, "A.yml", "dist/Gen.yml", DropPosition::Before)),
+        err(create_request(&w.root, "dist", "x")),
+    ] {
+        assert!(matches!(error, ManageError::Forbidden(_)) && error.is_input(), "{error}");
+    }
+    assert_eq!(w.snapshot(), before);
+    assert!(w.trashed().is_empty());
+}
+
+#[test]
+fn ef_col_01_a_moved_item_never_takes_a_name_of_the_ignore_list() {
+    let w = World::new();
+    ignore_name(&w.root, "Tableau.yml").unwrap();
+    w.write("F/folder.yml", &folder("F", 1));
+    w.write("G/Tableau.yml", &request("Tableau", 1));
+    let tree = w.snapshot();
+    assert!(tree.contains_key("G/Tableau.yml") && w.order("G").is_empty());
+    w.write("G/Autre.yml", &request("Autre", 2));
+    w.write("Autre.yml", &request("Autre", 3));
+    assert_eq!(move_item(&w.root, "G/Autre.yml", "", DropPosition::Inside).unwrap(), "Autre 1.yml");
+}
+
+#[test]
+fn ef_col_01_an_element_the_tree_shows_is_actionable_with_the_same_case_rules_as_the_tree() {
+    let w = World::new();
+    w.write("Mocks/folder.yml", &folder("Mocks", 1));
+    w.write("Mocks/a.yml", &request("a", 1));
+    w.write("Node_Modules2/b.yml", &request("b", 1));
+    assert!(w.order("").contains(&"Mocks".to_owned()), "l'arbre montre un dossier `Mocks`, que seul `mocks` réserve");
+    assert_eq!(rename_item(&w.root, "Mocks/a.yml", "b").unwrap(), "Mocks/b.yml");
+    assert_eq!(create_request(&w.root, "Mocks", "c").unwrap(), "Mocks/c.yml");
+    assert_eq!(clone_item(&w.root, "Mocks/b.yml", "d").unwrap(), "Mocks/d.yml");
+    w.delete("Mocks/d.yml").unwrap();
+    assert_eq!(rename_item(&w.root, "Mocks", "Autre").unwrap(), "Autre");
+    assert_eq!(rename_item(&w.root, "Node_Modules2", "Autre 2").unwrap(), "Autre 2");
+}
+
+#[test]
+fn ef_col_04_paths_must_be_canonical_and_the_returned_path_always_is() {
+    let w = World::new();
+    w.write("Q/A.yml", &request("A", 1));
+    w.write("Q/B.yml", &request("B", 2));
+    w.write("Q/folder.yml", &folder("Q", 1));
+    let before = w.snapshot();
+    let bad = ["Q/", "Q//A.yml", "./Q/A.yml", "Q/./A.yml", "Q\\A.yml", "/Q/A.yml", "Q/A.yml/", "//"];
+    for path in bad {
+        let errors = [
+            err(rename_item(&w.root, path, "x")),
+            err(clone_item(&w.root, path, "x")),
+            err(w.delete(path)),
+            err(move_item(&w.root, path, "", DropPosition::Inside)),
+            err(move_item(&w.root, "Q/A.yml", path, DropPosition::Before)),
+            err(move_item(&w.root, "Q/A.yml", path, DropPosition::Inside)),
+            err(create_request(&w.root, path, "x")),
+            err(create_folder(&w.root, path, "x")),
+        ];
+        for error in errors {
+            assert!(error.is_input(), "{path} : {error}");
+        }
+    }
+    for path in ["Q/", "Q//A.yml", "./Q/A.yml", "Q\\A.yml"] {
+        assert!(matches!(err(rename_item(&w.root, path, "x")), ManageError::InvalidPath(_)), "{path}");
+    }
+    assert!(err(rename_item(&w.root, "Q//A.yml", "x")).to_string().starts_with("chemin invalide"));
+    assert_eq!(w.snapshot(), before);
+    assert_eq!(rename_item(&w.root, "Q/A.yml", "Z").unwrap(), "Q/Z.yml");
+    assert_eq!(move_item(&w.root, "Q/Z.yml", "Q/B.yml", DropPosition::After).unwrap(), "Q/Z.yml");
+    assert_eq!(clone_item(&w.root, "Q/B.yml", "C").unwrap(), "Q/C.yml");
+    assert_eq!(create_folder(&w.root, "Q", "Sous").unwrap(), "Q/Sous");
+    assert_eq!(move_item(&w.root, "Q/C.yml", "Q/Sous", DropPosition::Inside).unwrap(), "Q/Sous/C.yml");
+}
+
+#[test]
+fn ef_col_04_create_request_and_folder_go_to_the_end_of_the_list_after_a_gap_in_the_seq() {
+    let w = World::new();
+    w.requests(&[("A", 1), ("B", 2), ("D", 4)]);
+    let request = create_request(&w.root, "", "Alpha").unwrap();
+    assert_eq!(w.seq(&request), Some(5), "au-delà du plus grand seq, pas seulement du nombre de frères");
+    let created = create_folder(&w.root, "", "Dossier").unwrap();
+    assert_eq!(w.seq(&created), Some(6));
+    assert_eq!(w.order("").last().unwrap(), &created);
+    assert_eq!(
+        w.read("Dossier/folder.yml"),
+        fixture("folder.yml").replace("seq: 2", "seq: 6").replace("Commandes", "Dossier")
+    );
+    let seqs: Vec<_> = w.order("").iter().map(|path| w.seq(path).unwrap()).collect();
+    assert_eq!(seqs, [1, 2, 4, 5, 6]);
+}
+
+#[test]
+fn ef_col_01_end_of_list_seq_saturates_instead_of_overflowing() {
+    let w = World::new();
+    w.write("A.yml", &request("A", i64::MAX));
+    let copy = clone_item(&w.root, "A.yml", "Copie").unwrap();
+    assert_eq!(w.seq(&copy), Some(i64::MAX));
+    assert!(create_request(&w.root, "", "Neuve").is_ok());
+    assert!(create_folder(&w.root, "", "Dossier").is_ok());
+}
+
+#[test]
+fn ef_col_01_a_move_keeps_the_original_file_name_when_it_is_free_in_the_target_folder() {
+    let w = World::new();
+    w.write("F/folder.yml", &folder("F", 1));
+    w.write("aux.yml", &request("aux", 2));
+    w.write("Con.v2.yml", &request("Con", 3));
+    w.write("G/nul/folder.yml", &folder("nul", 1));
+    assert_eq!(move_item(&w.root, "aux.yml", "F", DropPosition::Inside).unwrap(), "F/aux.yml");
+    assert_eq!(move_item(&w.root, "Con.v2.yml", "F", DropPosition::Inside).unwrap(), "F/Con.v2.yml");
+    assert_eq!(move_item(&w.root, "G/nul", "", DropPosition::Inside).unwrap(), "nul");
+    w.write("aux.yml", &request("aux", 4));
+    assert_eq!(
+        move_item(&w.root, "aux.yml", "F", DropPosition::Inside).unwrap(),
+        "F/aux 1.yml",
+        "suffixé en cas de collision"
+    );
+}
+
+#[test]
+fn ef_col_01_a_drop_that_changes_neither_folder_nor_position_writes_nothing() {
+    let w = World::new();
+    w.requests(&[("A", 1), ("B", 3), ("C", 7)]);
+    w.write("F/folder.yml", &folder("F", 9));
+    let before = w.snapshot();
+    for (path, target, position) in [
+        ("A.yml", "B.yml", DropPosition::Before),
+        ("B.yml", "A.yml", DropPosition::After),
+        ("B.yml", "C.yml", DropPosition::Before),
+        ("C.yml", "B.yml", DropPosition::After),
+        ("C.yml", "F", DropPosition::Before),
+        ("F", "C.yml", DropPosition::After),
+        ("F", "", DropPosition::Inside),
+        ("A.yml", "A.yml", DropPosition::Before),
+    ] {
+        assert_eq!(move_item(&w.root, path, target, position).unwrap(), path);
+        assert_eq!(w.snapshot(), before, "{path} {position:?} {target}");
+    }
+    move_item(&w.root, "A.yml", "C.yml", DropPosition::Before).unwrap();
+    assert_eq!(w.order(""), ["B.yml", "A.yml", "C.yml", "F"]);
+    assert_ne!(w.snapshot(), before);
+}
+
+#[cfg(unix)]
+fn deny_writes(dir: &Path) -> Option<impl Drop> {
+    use std::os::unix::fs::PermissionsExt;
+    struct Restore(PathBuf);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            fs::set_permissions(&self.0, fs::Permissions::from_mode(0o755)).ok();
+        }
+    }
+    fs::set_permissions(dir, fs::Permissions::from_mode(0o555)).unwrap();
+    let guard = Restore(dir.to_path_buf());
+    let blocked = fs::File::create(dir.join(".essai")).is_err();
+    blocked.then_some(guard)
+}
+
+#[cfg(unix)]
+#[test]
+fn ef_syn_01_a_move_writes_the_seq_first_renames_last_and_leaves_source_yml_when_the_rename_fails() {
+    let w = connected();
+    let Some(_guard) = deny_writes(&w.root.join("orders")) else { return };
+    let source = source_yml(&w);
+    let error = err(move_item(&w.root, "pets/List pets.yml", "orders", DropPosition::Inside));
+    assert!(!error.is_input() && error.to_string().contains("permission refusée"), "{error}");
+    assert!(w.exists("pets/List pets.yml") && !w.exists("orders/List pets.yml"));
+    assert_eq!(source_yml(&w), source, "source.yml n'est écrit qu'après le renommage");
+    assert_eq!(file_of(&w, "listPets").as_deref(), Some("pets/List pets.yml"));
+    assert_eq!(w.seq("pets/List pets.yml"), Some(2), "le seq est écrit sur place avant le renommage");
+}
+
+#[cfg(unix)]
+#[test]
+fn ef_syn_01_a_failed_source_yml_write_after_the_trash_says_the_item_is_in_the_trash() {
+    let w = connected();
+    let Some(_guard) = deny_writes(&w.root.join(".oc-sync/openapi")) else { return };
+    let error = err(w.delete("pets/List pets.yml"));
+    assert!(matches!(error, ManageError::SourceNotUpdated { .. }) && !error.is_input(), "{error}");
+    assert!(error.to_string().starts_with("l'élément est bien dans la corbeille, mais .oc-sync/openapi/source.yml"));
+    assert!(error.to_string().contains("permission refusée"), "{error}");
+    assert_eq!(w.trashed(), ["List pets.yml"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn ef_syn_01_a_failed_source_yml_write_after_a_rename_says_the_item_is_renamed() {
+    let w = connected();
+    let Some(_guard) = deny_writes(&w.root.join(".oc-sync/openapi")) else { return };
+    let error = err(rename_item(&w.root, "pets/List pets.yml", "Show pets"));
+    assert!(error.to_string().starts_with("l'élément est bien renommé, mais .oc-sync/openapi/source.yml"), "{error}");
+    assert!(w.exists("pets/Show pets.yml"));
+}
+
+#[test]
+fn ef_syn_01_tracking_follows_the_exact_names_of_the_collection() {
+    let w = connected();
+    w.write("pets copie/Autre.yml", &request("Autre", 1));
+    assert_eq!(rename_item(&w.root, "pets", "Pets").unwrap(), "Pets");
+    assert_eq!(file_of(&w, "listPets").as_deref(), Some("Pets/List pets.yml"));
+    assert_eq!(file_of(&w, "listOrders").as_deref(), Some("orders/List orders.yml"));
 }

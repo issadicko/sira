@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 
+use unicode_normalization::UnicodeNormalization;
 use xc_core::collection::{is_hidden, REQUEST_EXT};
 use xc_core::yaml::is_js_space;
 
@@ -165,22 +166,50 @@ pub enum Slot {
     Other,
 }
 
-/// Noms déjà pris dans un dossier, casse ignorée : sur un disque insensible à la casse, deux noms qui ne
-/// diffèrent que par elle seraient le même fichier.
+/// Clé de comparaison de deux noms de fichier : normalisation NFC puis repli de casse. Sur un disque insensible à la
+/// casse ou à la normalisation Unicode (APFS, HFS+, NTFS), deux noms qui ne diffèrent que par elles désignent le même
+/// fichier : `été` écrit NFD est `été` écrit NFC.
+pub fn fold(name: &str) -> String {
+    name.nfc().collect::<String>().to_lowercase().nfc().collect()
+}
+
+/// Noms déjà pris dans un dossier, comparés par [`fold`].
 pub struct Directory {
     taken: HashSet<String>,
     listed_at_root: Option<bool>,
+    ignored: Vec<String>,
 }
 
 impl Directory {
     pub fn new(reserved: &[&str]) -> Self {
-        Self { taken: reserved.iter().map(|name| name.to_lowercase()).collect(), listed_at_root: None }
+        Self { taken: reserved.iter().map(|name| fold(name)).collect(), listed_at_root: None, ignored: Vec::new() }
     }
 
     /// Les noms attribués doivent rester visibles de `open_collection` ; `at_root` : le dossier est la racine.
     pub fn listed(mut self, at_root: bool) -> Self {
         self.listed_at_root = Some(at_root);
         self
+    }
+
+    /// Les noms attribués ne doivent pas figurer dans `extensions.bruno.ignore`, que l'arbre n'affiche pas.
+    pub fn ignoring(mut self, ignored: &[String]) -> Self {
+        self.ignored = ignored.to_vec();
+        self
+    }
+
+    fn hidden(&self, name: &str) -> bool {
+        self.listed_at_root.is_some_and(|at_root| is_hidden(name, at_root)) || self.ignored.iter().any(|i| i == name)
+    }
+
+    /// `name` tel quel, s'il est libre et que l'arbre le montrerait ; sinon `None`. Il n'est pas assaini ni renommé :
+    /// un nom de périphérique Windows déjà porté par l'élément qu'on déplace reste le sien.
+    pub fn claim_exact(&mut self, name: &str) -> Option<String> {
+        let folded = fold(name);
+        let free = !self.hidden(name) && !self.taken.contains(&folded);
+        free.then(|| {
+            self.taken.insert(folded);
+            name.to_owned()
+        })
     }
 
     /// Premier nom libre parmi `radical`, `radical 1`, `radical 2`… avec l'extension `ext`.
@@ -196,10 +225,13 @@ impl Directory {
         loop {
             let suffix = if counter == 0 { String::new() } else { format!(" {counter}") };
             let name = with_suffix(stem, &suffix, ext);
-            let hidden = self.listed_at_root.is_some_and(|at_root| is_hidden(&name, at_root));
-            let lower = name.to_lowercase();
-            if !is_device_name(&name) && !hidden && !self.taken.contains(&lower) && slot(&name) != Slot::Other {
-                self.taken.insert(lower);
+            let folded = fold(&name);
+            if !is_device_name(&name)
+                && !self.hidden(&name)
+                && !self.taken.contains(&folded)
+                && slot(&name) != Slot::Other
+            {
+                self.taken.insert(folded);
                 return name;
             }
             counter += 1;

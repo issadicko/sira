@@ -14,10 +14,12 @@ use crate::CoreError;
 pub const COLLECTION_FILE: &str = "opencollection.yml";
 pub const FOLDER_FILE: &str = "folder.yml";
 pub const REQUEST_EXT: &str = ".yml";
+pub const REQUEST_KINDS: [&str; 4] = ["http", "graphql", "grpc", "websocket"];
 pub const ENV_DIR: &str = "environments";
+pub const MOCKS_DIR: &str = "mocks";
 const COLLECTION_ORDER: &[&str] = &["opencollection", "info", "config", "request", "docs", "bundled", "extensions"];
 const BRUNO_ORDER: &[&str] = &["ignore", "presets", "scripts", "openapi"];
-const MOCKS_DIR: &str = "mocks";
+const BOM: char = '\u{feff}';
 const NODE_MODULES: &str = "node_modules";
 
 #[derive(Debug, Clone, Serialize)]
@@ -76,12 +78,60 @@ pub(crate) fn read_tree(path: &Path) -> Result<Map, CoreError> {
     parse_tree(&text, path)
 }
 
-fn parse_tree(text: &str, path: &Path) -> Result<Map, CoreError> {
-    let invalid = |message: String| CoreError::Yaml { path: path.display().to_string(), message };
-    match yaml::parse(text).map_err(|e| invalid(e.to_string()))? {
+fn invalid(path: &Path, message: impl Into<String>) -> CoreError {
+    CoreError::Yaml { path: path.display().to_string(), message: message.into() }
+}
+
+fn table(parsed: Result<Value, yaml::YamlError>, path: &Path) -> Result<Map, CoreError> {
+    match parsed.map_err(|e| invalid(path, e.to_string()))? {
         Value::Map(m) => Ok(m),
         Value::Null => Ok(Map::default()),
-        _ => Err(invalid("le document doit être une table".into())),
+        _ => Err(invalid(path, "le document doit être une table")),
+    }
+}
+
+fn without_bom(text: &str) -> &str {
+    text.strip_prefix(BOM).unwrap_or(text)
+}
+
+fn parse_tree(text: &str, path: &Path) -> Result<Map, CoreError> {
+    table(yaml::parse(without_bom(text)), path)
+}
+
+/// Pour réécrire : un flux de plusieurs documents est refusé plutôt que tronqué.
+fn parse_exact(text: &str, path: &Path) -> Result<Map, CoreError> {
+    table(yaml::parse_single(without_bom(text)), path)
+}
+
+/// `emitted` avec la signature (BOM) et les fins de ligne (CRLF) du texte `original` dont il est la réécriture.
+fn styled_like(original: &str, emitted: String) -> String {
+    let emitted = if original.contains("\r\n") { emitted.replace('\n', "\r\n") } else { emitted };
+    if original.starts_with(BOM) {
+        format!("{BOM}{emitted}")
+    } else {
+        emitted
+    }
+}
+
+/// Réécriture de `text` par `change`, qui dit si l'arbre a changé ; sinon `text` est rendu tel quel. Un flux de
+/// plusieurs documents est refusé, le BOM et les fins de ligne CRLF sont conservés.
+fn rewrite(
+    path: &Path,
+    text: &str,
+    change: impl FnOnce(&mut Map) -> Result<bool, CoreError>,
+) -> Result<String, CoreError> {
+    let mut tree = parse_exact(text, path)?;
+    if !change(&mut tree)? {
+        return Ok(text.to_owned());
+    }
+    Ok(styled_like(text, yaml::emit(&Value::Map(tree), BLANK_BEFORE)))
+}
+
+/// `root` contient `opencollection.yml`.
+pub fn ensure_collection(root: &Path) -> Result<(), CoreError> {
+    match root.join(COLLECTION_FILE).is_file() {
+        true => Ok(()),
+        false => Err(CoreError::NotACollection(root.display().to_string())),
     }
 }
 
@@ -122,15 +172,18 @@ pub fn is_hidden(name: &str, at_root: bool) -> bool {
 }
 
 fn read_config(root: &Path) -> Result<Map, CoreError> {
-    let config_path = root.join(COLLECTION_FILE);
-    if !config_path.is_file() {
-        return Err(CoreError::NotACollection(root.display().to_string()));
-    }
-    read_tree(&config_path)
+    ensure_collection(root)?;
+    read_tree(&root.join(COLLECTION_FILE))
 }
 
 fn ignored(bruno: Option<&Map>) -> Vec<String> {
     bruno.map(|b| b.seq("ignore").iter().filter_map(Value::scalar).collect()).unwrap_or_default()
+}
+
+/// Noms que `extensions.bruno.ignore` de `opencollection.yml` retire de l'arbre, à tous les niveaux.
+pub fn ignored_names(root: &Path) -> Result<Vec<String>, CoreError> {
+    let config = read_config(root)?;
+    Ok(ignored(config.map("extensions").and_then(|e| e.map("bruno"))))
 }
 
 pub fn open_collection(root: &Path) -> Result<CollectionInfo, CoreError> {
@@ -189,7 +242,7 @@ struct Entry {
 }
 
 /// Dossiers et fichiers de requête de `dir` que l'arbre montre ; un lien symbolique n'est ni suivi vers un dossier
-/// ni lu s'il mène hors de la collection.
+/// ni lu s'il mène hors de la collection, `folder.yml` compris.
 fn visible_entries(root: &Path, dir: &Path, ignore: &[String]) -> Result<Vec<Entry>, CoreError> {
     let entries = fs::read_dir(dir).map_err(|e| CoreError::io(dir, e))?;
     Ok(entries
@@ -214,8 +267,7 @@ fn visible_entries(root: &Path, dir: &Path, ignore: &[String]) -> Result<Vec<Ent
 /// Dossier `folder` (`""` pour la racine) et les noms que l'arbre ignore dans la collection, ou `None` quand ce
 /// dossier n'est pas lui-même montré.
 fn find_folder(root: &Path, folder: &str) -> Result<Option<(PathBuf, Vec<String>)>, CoreError> {
-    let config = read_config(root)?;
-    let ignore = ignored(config.map("extensions").and_then(|e| e.map("bruno")));
+    let ignore = ignored_names(root)?;
     let mut dir = root.to_path_buf();
     for name in folder.split('/').filter(|part| !part.is_empty()) {
         let found = visible_entries(root, &dir, &ignore)?.into_iter().find(|e| e.is_dir && e.name == name);
@@ -247,7 +299,7 @@ fn read_folder(root: &Path, dir: &Path, ignore: &[String], deep: bool) -> Result
             continue;
         }
         let meta = path.join(FOLDER_FILE);
-        let (folder_name, seq) = match meta.is_file().then(|| read_tree(&meta)) {
+        let (folder_name, seq) = match (meta.is_file() && is_inside(root, &meta)).then(|| read_tree(&meta)) {
             Some(Ok(m)) => {
                 let info = m.map("info");
                 (
@@ -360,16 +412,17 @@ pub fn read_request(root: &Path, relative: &str) -> Result<RequestDoc, CoreError
 
 /// Enregistre la requête. Renvoie `false` quand le fichier n'a pas changé (aucune écriture).
 pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<bool, CoreError> {
+    ensure_collection(root)?;
     let path = resolve_path(root, relative)?;
     let current = fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))?;
     let mut tree = read_tree(&path)?;
     let previous = RequestDoc::from_tree(&tree);
     doc.apply(&mut tree, &previous);
-    let next = yaml::emit(&Value::Map(tree), BLANK_BEFORE);
+    let next = styled_like(&current, yaml::emit(&Value::Map(tree), BLANK_BEFORE));
     if next == current || (doc == &previous && current.trim_end() == next.trim_end()) {
         return Ok(false);
     }
-    write_atomic(&path, &next)?;
+    write_atomic(root, &path, &next)?;
     Ok(true)
 }
 
@@ -377,46 +430,82 @@ pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<boo
 /// `info` pour seuls changements : le reste de l'arbre (clés inconnues comprises) est conservé, et `text` est rendu tel
 /// quel quand ces champs ont déjà leur valeur. Comme pour [`save_request`], le document est réécrit par l'émetteur : un
 /// fichier tel que Bruno ou l'application l'écrit ne change que sur les lignes concernées, mais les commentaires et la
-/// mise en forme d'un fichier écrit à la main sont normalisés.
+/// mise en forme d'un fichier écrit à la main sont normalisés ; le BOM et les fins de ligne CRLF sont conservés. Un
+/// flux de plusieurs documents ou un `info` qui n'est pas une table sont refusés, plutôt que tronqués ou remplacés.
 pub fn with_info(path: &Path, text: &str, fields: &[(&str, Value)]) -> Result<String, CoreError> {
-    let mut tree = parse_tree(text, path)?;
-    let info = tree.map_mut_or_insert("info", TOP_ORDER);
-    if fields.iter().all(|(key, value)| info.get(key) == Some(value)) {
-        return Ok(text.to_owned());
-    }
-    for (key, value) in fields {
-        info.set(key, value.clone(), INFO_ORDER);
-    }
-    Ok(yaml::emit(&Value::Map(tree), BLANK_BEFORE))
+    rewrite(path, text, |tree| {
+        if !matches!(tree.get("info"), None | Some(Value::Null | Value::Map(_))) {
+            return Err(invalid(path, "« info » doit être une table"));
+        }
+        let info = tree.map_mut_or_insert("info", TOP_ORDER);
+        if fields.iter().all(|(key, value)| info.get(key) == Some(value)) {
+            return Ok(false);
+        }
+        for (key, value) in fields {
+            info.set(key, value.clone(), INFO_ORDER);
+        }
+        Ok(true)
+    })
+}
+
+/// `info.type` du document `text`, `None` quand il n'y en a pas : `http`, `graphql`, `grpc` ou `websocket` pour une
+/// requête (voir [`REQUEST_KINDS`]), `folder` pour un `folder.yml`.
+pub fn info_type(path: &Path, text: &str) -> Result<Option<String>, CoreError> {
+    let tree = parse_tree(text, path)?;
+    Ok(tree.map("info").and_then(|info| info.str("type")).map(str::to_owned))
 }
 
 /// Ajoute `name` à `extensions.bruno.ignore` de `opencollection.yml`, la seule liste que le fichier change, pour que
-/// Bruno n'affiche pas ce dossier. Sans effet quand `name` y figure déjà.
+/// Bruno n'affiche pas ce dossier. Sans effet quand `name` y figure déjà ; refusé quand `opencollection.yml` est un
+/// lien symbolique.
 pub fn ignore_name(root: &Path, name: &str) -> Result<(), CoreError> {
     let path = root.join(COLLECTION_FILE);
-    let text = fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))?;
-    let mut tree = parse_tree(&text, &path)?;
-    let bruno = tree.map_mut_or_insert("extensions", COLLECTION_ORDER).map_mut_or_insert("bruno", &[]);
-    let mut ignore = bruno.seq("ignore").to_vec();
-    if ignore.iter().any(|entry| entry.scalar().as_deref() == Some(name)) {
-        return Ok(());
+    if path.is_symlink() {
+        return Err(CoreError::Symlink(path.display().to_string()));
     }
-    ignore.push(Value::str(name));
-    bruno.set("ignore", Value::Seq(ignore), BRUNO_ORDER);
-    write_atomic(&path, &yaml::emit(&Value::Map(tree), BLANK_BEFORE))
+    let text = fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))?;
+    let updated = rewrite(&path, &text, |tree| {
+        let fits = |value: Option<&Value>, shape: fn(&Value) -> bool| {
+            value.is_none_or(|value| matches!(value, Value::Null) || shape(value))
+        };
+        let extensions = tree.get("extensions");
+        let bruno = extensions.and_then(Value::as_map).and_then(|e| e.get("bruno"));
+        let ignore = bruno.and_then(Value::as_map).and_then(|b| b.get("ignore"));
+        let is_map = |value: &Value| matches!(value, Value::Map(_));
+        let is_seq = |value: &Value| matches!(value, Value::Seq(_));
+        if !(fits(extensions, is_map) && fits(bruno, is_map) && fits(ignore, is_seq)) {
+            return Err(invalid(&path, "« extensions.bruno.ignore » doit être une liste dans des tables"));
+        }
+        let bruno = tree.map_mut_or_insert("extensions", COLLECTION_ORDER).map_mut_or_insert("bruno", &[]);
+        let mut ignore = bruno.seq("ignore").to_vec();
+        if ignore.iter().any(|entry| entry.scalar().as_deref() == Some(name)) {
+            return Ok(false);
+        }
+        ignore.push(Value::str(name));
+        bruno.set("ignore", Value::Seq(ignore), BRUNO_ORDER);
+        Ok(true)
+    })?;
+    match updated == text {
+        true => Ok(()),
+        false => write_atomic(root, &path, &updated),
+    }
 }
 
 /// Écrit via un fichier temporaire voisin, synchronisé sur le disque, puis renomme, sans jamais laisser un fichier
 /// à moitié écrit. Le fichier garde les permissions de celui qu'il remplace, et un lien symbolique est suivi : c'est
-/// sa cible qui est écrite, le lien reste en place (l'appelant a vérifié, avec [`resolve_path`], que la cible reste
-/// sous la collection). Le nom temporaire ne dépend pas de celui du fichier, qui peut déjà occuper les 255 octets permis.
-pub fn write_atomic(path: &Path, text: &str) -> Result<(), CoreError> {
+/// sa cible qui est écrite, le lien reste en place. Rien n'est jamais écrit hors de `root` : un lien, ou un dossier
+/// lien, dont la cible sort de la collection est refusé. Le nom temporaire ne dépend pas de celui du fichier, qui
+/// peut déjà occuper les 255 octets permis.
+pub fn write_atomic(root: &Path, path: &Path, text: &str) -> Result<(), CoreError> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let path = &if path.is_symlink() {
         fs::canonicalize(path).map_err(|e| CoreError::io(path, e))?
     } else {
         path.to_path_buf()
     };
+    if !is_inside(root, path) {
+        return Err(CoreError::OutsideCollection(path.display().to_string()));
+    }
     let permissions = fs::metadata(path).map(|meta| meta.permissions()).ok();
     let dir = path.parent().unwrap_or(Path::new("."));
     let tmp = dir.join(format!(".xc-{}-{}.tmp", std::process::id(), NEXT.fetch_add(1, AtomicOrdering::Relaxed)));

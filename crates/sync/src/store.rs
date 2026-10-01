@@ -195,7 +195,7 @@ pub fn write_removed(root: &Path, key: &str, text: &str) -> Result<(), CoreError
         return Err(invalid(parent, "un lien symbolique n'est pas suivi"));
     }
     fs::create_dir_all(parent).map_err(|e| CoreError::io(parent, e))?;
-    write_if_changed(&path, text)
+    write_if_changed(root, &path, text)
 }
 
 /// Supprime les versions gardées des opérations qui ne sont plus retirées de la spec (restaurées, rapprochées ou
@@ -223,14 +223,14 @@ pub fn removed_files(root: &Path) -> HashSet<String> {
 }
 
 /// Un lien symbolique est remplacé par le fichier, jamais suivi : le stockage ne doit pas écrire hors de lui.
-fn write_if_changed(path: &Path, text: &str) -> Result<(), CoreError> {
+fn write_if_changed(root: &Path, path: &Path, text: &str) -> Result<(), CoreError> {
     if path.is_symlink() {
         fs::remove_file(path).map_err(|e| CoreError::io(path, e))?;
     }
     if fs::read_to_string(path).is_ok_and(|current| current == text) {
         return Ok(());
     }
-    write_atomic(path, text)
+    write_atomic(root, path, text)
 }
 
 /// Écrit la copie brute de la spec, puis `source.yml` en dernier : une écriture interrompue avant la fin laisse la
@@ -246,8 +246,8 @@ pub fn write(
     let dir = dir(root);
     fs::create_dir_all(&dir).map_err(|e| CoreError::io(&dir, e))?;
     let (spec, content) = spec_copy(spec_text);
-    write_if_changed(&dir.join(spec), &content)?;
-    write_if_changed(&dir.join(SOURCE_FILE), &source_document(source, group_by, spec, operations))?;
+    write_if_changed(root, &dir.join(spec), &content)?;
+    write_if_changed(root, &dir.join(SOURCE_FILE), &source_document(source, group_by, spec, operations))?;
     for stale in SPEC_FILES.iter().filter(|name| **name != spec) {
         fs::remove_file(dir.join(stale)).ok();
     }
@@ -259,7 +259,7 @@ pub fn write(
 /// sans toucher à la copie brute de la spec.
 pub fn write_operations(root: &Path, store: &Store, operations: &[Entry]) -> Result<(), CoreError> {
     let document = source_document(&store.source, store.group_by, &store.spec, operations);
-    write_if_changed(&dir(root).join(SOURCE_FILE), &document)?;
+    write_if_changed(root, &dir(root).join(SOURCE_FILE), &document)?;
     prune_removed(root, operations);
     Ok(())
 }

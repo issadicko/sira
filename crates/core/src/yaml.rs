@@ -137,12 +137,28 @@ impl Value {
     }
 }
 
-pub fn parse(text: &str) -> Result<Value, YamlError> {
-    let docs = YamlLoader::load_from_str(text).map_err(|e| YamlError(e.to_string()))?;
-    match docs.into_iter().next() {
+fn load(text: &str) -> Result<Vec<Yaml>, YamlError> {
+    YamlLoader::load_from_str(text).map_err(|e| YamlError(e.to_string()))
+}
+
+fn first_document(documents: Vec<Yaml>) -> Result<Value, YamlError> {
+    match documents.into_iter().next() {
         Some(doc) => convert(doc),
         None => Ok(Value::Map(Map::default())),
     }
+}
+
+pub fn parse(text: &str) -> Result<Value, YamlError> {
+    first_document(load(text)?)
+}
+
+/// Comme [`parse`], mais refuse un flux de plusieurs documents, dont la réécriture perdrait les suivants.
+pub fn parse_single(text: &str) -> Result<Value, YamlError> {
+    let documents = load(text)?;
+    if documents.len() > 1 {
+        return Err(YamlError("le fichier contient plusieurs documents YAML".into()));
+    }
+    first_document(documents)
 }
 
 fn convert(y: Yaml) -> Result<Value, YamlError> {

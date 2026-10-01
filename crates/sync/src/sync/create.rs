@@ -33,10 +33,10 @@ pub(super) struct Creator<'a> {
 
 /// Écrit des fichiers indépendants en parallèle : chaque écriture est synchronisée sur le disque, ce qui domine le
 /// temps d'une synchro qui touche des centaines de fichiers.
-pub(crate) fn write_parallel<T: Sync>(
+pub(crate) fn write_parallel<T: Sync, E: Send>(
     jobs: &[T],
-    write: impl Fn(&T) -> Result<(), CoreError> + Sync,
-) -> Result<(), CoreError> {
+    write: impl Fn(&T) -> Result<(), E> + Sync,
+) -> Result<(), E> {
     let workers = std::thread::available_parallelism().map_or(1, usize::from).clamp(1, 8);
     let size = jobs.len().div_ceil(workers).max(1);
     std::thread::scope(|scope| {

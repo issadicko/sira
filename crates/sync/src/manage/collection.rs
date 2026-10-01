@@ -8,8 +8,8 @@ use serde_json::json;
 use xc_core::collection::{write_new, COLLECTION_FILE};
 use xc_core::CoreError;
 
-use super::item::create_unique;
-use super::{FolderKind, ManageError};
+use super::names::{claim_unique, taken_names, Wanted};
+use super::{io_error, FolderKind, ManageError};
 use crate::import::{sanitize_name, validate_name};
 use crate::stringify;
 
@@ -64,7 +64,10 @@ pub fn create_collection(parent: &Path, name: &str) -> Result<PathBuf, ManageErr
         write_files(&desired, name)?;
         return Ok(desired);
     }
-    let root = parent.join(create_unique(&parent, None, &folder, "", |path| fs::create_dir(path))?);
+    let created = claim_unique(&parent, taken_names(&parent, None)?, Wanted::new(&folder, ""), |path| {
+        fs::create_dir(path).map_err(|e| io_error(path, e))
+    })?;
+    let root = parent.join(created);
     write_files(&root, name).inspect_err(|_| {
         fs::remove_dir(&root).ok();
     })?;

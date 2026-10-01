@@ -18,12 +18,12 @@ fn parts(path: &str) -> Vec<&str> {
     path.split('/').filter(|part| !part.is_empty() && *part != ".").collect()
 }
 
-/// Ce qui suit `prefix` dans `file` quand `file` est `prefix` ou s'y trouve, sans tenir compte de la casse comme le
-/// fait la synchro.
+/// Ce qui suit `prefix` dans `file` quand `file` est `prefix` ou s'y trouve. Les noms sont comparés exactement : ce
+/// sont les noms réels que l'import, la synchro et les actions écrivent, et deux dossiers qui ne diffèrent que par la
+/// casse sont distincts sur un volume qui les distingue.
 fn below<'a>(file: &'a str, prefix: &str) -> Option<Vec<&'a str>> {
     let (file, prefix) = (parts(file), parts(prefix));
-    let same = |(a, b): (&&str, &&str)| a.to_lowercase() == b.to_lowercase();
-    (prefix.len() <= file.len() && prefix.iter().zip(&file).all(same)).then(|| file[prefix.len()..].to_vec())
+    (prefix.len() <= file.len() && prefix.iter().zip(&file).all(|(a, b)| a == b)).then(|| file[prefix.len()..].to_vec())
 }
 
 impl<'a> Tracking<'a> {
@@ -31,18 +31,20 @@ impl<'a> Tracking<'a> {
         Ok(Self { root, store: store::read(root)? })
     }
 
-    fn rewrite(&self, change: impl Fn(&Entry) -> Option<Entry>) -> Result<(), ManageError> {
+    /// Écrit les entrées changées par `change`. `done` dit ce que l'action a déjà fait quand cette écriture échoue.
+    fn rewrite(&self, done: &str, change: impl Fn(&Entry) -> Option<Entry>) -> Result<(), ManageError> {
         let Some(store) = &self.store else { return Ok(()) };
         let operations: Vec<Entry> = store.operations.iter().map(|e| change(e).unwrap_or_else(|| e.clone())).collect();
-        if operations != store.operations {
-            store::write_operations(self.root, store, &operations)?;
+        if operations == store.operations {
+            return Ok(());
         }
-        Ok(())
+        store::write_operations(self.root, store, &operations)
+            .map_err(|e| ManageError::SourceNotUpdated { done: done.to_owned(), message: e.to_string() })
     }
 
     /// Renommage ou déplacement de `from` vers `to` : les entrées dont le fichier est `from` ou s'y trouve suivent.
-    pub fn moved(&self, from: &str, to: &str) -> Result<(), ManageError> {
-        self.rewrite(|entry| {
+    pub fn moved(&self, from: &str, to: &str, done: &str) -> Result<(), ManageError> {
+        self.rewrite(done, |entry| {
             let rest = below(entry.file.as_deref()?, from)?;
             let file = rest.iter().fold(to.to_owned(), |path, part| join(&path, part));
             Some(Entry { file: Some(file), ..entry.clone() })
@@ -51,6 +53,24 @@ impl<'a> Tracking<'a> {
 
     /// Suppression de `path` : les entrées dont le fichier est `path` ou s'y trouve passent à `ignored`, sans fichier.
     pub fn deleted(&self, path: &str) -> Result<(), ManageError> {
-        self.rewrite(|entry| below(entry.file.as_deref()?, path).map(|_| Entry::ignored(&entry.key)))
+        self.rewrite("l'élément est bien dans la corbeille", |entry| {
+            below(entry.file.as_deref()?, path).map(|_| Entry::ignored(&entry.key))
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ef_syn_01_below_compares_the_names_exactly() {
+        assert_eq!(below("api/x.yml", "api"), Some(vec!["x.yml"]));
+        assert_eq!(below("api", "api"), Some(vec![]));
+        assert_eq!(below("./api//x.yml", "api/"), Some(vec!["x.yml"]));
+        assert_eq!(below("Api/x.yml", "api"), None, "deux dossiers qui ne diffèrent que par la casse sont distincts");
+        assert_eq!(below("api2/x.yml", "api"), None);
+        assert_eq!(below("e\u{301}te\u{301}/x.yml", "\u{e9}t\u{e9}"), None);
+        assert_eq!(below("api", "api/x.yml"), None);
     }
 }

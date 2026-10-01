@@ -892,16 +892,20 @@ fn ef_syn_06_entries_cannot_point_outside_the_collection_or_into_hidden_folders(
     let text = fs::read_to_string(&source).unwrap();
     for file in ["../outside.yml", ".oc-sync/openapi/source.yml", "pets/../../x.yml"] {
         let hostile = text.replace("pets/List all pets.yml", file);
-        write_atomic(&source, &hostile).unwrap();
+        write_atomic(&world.root, &source, &hostile).unwrap();
         let error = sync::plan(&world.root, &v2(), "x".into(), &[]).unwrap_err();
         assert!(error.to_string().contains("chemin"), "{file} : {error}");
     }
-    write_atomic(&source, &text.replace("spec: spec.yaml", "spec: ../../etc/passwd")).unwrap();
+    write_atomic(&world.root, &source, &text.replace("spec: spec.yaml", "spec: ../../etc/passwd")).unwrap();
     assert!(sync::plan(&world.root, &v2(), "x".into(), &[]).is_err());
-    write_atomic(&source, &text.replace("groupBy: tags", "groupBy: folders")).unwrap();
+    write_atomic(&world.root, &source, &text.replace("groupBy: tags", "groupBy: folders")).unwrap();
     assert!(sync::plan(&world.root, &v2(), "x".into(), &[]).unwrap_err().is_input());
-    write_atomic(&source, &text.replace("  - key: createPets\n    file: pets/Create a pet.yml", "  - key: createPets"))
-        .unwrap();
+    write_atomic(
+        &world.root,
+        &source,
+        &text.replace("  - key: createPets\n    file: pets/Create a pet.yml", "  - key: createPets"),
+    )
+    .unwrap();
     assert!(sync::plan(&world.root, &v2(), "x".into(), &[]).is_err(), "une entrée sans fichier ni ignored est refusée");
 }
 
