@@ -1,0 +1,41 @@
+info:
+  name: Forms
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: https://x.test
+  body:
+    type: multipart-form
+    data:
+      - name: f
+        type: file
+        value:
+          - /tmp/a.png
+          - pieces/b.pdf
+      - name: t
+        type: text
+        value: '{"a": 1}'
+        contentType: application/json
+        description: méta
+        disabled: true
+      - name: vide
+        type: file
+        value: []
+      - name: texte
+        type: text
+        value: |-
+          l1
+          l2
+  auth:
+    type: basic
+    username: u
+    password: p
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

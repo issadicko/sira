@@ -11,9 +11,18 @@ export interface Param extends KeyValue {
   kind: ParamKind;
 }
 
+export type MultipartField = {
+  name: string;
+  enabled: boolean;
+  contentType?: string | null;
+  description?: string | null;
+} & ({ kind: 'text'; value: string } | { kind: 'file'; value: string[] });
+
 export type Body =
   | { type: 'none' }
   | { type: 'json' | 'text' | 'xml'; data: string }
+  | { type: 'form-urlencoded'; fields: KeyValue[] }
+  | { type: 'multipart-form'; fields: MultipartField[] }
   | { type: 'other'; label: string };
 
 export type Auth =

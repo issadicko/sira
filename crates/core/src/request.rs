@@ -51,14 +51,50 @@ pub struct Param {
     pub description: Option<String>,
 }
 
+/// Valeur d'un champ multipart : texte, ou liste de chemins de fichiers comme l'écrit Bruno.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "lowercase")]
+pub enum MultipartValue {
+    Text(String),
+    File(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MultipartField {
+    pub name: String,
+    #[serde(flatten)]
+    pub value: MultipartValue,
+    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Body {
     None,
-    Json { data: String },
-    Text { data: String },
-    Xml { data: String },
-    Other { label: String },
+    Json {
+        data: String,
+    },
+    Text {
+        data: String,
+    },
+    Xml {
+        data: String,
+    },
+    #[serde(rename = "form-urlencoded")]
+    FormUrlEncoded {
+        fields: Vec<KeyValue>,
+    },
+    MultipartForm {
+        fields: Vec<MultipartField>,
+    },
+    Other {
+        label: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -136,6 +172,26 @@ pub(crate) fn key_values(items: &[Value]) -> Vec<KeyValue> {
         .collect()
 }
 
+fn multipart_fields(items: &[Value]) -> Vec<MultipartField> {
+    items
+        .iter()
+        .filter_map(Value::as_map)
+        .map(|m| MultipartField {
+            name: text(m.get("name")),
+            value: match m.str("type") {
+                Some("file") => MultipartValue::File(match m.get("value") {
+                    Some(Value::Seq(paths)) => paths.iter().filter_map(Value::scalar).collect(),
+                    other => other.and_then(Value::scalar).into_iter().collect(),
+                }),
+                _ => MultipartValue::Text(text(m.get("value"))),
+            },
+            enabled: !m.get("disabled").is_some_and(Value::is_true),
+            content_type: opt_text(m, "contentType"),
+            description: opt_text(m, "description"),
+        })
+        .collect()
+}
+
 pub(crate) fn auth_from(value: Option<&Value>) -> Auth {
     let Some(value) = value else { return Auth::None };
     if value.as_str() == Some("inherit") {
@@ -180,15 +236,14 @@ impl RequestDoc {
 
         let body = match http.map("body") {
             None => Body::None,
-            Some(b) => {
-                let data = text(b.get("data"));
-                match b.str("type").unwrap_or_default() {
-                    "json" => Body::Json { data },
-                    "text" => Body::Text { data },
-                    "xml" => Body::Xml { data },
-                    other => Body::Other { label: other.into() },
-                }
-            }
+            Some(b) => match b.str("type").unwrap_or_default() {
+                "json" => Body::Json { data: text(b.get("data")) },
+                "text" => Body::Text { data: text(b.get("data")) },
+                "xml" => Body::Xml { data: text(b.get("data")) },
+                "form-urlencoded" => Body::FormUrlEncoded { fields: key_values(b.seq("data")) },
+                "multipart-form" => Body::MultipartForm { fields: multipart_fields(b.seq("data")) },
+                other => Body::Other { label: other.into() },
+            },
         };
 
         let assertions = runtime
@@ -250,7 +305,7 @@ impl RequestDoc {
                 http.set("url", Value::str(&self.url), HTTP_ORDER);
             }
             if self.headers != previous.headers {
-                set_list(http, "headers", self.headers.iter().map(header_value).collect(), HTTP_ORDER);
+                set_list(http, "headers", self.headers.iter().map(key_value_entry).collect(), HTTP_ORDER);
             }
             if self.params != previous.params {
                 set_list(http, "params", self.params.iter().map(param_value).collect(), HTTP_ORDER);
@@ -292,9 +347,13 @@ fn entry(pairs: Vec<(&str, Value)>) -> Value {
     Value::Map(Map(pairs.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()))
 }
 
-fn header_value(h: &KeyValue) -> Value {
+fn non_blank(v: &Option<String>) -> Option<&str> {
+    v.as_deref().filter(|v| !v.trim().is_empty())
+}
+
+fn key_value_entry(h: &KeyValue) -> Value {
     let mut pairs = vec![("name", Value::str(&h.name)), ("value", Value::str(&h.value))];
-    if let Some(d) = &h.description {
+    if let Some(d) = non_blank(&h.description) {
         pairs.push(("description", Value::str(d)));
     }
     if !h.enabled {
@@ -332,17 +391,45 @@ fn assertion_value(a: &Assertion) -> Value {
     entry(pairs)
 }
 
+fn multipart_entry(f: &MultipartField) -> Value {
+    let (kind, value) = match &f.value {
+        MultipartValue::Text(text) => ("text", Value::str(text)),
+        MultipartValue::File(paths) => ("file", Value::Seq(paths.iter().map(Value::str).collect())),
+    };
+    let mut pairs = vec![("name", Value::str(&f.name)), ("type", Value::str(kind)), ("value", value)];
+    for (key, field) in [("contentType", &f.content_type), ("description", &f.description)] {
+        if let Some(v) = non_blank(field) {
+            pairs.push((key, Value::str(v)));
+        }
+    }
+    if !f.enabled {
+        pairs.push(("disabled", Value::Bool(true)));
+    }
+    entry(pairs)
+}
+
 fn write_body(http: &mut Map, body: &Body) {
-    let typed = |t: &str, data: &str| entry(vec![("type", Value::str(t)), ("data", Value::str(data))]);
-    match body {
+    let typed = |t: &str, data: Value| entry(vec![("type", Value::str(t)), ("data", data)]);
+    let listed = |t: &str, items: Vec<Value>| {
+        if items.is_empty() {
+            entry(vec![("type", Value::str(t))])
+        } else {
+            typed(t, Value::Seq(items))
+        }
+    };
+    let value = match body {
         Body::None => {
             http.remove("body");
+            return;
         }
-        Body::Json { data } => http.set("body", typed("json", data), HTTP_ORDER),
-        Body::Text { data } => http.set("body", typed("text", data), HTTP_ORDER),
-        Body::Xml { data } => http.set("body", typed("xml", data), HTTP_ORDER),
-        Body::Other { .. } => {}
-    }
+        Body::Other { .. } => return,
+        Body::Json { data } => typed("json", Value::str(data)),
+        Body::Text { data } => typed("text", Value::str(data)),
+        Body::Xml { data } => typed("xml", Value::str(data)),
+        Body::FormUrlEncoded { fields } => listed("form-urlencoded", fields.iter().map(key_value_entry).collect()),
+        Body::MultipartForm { fields } => listed("multipart-form", fields.iter().map(multipart_entry).collect()),
+    };
+    http.set("body", value, HTTP_ORDER);
 }
 
 fn write_auth(http: &mut Map, auth: &Auth) {

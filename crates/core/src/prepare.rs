@@ -1,11 +1,15 @@
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
 use base64::Engine as _;
 use xc_engine::HttpRequest;
 
-use crate::request::{auth_from, key_values, Auth, Body, ParamKind, RequestDoc};
+use crate::collection::resolve_path;
+use crate::request::{
+    auth_from, key_values, Auth, Body, KeyValue, MultipartField, MultipartValue, ParamKind, RequestDoc,
+};
 use crate::vars::{Context, Scope};
 use crate::CoreError;
 
@@ -68,15 +72,25 @@ pub fn prepare(
         Auth::Inherit | Auth::None | Auth::Other { .. } => {}
     }
 
-    let (body, content_type) = match &doc.body {
-        Body::Json { data } => (Some(fill(data)), Some("application/json")),
-        Body::Text { data } => (Some(fill(data)), Some("text/plain")),
-        Body::Xml { data } => (Some(fill(data)), Some("application/xml")),
-        Body::None | Body::Other { .. } => (None, None),
+    let current_type = headers.iter().find(|(k, _)| k.eq_ignore_ascii_case("content-type")).map(|(_, v)| v.clone());
+    let typed = |default: &str| current_type.clone().unwrap_or_else(|| default.to_owned());
+    let body = match &doc.body {
+        Body::Json { data } => Some((fill(data).into_bytes(), typed("application/json"))),
+        Body::Text { data } => Some((fill(data).into_bytes(), typed("text/plain"))),
+        Body::Xml { data } => Some((fill(data).into_bytes(), typed("application/xml"))),
+        Body::FormUrlEncoded { fields } => {
+            Some((url_encoded(fields, &mut fill), typed("application/x-www-form-urlencoded")))
+        }
+        Body::MultipartForm { fields } => {
+            let (content_type, boundary) = multipart_type(current_type.as_deref());
+            Some((multipart(root, fields, &boundary, &mut fill)?, content_type))
+        }
+        Body::None | Body::Other { .. } => None,
     };
-    if let Some(ct) = content_type {
-        if !headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("content-type")) {
-            headers.push(("Content-Type".into(), ct.into()));
+    if let Some((_, content_type)) = &body {
+        match headers.iter_mut().find(|(k, _)| k.eq_ignore_ascii_case("content-type")) {
+            Some(header) => header.1.clone_from(content_type),
+            None => headers.push(("Content-Type".into(), content_type.clone())),
         }
     }
 
@@ -85,7 +99,7 @@ pub fn prepare(
             method: doc.method.to_uppercase(),
             url,
             headers,
-            body: body.map(String::into_bytes),
+            body: body.map(|(bytes, _)| bytes),
             timeout: doc.timeout_ms.map(Duration::from_millis).unwrap_or(NO_TIMEOUT),
         },
         unresolved,
@@ -103,6 +117,82 @@ fn effective_auth(doc: &RequestDoc, ctx: &Context) -> Auth {
         }
     }
     Context::request_section(&ctx.collection).map(|r| auth_from(r.get("auth"))).unwrap_or(Auth::None)
+}
+
+/// Champs activés encodés comme `URLSearchParams`, ce qu'utilise Bruno.
+fn url_encoded(fields: &[KeyValue], fill: &mut impl FnMut(&str) -> String) -> Vec<u8> {
+    let mut form = form_urlencoded::Serializer::new(String::new());
+    for field in fields.iter().filter(|f| f.enabled) {
+        form.append_pair(&fill(&field.name), &fill(&field.value));
+    }
+    form.finish().into_bytes()
+}
+
+/// `Content-Type` et frontière : celle que l'utilisateur a fixée, sinon une nouvelle au format du paquet `form-data`.
+fn multipart_type(current: Option<&str>) -> (String, String) {
+    let current = current.unwrap_or("multipart/form-data");
+    if let Some(boundary) = boundary_of(current) {
+        return (current.to_owned(), boundary);
+    }
+    let boundary = format!("--------------------------{}", &uuid::Uuid::new_v4().simple().to_string()[..24]);
+    if current.starts_with("multipart/") {
+        (format!("{current}; boundary={boundary}"), boundary)
+    } else {
+        (current.to_owned(), boundary)
+    }
+}
+
+fn boundary_of(content_type: &str) -> Option<String> {
+    let start = content_type.to_ascii_lowercase().find("boundary=")? + "boundary=".len();
+    let rest = &content_type[start..];
+    let value = match rest.strip_prefix('"') {
+        Some(quoted) => quoted.split('"').next(),
+        None => rest.split(|c: char| c == ';' || c.is_whitespace()).next(),
+    };
+    value.filter(|v| !v.is_empty()).map(str::to_owned)
+}
+
+/// Corps multipart octet pour octet comme le paquet `form-data` de Bruno ; fichiers lus depuis la collection.
+fn multipart(
+    root: &Path,
+    fields: &[MultipartField],
+    boundary: &str,
+    fill: &mut impl FnMut(&str) -> String,
+) -> Result<Vec<u8>, CoreError> {
+    let mut body = Vec::new();
+    for field in fields.iter().filter(|f| f.enabled) {
+        let disposition = format!("form-data; name=\"{}\"", fill(&field.name));
+        let content_type = field.content_type.as_deref().filter(|c| !c.is_empty());
+        match &field.value {
+            MultipartValue::Text(value) => {
+                write_part(&mut body, boundary, &disposition, content_type, fill(value).as_bytes());
+            }
+            MultipartValue::File(paths) => {
+                for path in paths {
+                    let path = resolve_path(root, fill(path).trim())?;
+                    let bytes = fs::read(&path).map_err(|e| CoreError::io(&path, e))?;
+                    let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+                    let guessed = mime_guess::from_path(&path).first_raw().unwrap_or("application/octet-stream");
+                    let disposition = format!("{disposition}; filename=\"{file_name}\"");
+                    write_part(&mut body, boundary, &disposition, Some(content_type.unwrap_or(guessed)), &bytes);
+                }
+            }
+        }
+    }
+    if !body.is_empty() {
+        body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
+    }
+    Ok(body)
+}
+
+fn write_part(body: &mut Vec<u8>, boundary: &str, disposition: &str, content_type: Option<&str>, value: &[u8]) {
+    body.extend_from_slice(format!("--{boundary}\r\nContent-Disposition: {disposition}\r\n").as_bytes());
+    if let Some(content_type) = content_type {
+        body.extend_from_slice(format!("Content-Type: {content_type}\r\n").as_bytes());
+    }
+    body.extend_from_slice(b"\r\n");
+    body.extend_from_slice(value);
+    body.extend_from_slice(b"\r\n");
 }
 
 /// Remplace les segments `:nom` de l'URL par la valeur du paramètre de chemin correspondant.
