@@ -6,7 +6,10 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <script>try { const t = localStorage.getItem('xc-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script>
+    try { const t = localStorage.getItem('xc-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    try { const css = JSON.parse(localStorage.getItem('xc-settings')).css; for (const k in css) if (/^--(font|size)-/.test(k)) document.documentElement.style.setProperty(k, css[k]); } catch (e) {}
+  </script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
