@@ -205,7 +205,7 @@ const OUTSIDE_COLLECTION =
     .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: var(--code-size) var(--code-font); outline: 0; }
     .field input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .asserts .kv-row { grid-template-columns: 32px minmax(0, 1.2fr) 120px minmax(0, 1fr); }
-    .op { width: 100%; height: 28px; border: 0; background: transparent; font: var(--code-size) var(--code-font); outline: 0; }
+    .op { width: 100%; height: max(28px, 1.5em); border: 0; background: transparent; font: var(--code-size) var(--code-font); outline: 0; }
     .op option { background: var(--pop); }
     .row-x { opacity: 0; margin-left: auto; }
     .kv-row:hover .row-x { opacity: 1; }
