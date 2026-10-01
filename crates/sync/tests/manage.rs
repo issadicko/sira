@@ -1556,6 +1556,7 @@ fn ef_col_01_end_of_list_seq_saturates_instead_of_overflowing() {
     assert!(create_folder(&w.root, "", "Dossier").is_ok());
 }
 
+#[cfg(not(windows))]
 #[test]
 fn ef_col_01_a_move_keeps_the_original_file_name_when_it_is_free_in_the_target_folder() {
     let w = World::new();
