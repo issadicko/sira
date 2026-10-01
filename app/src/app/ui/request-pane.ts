@@ -63,8 +63,8 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
                 <button [attr.aria-pressed]="tab.doc.body.type === b.type" (click)="setBodyType(b.type)">{{ b.label }}</button>
               }
             </div>
-            @if (tab.doc.body.type === 'other') {
-              <div class="banner" style="margin-top: 12px"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
+            @if (tab.doc.body.type === 'other' || tab.doc.body.type === 'form-urlencoded' || tab.doc.body.type === 'multipart-form') {
+              <div class="banner" style="margin-top: 12px"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label ?? tab.doc.body.type }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
             } @else if (tab.doc.body.type !== 'none') {
               <div class="body-tools">
                 <span class="faint">Les variables {{ '{{…}}' }} sont résolues à l'envoi.</span>
@@ -195,7 +195,7 @@ export class RequestPane {
     if (!d) return [];
     return [
       { id: 'params' as const, label: 'Paramètres', count: d.params.filter((p) => p.enabled).length || '' },
-      { id: 'body' as const, label: 'Corps', count: d.body.type === 'none' ? '' : d.body.type === 'other' ? 'autre' : d.body.type.toUpperCase() },
+      { id: 'body' as const, label: 'Corps', count: d.body.type === 'none' ? '' : 'data' in d.body ? d.body.type.toUpperCase() : 'autre' },
       { id: 'headers' as const, label: 'En-têtes', count: d.headers.filter((h) => h.enabled).length || '' },
       { id: 'auth' as const, label: 'Auth', count: d.auth.type === 'inherit' ? 'hérité' : d.auth.type === 'none' ? '' : d.auth.type },
       { id: 'tests' as const, label: 'Tests', count: d.assertions.filter((a) => a.enabled).length || '' },
@@ -218,7 +218,7 @@ export class RequestPane {
 
   protected setBodyType(type: Body['type']) {
     this.ws.edit((d) => {
-      if (type === 'none' || type === 'other') return { ...d, body: { type: 'none' } };
+      if (type !== 'json' && type !== 'text' && type !== 'xml') return { ...d, body: { type: 'none' } };
       const data = 'data' in d.body ? d.body.data : type === 'json' ? '{\n  \n}' : '';
       return { ...d, body: { type, data } };
     });

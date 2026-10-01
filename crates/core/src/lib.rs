@@ -12,7 +12,7 @@ pub use collection::{
     EnvVar, TreeItem,
 };
 pub use prepare::{prepare, Prepared};
-pub use request::{Assertion, Auth, Body, KeyValue, Param, ParamKind, RequestDoc};
+pub use request::{Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, RequestDoc};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
