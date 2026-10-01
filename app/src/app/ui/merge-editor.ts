@@ -45,8 +45,8 @@ import { methodClass } from './method';
       }
       @if (op(); as o) {
         <div class="view-head">
-          <span [class]="methodClass(o.method)" style="width: auto; font-size: 11px">{{ o.method }}</span>
-          <h1 class="view-title mono" style="font-size: 13.5px; font-weight: 500">{{ o.path }}</h1>
+          <span [class]="methodClass(o.method)" style="width: auto; font-size: calc(11 * var(--px))">{{ o.method }}</span>
+          <h1 class="view-title mono" style="font-size: calc(13.5 * var(--px)); font-weight: 500">{{ o.path }}</h1>
           <span class="view-sub" [title]="subtitle()">{{ subtitle() }}</span>
           <span class="grow"></span>
           @if (sync.refs().length) {
@@ -175,15 +175,15 @@ import { methodClass } from './method';
     .mcode { flex: 1 1 0; min-height: 0; }
     .empty { flex: 1; height: auto; }
     .edit-box { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; border-bottom: 1px solid var(--line); }
-    .edit-label { font-size: 12px; color: var(--muted); }
+    .edit-label { font-size: calc(12 * var(--px)); color: var(--muted); }
     .edit-label b { color: var(--ink); font-weight: 500; }
-    .edit-hint { font-size: 11.5px; color: var(--faint); }
+    .edit-hint { font-size: calc(11.5 * var(--px)); color: var(--faint); }
     .edit-hint.is-dropped { color: var(--ink); }
     .edit-code { height: 132px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunken); }
     .edit-code:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .merge-banner { margin: 10px 12px 0; }
     .chg-list { flex-shrink: 0; display: flex; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
-    .chg { flex-shrink: 0; height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 6px 0 8px; border-radius: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .chg { flex-shrink: 0; height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 6px 0 8px; border-radius: 6px; color: var(--muted); font-size: calc(12 * var(--px)); white-space: nowrap; }
     .chg:hover { background: var(--hover); color: var(--ink); }
     .chg[aria-pressed='true'] { background: var(--accent-soft); color: var(--ink); }
   `,

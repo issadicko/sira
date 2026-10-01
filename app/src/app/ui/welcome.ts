@@ -43,15 +43,15 @@ import { Icon } from './icon';
     :host.welcome { align-items: center; justify-content: center; }
     .welcome-body { width: min(520px, calc(100% - 48px)); display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
     .mark.big { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 6px; }
-    h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    h1 { margin: 0; font-size: calc(20 * var(--px)); font-weight: 600; letter-spacing: -0.01em; }
     p { margin: 0; color: var(--muted); max-width: 60ch; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .recent { width: 100%; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
     .recent .file-row { width: 100%; margin: 0; }
     .err { background: var(--bad-soft); color: var(--bad); margin: 0; }
-    .principles { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; margin-top: 8px; }
+    .principles { display: flex; align-items: flex-start; gap: 8px; font-size: calc(12 * var(--px)); margin-top: 8px; }
     .principles .ic { margin-top: 2px; }
-    .demo-note { font-size: 12px; }
+    .demo-note { font-size: calc(12 * var(--px)); }
   `,
 })
 export class Welcome {

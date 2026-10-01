@@ -75,9 +75,9 @@ import { Icon } from './icon';
   styles: `
     .spec-card { border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
     .spec-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .spec-title { font-weight: 600; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 2px; }
-    .spec-count { margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: 12px; }
-    .spec-meta { margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; font-size: 12px; }
+    .spec-title { font-weight: 600; font-size: 1rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 2px; }
+    .spec-count { margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: calc(12 * var(--px)); }
+    .spec-meta { margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; font-size: calc(12 * var(--px)); }
     .spec-meta dt { color: var(--faint); line-height: 17px; }
     .spec-meta dd { margin: 0; min-width: 0; line-height: 17px; }
     .spec-tags { display: flex; flex-wrap: wrap; gap: 4px; }

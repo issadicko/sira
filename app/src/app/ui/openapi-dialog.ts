@@ -69,10 +69,10 @@ const GROUPINGS: { value: GroupBy; label: string; hint: string }[] = [
   styles: `
     .path-box { display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .path-box.is-empty { color: var(--faint); font-family: var(--font-ui); }
-    .target { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; min-width: 0; font-size: 12px; color: var(--muted); }
+    .target { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; min-width: 0; font-size: calc(12 * var(--px)); color: var(--muted); }
     .target .ic { color: var(--faint); }
-    .target .mono { color: var(--ink); font-size: 12px; }
-    .hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--faint); font-size: 12px; }
+    .target .mono { color: var(--ink); font-size: calc(12 * var(--px)); }
+    .hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--faint); font-size: calc(12 * var(--px)); }
     .hint .ic { margin-top: 2px; }
     .hint .mono { color: var(--muted); }
   `,

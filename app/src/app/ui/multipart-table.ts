@@ -52,19 +52,19 @@ import { Icon } from './icon';
   `,
   styles: `
     .multi .kv-row { grid-template-columns: 32px minmax(0, 1fr) 92px minmax(0, 2fr); }
-    .kind { width: 100%; height: 28px; border: 0; background: transparent; font: 12.5px var(--font-ui); outline: 0; cursor: pointer; }
+    .kind { width: 100%; height: 28px; border: 0; background: transparent; font: calc(12.5 * var(--px)) var(--font-ui); outline: 0; cursor: pointer; }
     .kind option { background: var(--pop); }
     .value { flex-wrap: wrap; gap: 4px; padding-top: 3px; padding-bottom: 3px; }
     .value input[type='text'] { flex: 1; }
     .row-x { opacity: 0; margin-left: auto; }
     .kv-row:hover .row-x, .row-x:focus-visible { opacity: 1; }
-    .file-chip { display: inline-flex; align-items: center; gap: 4px; height: 21px; min-width: 0; max-width: 100%; padding: 0 3px 0 6px; border-radius: 4px; background: var(--raised); font: 12px var(--font-mono); }
+    .file-chip { display: inline-flex; align-items: center; gap: 4px; height: 21px; min-width: 0; max-width: 100%; padding: 0 3px 0 6px; border-radius: 4px; background: var(--raised); font: calc(12 * var(--px)) var(--font-mono); }
     .file-chip .ic { color: var(--muted); }
     .file-chip button { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 4px; color: var(--muted); }
     .file-chip button:hover { background: var(--hover); color: var(--ink); }
     .file-chip.bad { background: var(--bad-soft); color: var(--bad); }
     .file-chip.bad .ic { color: var(--bad); }
-    .pick { height: 21px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 4px; color: var(--accent); font: 500 12px var(--font-ui); }
+    .pick { height: 21px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 4px; color: var(--accent); font: 500 calc(12 * var(--px)) var(--font-ui); }
     .pick:hover { background: var(--accent-soft); }
     @container (max-width: 560px) {
       .multi .kv-row { grid-template-columns: 32px minmax(0, 1fr) 80px minmax(0, 1.6fr); }

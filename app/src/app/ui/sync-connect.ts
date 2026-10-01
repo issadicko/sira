@@ -53,7 +53,7 @@ import { SpecSource } from './spec-source';
     .connect { flex: 1; min-height: 0; overflow: auto; display: flex; justify-content: center; padding: 32px 24px; }
     .connect-body { width: min(560px, 100%); display: flex; flex-direction: column; gap: 14px; align-items: stretch; height: max-content; }
     .connect-body > .empty-ic { align-self: flex-start; }
-    h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    h2 { margin: 0; font-size: calc(20 * var(--px)); font-weight: 600; letter-spacing: -0.01em; }
     p { margin: 0; color: var(--muted); max-width: 60ch; }
     .foot-actions { justify-content: flex-start; margin-top: 4px; }
   `,

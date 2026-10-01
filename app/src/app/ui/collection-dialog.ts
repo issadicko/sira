@@ -81,13 +81,13 @@ const lastSegment = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() 
   styles: `
     .path-box { display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .path-box.is-empty { color: var(--faint); font-family: var(--font-ui); }
-    .target { display: flex; align-items: center; gap: 6px; margin: -6px 0 0; min-width: 0; font-size: 12px; color: var(--muted); }
+    .target { display: flex; align-items: center; gap: 6px; margin: -6px 0 0; min-width: 0; font-size: calc(12 * var(--px)); color: var(--muted); }
     .target .ic { color: var(--faint); }
-    .target .mono { color: var(--ink); font-size: 12px; }
-    .hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--faint); font-size: 12px; }
+    .target .mono { color: var(--ink); font-size: calc(12 * var(--px)); }
+    .hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--faint); font-size: calc(12 * var(--px)); }
     .hint .ic { margin-top: 2px; }
     .hint .mono, .note .mono { color: var(--muted); }
-    .field-error { margin-top: 6px; color: var(--bad); font-size: 12px; }
+    .field-error { margin-top: 6px; color: var(--bad); font-size: calc(12 * var(--px)); }
   `,
 })
 export class CollectionDialog {

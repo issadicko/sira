@@ -83,12 +83,12 @@ const PLACEHOLDER = `curl -X POST https://api.exemple.test/v1/transactions \\
   `,
   styles: `
     .curl-text { height: auto; min-height: 120px; padding: 8px 10px; resize: vertical; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .curl-state { display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: 12px; min-width: 0; }
-    .curl-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .curl-state { display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: calc(12 * var(--px)); min-width: 0; }
+    .curl-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: calc(12 * var(--px)); }
     .curl-meta { margin-left: auto; flex-shrink: 0; color: var(--faint); }
     .curl-bad { color: var(--bad); }
     .curl-state .ic { color: var(--bad); }
-    .curl-state .m { width: auto; font-size: 11px; }
+    .curl-state .m { width: auto; font-size: calc(11 * var(--px)); }
   `,
 })
 export class CurlDialog {

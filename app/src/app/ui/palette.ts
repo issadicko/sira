@@ -127,7 +127,7 @@ const envLabel = (env: string | null) => (env ? `Environnement : ${env}` : 'Aucu
   styles: `
     .pal-item { cursor: pointer; }
     .pal-item .env-dot { margin: 0 4px; }
-    .pal-item .path { flex-shrink: 1; max-width: 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--faint); font-size: 11.5px; }
+    .pal-item .path { flex-shrink: 1; max-width: 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--faint); font-size: calc(11.5 * var(--px)); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   `,
 })

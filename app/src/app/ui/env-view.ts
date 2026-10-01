@@ -38,7 +38,7 @@ import { Icon } from './icon';
               </button>
             }
           </div>
-          <p class="faint" style="font-size: 12px; margin: 10px 2px">Les secrets ne sont jamais écrits dans le fichier, seul <span class="mono">secret: true</span> y figure.</p>
+          <p class="faint" style="font-size: calc(12 * var(--px)); margin: 10px 2px">Les secrets ne sont jamais écrits dans le fichier, seul <span class="mono">secret: true</span> y figure.</p>
         </div>
         <aside class="resolve" aria-label="Résolution">
           @if (info(); as i) {

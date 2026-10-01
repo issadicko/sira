@@ -11,10 +11,10 @@ import { Workspace } from '../core/store';
       <div class="pop open" role="tooltip" [style.left.px]="s.left" [style.top.px]="s.top">
         @if (s.kind === 'dynamic') {
           <div class="pop-head"><span class="pop-name">{{ '{{' + s.name + '}}' }}</span><span class="tag spec">dynamique</span></div>
-          <p class="faint" style="margin: 0; font-size: 12px">Nouvelle valeur générée à chaque envoi.</p>
+          <p class="faint" style="margin: 0; font-size: calc(12 * var(--px))">Nouvelle valeur générée à chaque envoi.</p>
         } @else if (s.kind === 'env') {
           <div class="pop-head"><span class="pop-name">{{ '{{' + s.name + '}}' }}</span><span class="tag good">.env local</span></div>
-          <p class="faint" style="margin: 0; font-size: 12px">Lue dans le fichier .env de la collection, ignoré par Git. Jamais affichée.</p>
+          <p class="faint" style="margin: 0; font-size: calc(12 * var(--px))">Lue dans le fichier .env de la collection, ignoré par Git. Jamais affichée.</p>
         } @else if (s.info?.value != null) {
           <div class="pop-head"><span class="pop-name">{{ '{{' + s.name + '}}' }}</span>@if (s.info!.secret) {<span class="tag">secret</span>}</div>
           <div class="pop-val">{{ s.info!.secret ? '••••••••' : s.info!.value }}</div>
@@ -32,7 +32,7 @@ import { Workspace } from '../core/store';
           <div class="pop-foot"><span>Ordre de priorité de Bruno</span></div>
         } @else {
           <div class="pop-head"><span class="pop-name" style="color: var(--bad)">{{ '{{' + s.name + '}}' }}</span><span class="tag bad">non définie</span></div>
-          <p style="margin: 0; font-size: 12.5px; color: var(--muted)">
+          <p style="margin: 0; font-size: calc(12.5 * var(--px)); color: var(--muted)">
             @if (s.info?.secret) {
               Variable secrète : sa valeur n'est jamais écrite dans le fichier. Saisie dans le trousseau prévue en V1 ; en attendant, utilise {{ '{{process.env.' + s.name + '}}' }}.
             } @else {

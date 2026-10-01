@@ -14,7 +14,7 @@ import { methodClass, shortMethod } from './method';
   imports: [Icon],
   host: { style: 'display: contents' },
   styles: `
-    .sync-hint { margin: 8px 0 0; color: var(--faint); font-size: 11.5px; }
+    .sync-hint { margin: 8px 0 0; color: var(--faint); font-size: calc(11.5 * var(--px)); }
     .banner > span { min-width: 0; overflow-wrap: anywhere; }
   `,
   template: `

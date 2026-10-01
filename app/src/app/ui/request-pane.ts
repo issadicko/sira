@@ -143,7 +143,7 @@ const OUTSIDE_COLLECTION =
                 <div class="note"><app-ic name="shield" [size]="14" /><span>L'auth du dossier le plus proche, sinon celle de opencollection.yml, est appliquée à l'envoi.</span></div>
               }
             }
-            <p class="faint" style="font-size: 12px; margin: 12px 2px 0">Préfère une variable ({{ '{{token}}' }}, {{ '{{process.env.NOM}}' }}) à une valeur en clair : ce fichier est versionné.</p>
+            <p class="faint" style="font-size: calc(12 * var(--px)); margin: 12px 2px 0">Préfère une variable ({{ '{{token}}' }}, {{ '{{process.env.NOM}}' }}) à une valeur en clair : ce fichier est versionné.</p>
           }
           @case ('tests') {
             <section class="sec">
@@ -192,7 +192,7 @@ const OUTSIDE_COLLECTION =
     }
   `,
   styles: `
-    .docs { display: block; width: 100%; height: 100%; min-height: 260px; resize: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 13px/20px var(--font-ui); font-variant-ligatures: none; tab-size: 2; outline: 0; }
+    .docs { display: block; width: 100%; height: 100%; min-height: 260px; resize: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 1rem/calc(20 * var(--px)) var(--font-ui); font-variant-ligatures: none; tab-size: 2; outline: 0; }
     .docs:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .pane-body.fill { display: flex; flex-direction: column; }
     .pane-body.fill > .seg { align-self: flex-start; }
@@ -200,12 +200,12 @@ const OUTSIDE_COLLECTION =
     .body-editor { flex: 1; min-height: 260px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); }
     .body-editor:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .body-sec { margin: 14px 0 12px; }
-    .body-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 12px; }
-    .field { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
-    .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: 12.5px var(--font-mono); outline: 0; }
+    .body-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: calc(12 * var(--px)); }
+    .field { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: calc(12.5 * var(--px)); color: var(--muted); }
+    .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: var(--code-size) var(--code-font); outline: 0; }
     .field input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .asserts .kv-row { grid-template-columns: 32px minmax(0, 1.2fr) 120px minmax(0, 1fr); }
-    .op { width: 100%; height: 28px; border: 0; background: transparent; font: 12.5px var(--font-mono); outline: 0; }
+    .op { width: 100%; height: 28px; border: 0; background: transparent; font: var(--code-size) var(--code-font); outline: 0; }
     .op option { background: var(--pop); }
     .row-x { opacity: 0; margin-left: auto; }
     .kv-row:hover .row-x { opacity: 1; }

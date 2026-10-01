@@ -119,7 +119,7 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
           <div class="empty">
             <span class="empty-ic"><app-ic name="x-circle" [size]="18" /></span>
             <h2>{{ tab.error.startsWith('Requête annulée') ? 'Requête annulée' : 'La requête a échoué' }}</h2>
-            <p class="mono" style="font-size: 12px">{{ tab.error }}</p>
+            <p class="mono" style="font-size: calc(12 * var(--px))">{{ tab.error }}</p>
             <button class="btn" style="margin-top: 6px" (click)="ws.send()"><app-ic name="sync" [size]="14" />Renvoyer</button>
           </div>
         } @else if (tab.sendingId) {
@@ -136,6 +136,7 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
     }
   `,
   styles: `
+    :host { --code-font: var(--font-res); --code-size: var(--size-res); }
     .res-body { display: flex; flex-direction: column; }
     .res-code { flex: 1; }
     .res-code:focus-within { box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 0 4px var(--accent-soft); }
