@@ -15,6 +15,8 @@ pub const COLLECTION_FILE: &str = "opencollection.yml";
 pub const FOLDER_FILE: &str = "folder.yml";
 pub const REQUEST_EXT: &str = ".yml";
 pub const REQUEST_KINDS: [&str; 4] = ["http", "graphql", "grpc", "websocket"];
+/// Autres éléments que Bruno lit dans une collection : montrés dans l'arbre, jamais ouverts ni réécrits ici.
+pub const OTHER_ITEM_KINDS: [&str; 2] = ["script", "app"];
 pub const ENV_DIR: &str = "environments";
 pub const MOCKS_DIR: &str = "mocks";
 const COLLECTION_ORDER: &[&str] = &["opencollection", "info", "config", "request", "docs", "bundled", "extensions"];
@@ -226,8 +228,22 @@ fn count_requests(items: &[TreeItem], count: &mut usize) {
     for item in items {
         match item {
             TreeItem::Folder { children, .. } => count_requests(children, count),
-            TreeItem::Request { .. } => *count += 1,
+            TreeItem::Request { request_type, error: None, .. } if REQUEST_KINDS.contains(&request_type.as_str()) => {
+                *count += 1
+            }
+            TreeItem::Request { .. } => {}
         }
+    }
+}
+
+/// `info.type` d'un élément que Bruno sait lire (requête, script, app). Un autre fichier YAML (une spec OpenAPI rangée
+/// dans la collection, par exemple) n'est pas un élément : Bruno le montre en erreur, sans l'ouvrir.
+fn item_type(tree: &Map, file: &str) -> Result<String, CoreError> {
+    let not_an_item = |reason: String| CoreError::NotARequest { path: file.to_owned(), reason };
+    match tree.map("info").and_then(|info| info.str("type")) {
+        Some(kind) if REQUEST_KINDS.contains(&kind) || OTHER_ITEM_KINDS.contains(&kind) => Ok(kind.to_owned()),
+        Some(kind) => Err(not_an_item(format!("type « {kind} » non pris en charge"))),
+        None => Err(not_an_item("info.type absent".into())),
     }
 }
 
@@ -321,11 +337,12 @@ fn read_folder(root: &Path, dir: &Path, ignore: &[String], deep: bool) -> Result
 
 fn read_request_item(root: &Path, path: &Path, file_name: &str) -> TreeItem {
     let fallback = file_name.trim_end_matches(REQUEST_EXT).to_owned();
-    match read_tree(path) {
+    let file = relative(root, path);
+    match read_tree(path).and_then(|tree| item_type(&tree, &file).map(|_| tree)) {
         Ok(tree) => {
             let doc = RequestDoc::from_tree(&tree);
             TreeItem::Request {
-                path: relative(root, path),
+                path: file,
                 name: if doc.name.is_empty() { fallback } else { doc.name },
                 seq: doc.seq,
                 method: doc.method.to_uppercase(),
@@ -336,7 +353,7 @@ fn read_request_item(root: &Path, path: &Path, file_name: &str) -> TreeItem {
             }
         }
         Err(e) => TreeItem::Request {
-            path: relative(root, path),
+            path: file,
             name: fallback,
             seq: None,
             method: String::new(),
@@ -407,7 +424,9 @@ pub fn read_environment(root: &Path, name: &str) -> Result<Vec<EnvVar>, CoreErro
 }
 
 pub fn read_request(root: &Path, relative: &str) -> Result<RequestDoc, CoreError> {
-    Ok(RequestDoc::from_tree(&read_tree(&resolve_path(root, relative)?)?))
+    let tree = read_tree(&resolve_path(root, relative)?)?;
+    item_type(&tree, relative)?;
+    Ok(RequestDoc::from_tree(&tree))
 }
 
 /// Enregistre la requête. Renvoie `false` quand le fichier n'a pas changé (aucune écriture).
@@ -416,6 +435,10 @@ pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<boo
     let path = resolve_path(root, relative)?;
     let current = fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))?;
     let mut tree = read_tree(&path)?;
+    let kind = item_type(&tree, relative)?;
+    if !REQUEST_KINDS.contains(&kind.as_str()) {
+        return Err(CoreError::NotARequest { path: relative.to_owned(), reason: format!("élément « {kind} »") });
+    }
     let previous = RequestDoc::from_tree(&tree);
     doc.apply(&mut tree, &previous);
     let next = styled_like(&current, yaml::emit(&Value::Map(tree), BLANK_BEFORE));

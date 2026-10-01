@@ -34,6 +34,8 @@ pub enum CoreError {
     BodyTooLarge { path: String, max_mb: u64 },
     #[error("type de requête non pris en charge pour l'instant : {0}")]
     UnsupportedRequestType(String),
+    #[error("{path} n'est pas une requête : {reason}")]
+    NotARequest { path: String, reason: String },
 }
 
 impl CoreError {

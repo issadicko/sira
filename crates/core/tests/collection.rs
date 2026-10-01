@@ -298,7 +298,7 @@ fn ef_col_01_hidden_and_reserved_names_follow_what_the_tree_lists() {
     write(root, "sub/folder.yml", "info:\n  name: Sub\n  type: folder\n");
     write(root, "sub/opencollection.yml", "info:\n  name: caché\n");
     write(root, "sub/.hidden.yml", "info:\n  name: caché\n");
-    write(root, "sub/mocks/in.yml", "info:\n  name: visible hors racine\n");
+    write(root, "sub/mocks/in.yml", "info:\n  name: visible hors racine\n  type: http\n");
     write(root, "mocks/out.yml", "info:\n  name: caché\n");
     assert_eq!(open_collection(root).unwrap().request_count, 4);
 }
@@ -660,4 +660,45 @@ fn ef_col_04_ignore_name_refuses_a_multi_document_stream_and_values_it_would_rep
         assert!(matches!(error, CoreError::Yaml { .. }), "{error}");
         assert_eq!(fs::read_to_string(&file).unwrap(), hostile, "rien n'est perdu");
     }
+}
+
+#[test]
+fn ef_col_01_yaml_files_that_are_not_requests_are_shown_in_error_and_never_saved() {
+    let dir = sample();
+    let root = dir.path();
+    let spec = "openapi: 3.0.0\ninfo:\n  title: Petstore\n  version: 1.0.0\npaths: {}\n";
+    write(root, "transactions/petstore.yml", spec);
+    write(root, "transactions/sans-type.yml", "info:\n  name: Sans type\n\nhttp:\n  method: POST\n");
+    write(root, "transactions/inconnu.yml", "info:\n  name: Inconnu\n  type: folder\n");
+    write(root, "transactions/script.yml", "info:\n  name: Partagé\n  type: script\n");
+
+    let c = open_collection(root).unwrap();
+    assert_eq!(c.request_count, 3, "seules les vraies requêtes sont comptées");
+    let TreeItem::Folder { children, .. } = &c.items[1] else { panic!() };
+    let shown: HashMap<_, _> = children
+        .iter()
+        .map(|item| match item {
+            TreeItem::Request { path, method, request_type, error, .. } => {
+                (path.as_str(), (method.as_str(), request_type.as_str(), error.clone()))
+            }
+            TreeItem::Folder { .. } => panic!(),
+        })
+        .collect();
+    for (file, reason) in [
+        ("transactions/petstore.yml", "info.type absent"),
+        ("transactions/sans-type.yml", "info.type absent"),
+        ("transactions/inconnu.yml", "type « folder » non pris en charge"),
+    ] {
+        let (method, _, error) = &shown[file];
+        assert_eq!(*method, "", "{file} n'a pas de méthode");
+        assert_eq!(error.as_deref(), Some(format!("{file} n'est pas une requête : {reason}").as_str()));
+        assert!(matches!(read_request(root, file), Err(CoreError::NotARequest { .. })), "{file}");
+    }
+    let (_, kind, error) = &shown["transactions/script.yml"];
+    assert_eq!((*kind, error), ("script", &None), "un élément script de Bruno reste montré, sans erreur");
+
+    let doc = read_request(root, "transactions/liste.yml").unwrap();
+    assert!(matches!(save_request(root, "transactions/petstore.yml", &doc), Err(CoreError::NotARequest { .. })));
+    assert!(matches!(save_request(root, "transactions/script.yml", &doc), Err(CoreError::NotARequest { .. })));
+    assert_eq!(fs::read_to_string(root.join("transactions/petstore.yml")).unwrap(), spec);
 }
