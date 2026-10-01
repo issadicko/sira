@@ -1,0 +1,29 @@
+info:
+  name: delete /c
+  type: http
+  seq: 1
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/c"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/c"
+      method: DELETE
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

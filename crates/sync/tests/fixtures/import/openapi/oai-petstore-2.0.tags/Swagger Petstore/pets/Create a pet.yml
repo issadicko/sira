@@ -1,0 +1,31 @@
+info:
+  name: Create a pet
+  type: http
+  seq: 2
+  tags:
+    - pets
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    description: Null response
+    request:
+      url: "{{baseUrl}}/pets"
+      method: POST
+    response:
+      status: 201
+      statusText: Created
+      body:
+        type: text
+        data: ""

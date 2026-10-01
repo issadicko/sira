@@ -1,0 +1,62 @@
+info:
+  name: deletePet
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/pets/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: ID of pet to delete
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: pet deleted
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: DELETE
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: ID of pet to delete
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""
+  - name: default Response
+    description: unexpected error
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: DELETE
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: ID of pet to delete
+    response:
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "code": 0,
+            "message": ""
+          }
+
+docs: deletes a single pet based on the ID supplied

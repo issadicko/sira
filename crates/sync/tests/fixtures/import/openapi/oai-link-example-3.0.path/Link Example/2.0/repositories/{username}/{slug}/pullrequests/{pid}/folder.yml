@@ -1,0 +1,6 @@
+info:
+  name: "{pid}"
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,77 @@
+info:
+  name: getPullRequestsById
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/2.0/repositories/:username/:slug/pullrequests/:pid"
+  params:
+    - name: username
+      value: ""
+      type: path
+    - name: slug
+      value: ""
+      type: path
+    - name: pid
+      value: ""
+      type: path
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) {
+          bru.setVar('mergePullRequest_username', res.body.author/username);
+          bru.setVar('mergePullRequest_slug', res.body.repository/slug);
+          bru.setVar('mergePullRequest_pid', res.body.id);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: a pull request object
+    request:
+      url: "{{baseUrl}}/2.0/repositories/:username/:slug/pullrequests/:pid"
+      method: GET
+      params:
+        - name: username
+          value: ""
+          type: path
+        - name: slug
+          value: ""
+          type: path
+        - name: pid
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": 0,
+            "title": "",
+            "repository": {
+              "slug": "",
+              "owner": {
+                "username": "",
+                "uuid": ""
+              }
+            },
+            "author": {
+              "username": "",
+              "uuid": ""
+            }
+          }

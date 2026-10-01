@@ -1,0 +1,6 @@
+info:
+  name: ~1weird
+  type: folder
+
+request:
+  auth: inherit

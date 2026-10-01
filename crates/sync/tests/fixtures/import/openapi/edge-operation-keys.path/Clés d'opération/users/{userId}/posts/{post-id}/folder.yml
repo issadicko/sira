@@ -1,0 +1,6 @@
+info:
+  name: "{post-id}"
+  type: folder
+
+request:
+  auth: inherit

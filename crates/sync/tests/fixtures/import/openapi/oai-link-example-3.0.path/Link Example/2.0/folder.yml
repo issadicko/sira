@@ -1,0 +1,6 @@
+info:
+  name: "2.0"
+  type: folder
+
+request:
+  auth: inherit

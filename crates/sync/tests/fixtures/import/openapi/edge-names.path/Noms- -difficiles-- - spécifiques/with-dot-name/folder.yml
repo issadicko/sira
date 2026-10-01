@@ -1,0 +1,6 @@
+info:
+  name: with-dot-name
+  type: folder
+
+request:
+  auth: inherit

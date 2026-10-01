@@ -1,0 +1,29 @@
+info:
+  name: listUsers (POST)
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/users"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/users"
+      method: POST
+    response:
+      status: 201
+      statusText: Created
+      body:
+        type: text
+        data: ""

@@ -1,0 +1,6 @@
+info:
+  name: dash-tag
+  type: folder
+
+request:
+  auth: inherit

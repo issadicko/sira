@@ -1,0 +1,25 @@
+info:
+  name: Binary upload
+  type: http
+  seq: 1
+
+http:
+  method: post
+  url: https://x.test/up
+  headers:
+    - name: Content-Type
+      value: application/octet-stream
+  body:
+    type: file
+    data:
+      - filePath: file.bin
+        contentType: application/octet-stream
+        selected: true
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

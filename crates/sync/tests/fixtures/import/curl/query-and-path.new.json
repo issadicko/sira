@@ -1,0 +1,74 @@
+{
+  "type": "http-request",
+  "name": "Post of a user",
+  "request": {
+    "method": "get",
+    "url": "https://api.example.com/users/:id/posts/:postId?page=2&flag&empty=&a=b=c",
+    "headers": [],
+    "params": [
+      {
+        "name": "page",
+        "value": "2",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "flag",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "empty",
+        "value": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "a",
+        "value": "b=c",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "postId",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "basic",
+      "basic": {
+        "username": "me",
+        "password": "pw"
+      }
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 4
+}

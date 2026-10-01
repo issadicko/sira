@@ -1,0 +1,10 @@
+info:
+  name: pet_store
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Animalerie
+  type: text/markdown

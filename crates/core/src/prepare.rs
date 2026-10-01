@@ -172,7 +172,7 @@ fn multipart(
                     let path = resolve_path(root, fill(path).trim())?;
                     let bytes = fs::read(&path).map_err(|e| CoreError::io(&path, e))?;
                     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
-                    let guessed = mime_guess::from_path(&path).first_raw().unwrap_or("application/octet-stream");
+                    let guessed = guess_mime(&path);
                     let disposition = format!("{disposition}; filename=\"{file_name}\"");
                     write_part(&mut body, boundary, &disposition, Some(content_type.unwrap_or(guessed)), &bytes);
                 }
@@ -183,6 +183,17 @@ fn multipart(
         body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
     }
     Ok(body)
+}
+
+/// Type MIME d'un fichier comme `form-data` (via `mime-types` 2.1) : quelques extensions où `mime_guess` diffère.
+fn guess_mime(path: &Path) -> &'static str {
+    let extension = path.extension().map(|e| e.to_string_lossy().to_ascii_lowercase());
+    match extension.as_deref() {
+        Some("xml") => "application/xml",
+        Some("yml" | "yaml") => "text/yaml",
+        Some("js") => "application/javascript",
+        _ => mime_guess::from_path(path).first_raw().unwrap_or("application/octet-stream"),
+    }
 }
 
 fn write_part(body: &mut Vec<u8>, boundary: &str, disposition: &str, content_type: Option<&str>, value: &[u8]) {

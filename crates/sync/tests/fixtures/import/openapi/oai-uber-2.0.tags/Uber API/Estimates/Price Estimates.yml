@@ -1,0 +1,81 @@
+info:
+  name: Price Estimates
+  type: http
+  seq: 1
+  tags:
+    - Estimates
+
+http:
+  method: GET
+  url: "{{baseUrl}}/estimates/price"
+  params:
+    - name: start_latitude
+      value: ""
+      type: query
+      description: Latitude component of start location.
+    - name: start_longitude
+      value: ""
+      type: query
+      description: Longitude component of start location.
+    - name: end_latitude
+      value: ""
+      type: query
+      description: Latitude component of end location.
+    - name: end_longitude
+      value: ""
+      type: query
+      description: Longitude component of end location.
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: An array of price estimates by product
+    request:
+      url: "{{baseUrl}}/estimates/price"
+      method: GET
+      params:
+        - name: start_latitude
+          value: ""
+          type: query
+          description: Latitude component of start location.
+        - name: start_longitude
+          value: ""
+          type: query
+          description: Longitude component of start location.
+        - name: end_latitude
+          value: ""
+          type: query
+          description: Latitude component of end location.
+        - name: end_longitude
+          value: ""
+          type: query
+          description: Longitude component of end location.
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "product_id": "",
+              "currency_code": "",
+              "display_name": "",
+              "estimate": "",
+              "low_estimate": 0,
+              "high_estimate": 0,
+              "surge_multiplier": 0
+            }
+          ]
+
+docs: The Price Estimates endpoint returns an estimated price range for each product offered at a given location. The price estimate is provided as a formatted string with the full price range and the localized currency symbol.<br><br>The response also includes low and high estimates, and the [ISO 4217](http://en.wikipedia.org/wiki/ISO_4217) currency code for situations requiring currency conversion. When surge is active for a particular product, its surge_multiplier will be greater than 1, but the price estimate already factors in this multiplier.

@@ -4,6 +4,7 @@
 //! celui de `@usebruno/converters`, puis `stringify` l'écrit en OpenCollection YAML comme Bruno.
 
 pub mod curl;
+pub mod import;
 mod js;
 pub mod openapi;
 pub mod stringify;

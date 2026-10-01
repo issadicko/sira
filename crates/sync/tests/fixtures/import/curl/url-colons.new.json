@@ -1,0 +1,47 @@
+{
+  "type": "http-request",
+  "name": "Colons",
+  "request": {
+    "method": "get",
+    "url": "https://x.test/a:b/:c/::d/:/:c",
+    "headers": [],
+    "params": [
+      {
+        "name": "c",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": ":d",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

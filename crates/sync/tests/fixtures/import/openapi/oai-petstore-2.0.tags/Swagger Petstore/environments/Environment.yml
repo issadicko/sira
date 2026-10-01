@@ -1,0 +1,4 @@
+name: Environment
+variables:
+  - name: baseUrl
+    value: http://petstore.swagger.io/v1

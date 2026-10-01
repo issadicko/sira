@@ -1,0 +1,10 @@
+info:
+  name: Tickets
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Museum tickets for general entrance or special events.
+  type: text/markdown

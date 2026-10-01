@@ -1,0 +1,6 @@
+info:
+  name: "{petId}"
+  type: folder
+
+request:
+  auth: inherit

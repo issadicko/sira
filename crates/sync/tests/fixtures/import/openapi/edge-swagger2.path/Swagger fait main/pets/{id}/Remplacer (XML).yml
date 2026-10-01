@@ -1,0 +1,64 @@
+info:
+  name: Remplacer (XML)
+  type: http
+  seq: 1
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/pets/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <root>
+        <id></id>
+        <name></name>
+        <tag></tag>
+        <owner>
+          <pets></pets>
+        </owner>
+      </root>
+  auth:
+    type: basic
+    username: "{{username}}"
+    password: "{{password}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: PUT
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: xml
+        data: |-
+          <?xml version="1.0" encoding="UTF-8"?>
+          <root>
+            <id></id>
+            <name></name>
+            <tag></tag>
+            <owner>
+              <pets></pets>
+            </owner>
+          </root>
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

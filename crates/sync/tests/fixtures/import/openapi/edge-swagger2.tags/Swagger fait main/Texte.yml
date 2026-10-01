@@ -1,0 +1,38 @@
+info:
+  name: Texte
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}/text"
+  body:
+    type: text
+    data: bonjour
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/text"
+      method: POST
+      body:
+        type: text
+        data: bonjour
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: ""

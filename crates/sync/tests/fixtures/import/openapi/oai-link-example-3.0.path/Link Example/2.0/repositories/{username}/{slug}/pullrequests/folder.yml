@@ -1,0 +1,6 @@
+info:
+  name: pullrequests
+  type: folder
+
+request:
+  auth: inherit

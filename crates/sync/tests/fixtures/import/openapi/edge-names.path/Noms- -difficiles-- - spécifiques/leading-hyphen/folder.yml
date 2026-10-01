@@ -1,0 +1,6 @@
+info:
+  name: leading-hyphen
+  type: folder
+
+request:
+  auth: inherit

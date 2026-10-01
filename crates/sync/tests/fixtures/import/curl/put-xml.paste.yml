@@ -1,0 +1,21 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: PUT
+  url: https://x.test/doc
+  headers:
+    - name: Content-Type
+      value: application/xml
+  body:
+    type: xml
+    data: <a><b/></a>
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

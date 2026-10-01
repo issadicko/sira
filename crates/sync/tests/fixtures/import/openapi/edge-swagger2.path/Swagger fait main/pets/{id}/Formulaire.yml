@@ -1,0 +1,67 @@
+info:
+  name: Formulaire
+  type: http
+  seq: 2
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/pets/:id"
+  headers:
+    - name: X-Key
+      value: "{{apiKey}}"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: form-urlencoded
+    data:
+      - name: name
+        value: Rex
+      - name: age
+        value: "1"
+      - name: note
+        value: ""
+        description: Une note
+  auth:
+    type: apikey
+    key: X-Key
+    value: "{{apiKey}}"
+    placement: header
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: PATCH
+      headers:
+        - name: X-Key
+          value: "{{apiKey}}"
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: form-urlencoded
+        data:
+          - name: name
+            value: Rex
+          - name: age
+            value: "1"
+          - name: note
+            value: ""
+            description: Une note
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

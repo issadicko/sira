@@ -1,0 +1,68 @@
+info:
+  name: User Activity
+  type: http
+  seq: 1
+  tags:
+    - User
+
+http:
+  method: GET
+  url: "{{baseUrl}}/history"
+  params:
+    - name: offset
+      value: ""
+      type: query
+      description: Offset the list of returned results by this amount. Default is zero.
+      disabled: true
+    - name: limit
+      value: ""
+      type: query
+      description: Number of items to retrieve. Default is 5, maximum is 100.
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: History information for the given user
+    request:
+      url: "{{baseUrl}}/history"
+      method: GET
+      params:
+        - name: offset
+          value: ""
+          type: query
+          description: Offset the list of returned results by this amount. Default is zero.
+          disabled: true
+        - name: limit
+          value: ""
+          type: query
+          description: Number of items to retrieve. Default is 5, maximum is 100.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "offset": 0,
+            "limit": 0,
+            "count": 0,
+            "history": [
+              {
+                "uuid": ""
+              }
+            ]
+          }
+
+docs: The User Activity endpoint returns data about a user's lifetime activity with Uber. The response will include pickup locations and times, dropoff locations and times, the distance of past requests, and information about which products were requested.<br><br>The history array in the response will have a maximum length based on the limit parameter. The response value count may exceed limit, therefore subsequent API requests may be necessary.

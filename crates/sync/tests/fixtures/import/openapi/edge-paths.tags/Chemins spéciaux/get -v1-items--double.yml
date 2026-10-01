@@ -1,0 +1,29 @@
+info:
+  name: get /v1/items//double
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{baseUrl}}/v1/items/double"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: double barre
+    request:
+      url: "{{baseUrl}}/v1/items/double"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

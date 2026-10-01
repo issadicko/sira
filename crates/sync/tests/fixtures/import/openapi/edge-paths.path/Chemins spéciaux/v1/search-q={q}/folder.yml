@@ -1,0 +1,6 @@
+info:
+  name: search?q={q}
+  type: folder
+
+request:
+  auth: inherit

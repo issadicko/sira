@@ -1,0 +1,25 @@
+info:
+  name: Me
+  type: graphql
+  seq: 1
+
+graphql:
+  method: post
+  url: https://api.example.com/graphql
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    query: "{ me { id } }"
+    variables: |-
+      {
+        "a": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

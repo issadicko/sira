@@ -1,0 +1,51 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "GET",
+    "url": "http://a/%20b.test/users/:id?x=1&y=:z",
+    "headers": [],
+    "params": [
+      {
+        "name": "x",
+        "value": "1",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "y",
+        "value": ":z",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

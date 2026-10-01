@@ -1,0 +1,53 @@
+{
+  "type": "http-request",
+  "name": "Template",
+  "request": {
+    "method": "get",
+    "url": "https://example.com/%7B%7Bp%7D%7D/users/:id?q=%7B%7Ba?b%7D%7D&x=1",
+    "headers": [],
+    "params": [
+      {
+        "name": "q",
+        "value": "%7B%7Ba?b%7D%7D",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "x",
+        "value": "1",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

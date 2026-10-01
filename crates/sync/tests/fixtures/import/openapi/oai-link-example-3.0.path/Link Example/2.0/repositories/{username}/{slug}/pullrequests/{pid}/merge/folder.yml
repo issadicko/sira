@@ -1,0 +1,6 @@
+info:
+  name: merge
+  type: folder
+
+request:
+  auth: inherit

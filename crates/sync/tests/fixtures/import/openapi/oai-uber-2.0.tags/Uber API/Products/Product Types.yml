@@ -1,0 +1,73 @@
+info:
+  name: Product Types
+  type: http
+  seq: 1
+  tags:
+    - Products
+
+http:
+  method: GET
+  url: "{{baseUrl}}/products"
+  params:
+    - name: latitude
+      value: ""
+      type: query
+      description: Latitude component of location.
+    - name: longitude
+      value: ""
+      type: query
+      description: Longitude component of location.
+    - name: server_token
+      value: "{{apiKey}}"
+      type: query
+  auth:
+    type: apikey
+    key: server_token
+    value: "{{apiKey}}"
+    placement: query
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: An array of products
+    request:
+      url: "{{baseUrl}}/products"
+      method: GET
+      params:
+        - name: latitude
+          value: ""
+          type: query
+          description: Latitude component of location.
+        - name: longitude
+          value: ""
+          type: query
+          description: Longitude component of location.
+        - name: server_token
+          value: "{{apiKey}}"
+          type: query
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "product_id": "",
+              "description": "",
+              "display_name": "",
+              "capacity": 0,
+              "image": ""
+            }
+          ]
+
+docs: The Products endpoint returns information about the Uber products offered at a given location. The response includes the display name and other details about each product, and lists the products in the proper display order.

@@ -1,0 +1,29 @@
+info:
+  name: get /only-dots
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/only-dots"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/only-dots"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

@@ -1,0 +1,6 @@
+info:
+  name: "{dataset}"
+  type: folder
+
+request:
+  auth: inherit

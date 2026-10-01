@@ -4856,6 +4856,7 @@ dependencies = [
  "tokio",
  "xc-core",
  "xc-engine",
+ "xc-sync",
 ]
 
 [[package]]
@@ -4867,6 +4868,7 @@ dependencies = [
  "tokio",
  "xc-core",
  "xc-engine",
+ "xc-sync",
 ]
 
 [[package]]
@@ -4914,7 +4916,10 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
+ "tokio",
+ "url",
  "xc-core",
+ "xc-engine",
  "yaml-rust2",
 ]
 

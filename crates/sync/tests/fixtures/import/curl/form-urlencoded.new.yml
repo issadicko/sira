@@ -1,0 +1,23 @@
+info:
+  name: Login
+  type: http
+  seq: 1
+
+http:
+  method: post
+  url: https://api.example.com/login
+  body:
+    type: form-urlencoded
+    data:
+      - name: user
+        value: ada
+      - name: pass
+        value: secret
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

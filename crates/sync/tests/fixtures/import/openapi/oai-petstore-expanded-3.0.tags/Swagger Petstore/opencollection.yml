@@ -1,0 +1,14 @@
+opencollection: 1.0.0
+
+info:
+  name: Swagger Petstore
+
+docs:
+  content: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

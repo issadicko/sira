@@ -1,0 +1,26 @@
+info:
+  name: Odata
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: https://services.odata.org/V4/Northwind/Northwind.svc/Products(:id)/Orders(Key1=:k1,Key2=%27:k2%27)
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: k1
+      value: ""
+      type: path
+    - name: k2
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

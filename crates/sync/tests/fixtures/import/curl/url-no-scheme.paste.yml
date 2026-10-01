@@ -1,0 +1,22 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: GET
+  url: https://example.com/users/:id?x=1
+  params:
+    - name: x
+      value: "1"
+      type: query
+    - name: id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,51 @@
+{
+  "type": "http-request",
+  "name": "Créer un utilisateur",
+  "request": {
+    "method": "post",
+    "url": "https://x.test/utilisateurs",
+    "headers": [
+      {
+        "name": "X-Name",
+        "value": "Zoë",
+        "enabled": true
+      },
+      {
+        "name": "Cookie",
+        "value": "session=abc",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "formUrlEncoded",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": [
+        {
+          "name": "nom",
+          "value": "Zoë",
+          "enabled": true
+        }
+      ],
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

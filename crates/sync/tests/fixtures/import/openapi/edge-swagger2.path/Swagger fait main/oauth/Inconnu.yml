@@ -1,0 +1,29 @@
+info:
+  name: Inconnu
+  type: http
+  seq: 3
+
+http:
+  method: HEAD
+  url: "{{baseUrl}}/oauth"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/oauth"
+      method: HEAD
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

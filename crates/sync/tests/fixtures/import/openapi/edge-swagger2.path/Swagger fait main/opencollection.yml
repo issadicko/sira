@@ -1,0 +1,21 @@
+opencollection: 1.0.0
+
+info:
+  name: Swagger fait main
+
+request:
+  auth:
+    type: apikey
+    key: token
+    value: "{{apiKey}}"
+    placement: query
+
+docs:
+  content: Cas limites Swagger 2.0
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

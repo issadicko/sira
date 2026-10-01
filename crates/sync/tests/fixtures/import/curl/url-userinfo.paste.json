@@ -1,0 +1,45 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "GET",
+    "url": "https://user:pw@x.test/:id/(:a)/Items(:b)",
+    "headers": [],
+    "params": [
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "b",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

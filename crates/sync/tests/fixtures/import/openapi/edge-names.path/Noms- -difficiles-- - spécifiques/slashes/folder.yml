@@ -1,0 +1,6 @@
+info:
+  name: slashes
+  type: folder
+
+request:
+  auth: inherit

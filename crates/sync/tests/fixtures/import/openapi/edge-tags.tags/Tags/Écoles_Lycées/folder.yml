@@ -1,0 +1,10 @@
+info:
+  name: Écoles_Lycées
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Accents
+  type: text/markdown

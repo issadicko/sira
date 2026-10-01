@@ -1,0 +1,4 @@
+name: Production principale (3)
+variables:
+  - name: baseUrl
+    value: http://localhost:8080

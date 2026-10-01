@@ -1,0 +1,46 @@
+{
+  "type": "http-request",
+  "name": "Binary upload",
+  "request": {
+    "method": "post",
+    "url": "https://x.test/up",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/octet-stream",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "file",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": [
+        {
+          "filePath": "file.bin",
+          "contentType": "application/octet-stream",
+          "selected": true
+        }
+      ]
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

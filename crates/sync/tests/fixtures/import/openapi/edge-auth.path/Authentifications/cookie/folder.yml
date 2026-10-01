@@ -1,0 +1,6 @@
+info:
+  name: cookie
+  type: folder
+
+request:
+  auth: inherit

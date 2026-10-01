@@ -1,0 +1,6 @@
+info:
+  name: history
+  type: folder
+
+request:
+  auth: inherit

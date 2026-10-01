@@ -1,0 +1,31 @@
+info:
+  name: Trailing dots
+  type: http
+  seq: 1
+  tags:
+    - Tag_with_chars
+
+http:
+  method: GET
+  url: "{{baseUrl}}/trailing-dots"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/trailing-dots"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

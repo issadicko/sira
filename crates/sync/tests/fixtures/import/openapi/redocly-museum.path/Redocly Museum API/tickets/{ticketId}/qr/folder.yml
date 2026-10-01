@@ -1,0 +1,6 @@
+info:
+  name: qr
+  type: folder
+
+request:
+  auth: inherit

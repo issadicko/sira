@@ -1,0 +1,26 @@
+info:
+  name: Créer un utilisateur
+  type: http
+  seq: 1
+
+http:
+  method: post
+  url: https://x.test/utilisateurs
+  headers:
+    - name: X-Name
+      value: Zoë
+    - name: Cookie
+      value: session=abc
+  body:
+    type: form-urlencoded
+    data:
+      - name: nom
+        value: Zoë
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

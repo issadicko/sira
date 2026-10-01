@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
 use serde::Serialize;
 
@@ -23,6 +24,7 @@ pub enum TreeItem {
         name: String,
         seq: Option<i64>,
         method: String,
+        url: String,
         request_type: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<String>,
@@ -71,7 +73,8 @@ pub(crate) fn read_tree(path: &Path) -> Result<Map, CoreError> {
 /// Résout un chemin relatif à la collection en refusant toute sortie de la racine.
 pub fn resolve_path(root: &Path, relative: &str) -> Result<PathBuf, CoreError> {
     let rel = Path::new(relative);
-    if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+    let escapes = |c: Component| matches!(c, Component::ParentDir | Component::RootDir | Component::Prefix(_));
+    if rel.is_absolute() || rel.components().any(escapes) {
         return Err(CoreError::OutsideCollection(relative.to_owned()));
     }
     Ok(root.join(rel))
@@ -168,6 +171,7 @@ fn read_request_item(root: &Path, path: &Path, file_name: &str) -> TreeItem {
                 name: if doc.name.is_empty() { fallback } else { doc.name },
                 seq: doc.seq,
                 method: doc.method.to_uppercase(),
+                url: doc.url,
                 request_type: doc.request_type,
                 error: None,
             }
@@ -177,6 +181,7 @@ fn read_request_item(root: &Path, path: &Path, file_name: &str) -> TreeItem {
             name: fallback,
             seq: None,
             method: String::new(),
+            url: String::new(),
             request_type: "http".into(),
             error: Some(e.to_string()),
         },
@@ -260,13 +265,12 @@ pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<boo
     Ok(true)
 }
 
+/// Écrit via un fichier temporaire voisin puis renomme, sans jamais laisser un fichier à moitié écrit.
+/// Le nom temporaire ne dépend pas de celui du fichier, qui peut déjà occuper les 255 octets permis.
 pub fn write_atomic(path: &Path, text: &str) -> Result<(), CoreError> {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
     let dir = path.parent().unwrap_or(Path::new("."));
-    let tmp = dir.join(format!(
-        ".{}.{}.tmp",
-        path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default(),
-        std::process::id()
-    ));
+    let tmp = dir.join(format!(".xc-{}-{}.tmp", std::process::id(), NEXT.fetch_add(1, AtomicOrdering::Relaxed)));
     fs::write(&tmp, text).map_err(|e| CoreError::io(&tmp, e))?;
     fs::rename(&tmp, path).map_err(|e| {
         fs::remove_file(&tmp).ok();

@@ -1,0 +1,196 @@
+info:
+  name: Set a single board square
+  type: http
+  seq: 3
+  tags:
+    - Gameplay
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/board/:row/:column"
+  headers:
+    - name: progressUrl
+      value: ""
+      description: Progress URL that should be called if asynchronous response is returned
+      disabled: true
+  params:
+    - name: row
+      value: "1"
+      type: path
+      description: Board row (vertical coordinate)
+    - name: column
+      value: "1"
+      type: path
+      description: Board column (horizontal coordinate)
+  body:
+    type: json
+    data: '"."'
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: PUT
+      headers:
+        - name: progressUrl
+          value: ""
+          description: Progress URL that should be called if asynchronous response is returned
+          disabled: true
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+      body:
+        type: json
+        data: '"."'
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "winner": ".",
+            "board": [
+              [
+                "."
+              ]
+            ]
+          }
+  - name: 202 Response
+    description: Mark operation has not completed. Use callback to check for progress
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: PUT
+      headers:
+        - name: progressUrl
+          value: ""
+          description: Progress URL that should be called if asynchronous response is returned
+          disabled: true
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+      body:
+        type: json
+        data: '"."'
+    response:
+      status: 202
+      statusText: Accepted
+      body:
+        type: text
+        data: ""
+  - name: illegalCoordinates
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: PUT
+      headers:
+        - name: progressUrl
+          value: ""
+          description: Progress URL that should be called if asynchronous response is returned
+          disabled: true
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+      body:
+        type: json
+        data: '"."'
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: text/html
+      body:
+        type: html
+        data: Illegal coordinates.
+  - name: notEmpty
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: PUT
+      headers:
+        - name: progressUrl
+          value: ""
+          description: Progress URL that should be called if asynchronous response is returned
+          disabled: true
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+      body:
+        type: json
+        data: '"."'
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: text/html
+      body:
+        type: html
+        data: Square is not empty.
+  - name: invalidMark
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: PUT
+      headers:
+        - name: progressUrl
+          value: ""
+          description: Progress URL that should be called if asynchronous response is returned
+          disabled: true
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+      body:
+        type: json
+        data: '"."'
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: text/html
+      body:
+        type: html
+        data: Invalid Mark (X or O).
+
+docs: Places a mark on the board and retrieves the whole board and the winner (if any).

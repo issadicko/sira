@@ -1,0 +1,47 @@
+{
+  "type": "http-request",
+  "name": "Uppercase scheme",
+  "request": {
+    "method": "get",
+    "url": "http://x.test/:id?a=1",
+    "headers": [],
+    "params": [
+      {
+        "name": "a",
+        "value": "1",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

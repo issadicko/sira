@@ -1,0 +1,382 @@
+info:
+  name: Lister
+  type: http
+  seq: 1
+  tags:
+    - pets
+
+http:
+  method: GET
+  url: "{{baseUrl}}/pets"
+  headers:
+    - name: X-Req
+      value: ""
+    - name: X-Ex
+      value: exemple
+  params:
+    - name: limit
+      value: "20"
+      type: query
+    - name: status
+      value: available
+      type: query
+      disabled: true
+    - name: status
+      value: sold
+      type: query
+      disabled: true
+    - name: pipes
+      value: a|b
+      type: query
+    - name: csvdef
+      value: b,a
+      type: query
+    - name: multidef
+      value: b
+      type: query
+    - name: multiitemdef
+      value: a
+      type: query
+      disabled: true
+    - name: multiitemdef
+      value: b
+      type: query
+    - name: tsv
+      value: x	y
+      type: query
+      disabled: true
+    - name: sort
+      value: asc
+      type: query
+      disabled: true
+    - name: sort
+      value: desc
+      type: query
+    - name: a
+      value: ""
+      type: query
+      disabled: true
+    - name: b
+      value: "2"
+      type: query
+    - name: x
+      value: "1"
+      type: query
+    - name: y
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: Liste
+    request:
+      url: "{{baseUrl}}/pets"
+      method: GET
+      headers:
+        - name: X-Req
+          value: ""
+        - name: X-Ex
+          value: exemple
+      params:
+        - name: limit
+          value: "20"
+          type: query
+        - name: status
+          value: available
+          type: query
+          disabled: true
+        - name: status
+          value: sold
+          type: query
+          disabled: true
+        - name: pipes
+          value: a|b
+          type: query
+        - name: csvdef
+          value: b,a
+          type: query
+        - name: multidef
+          value: b
+          type: query
+        - name: multiitemdef
+          value: a
+          type: query
+          disabled: true
+        - name: multiitemdef
+          value: b
+          type: query
+        - name: tsv
+          value: x	y
+          type: query
+          disabled: true
+        - name: sort
+          value: asc
+          type: query
+          disabled: true
+        - name: sort
+          value: desc
+          type: query
+        - name: a
+          value: ""
+          type: query
+          disabled: true
+        - name: b
+          value: "2"
+          type: query
+        - name: x
+          value: "1"
+          type: query
+        - name: y
+          value: ""
+          type: query
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": 1,
+              "name": "Rex"
+            }
+          ]
+  - name: 200 Response
+    description: Liste
+    request:
+      url: "{{baseUrl}}/pets"
+      method: GET
+      headers:
+        - name: X-Req
+          value: ""
+        - name: X-Ex
+          value: exemple
+      params:
+        - name: limit
+          value: "20"
+          type: query
+        - name: status
+          value: available
+          type: query
+          disabled: true
+        - name: status
+          value: sold
+          type: query
+          disabled: true
+        - name: pipes
+          value: a|b
+          type: query
+        - name: csvdef
+          value: b,a
+          type: query
+        - name: multidef
+          value: b
+          type: query
+        - name: multiitemdef
+          value: a
+          type: query
+          disabled: true
+        - name: multiitemdef
+          value: b
+          type: query
+        - name: tsv
+          value: x	y
+          type: query
+          disabled: true
+        - name: sort
+          value: asc
+          type: query
+          disabled: true
+        - name: sort
+          value: desc
+          type: query
+        - name: a
+          value: ""
+          type: query
+          disabled: true
+        - name: b
+          value: "2"
+          type: query
+        - name: x
+          value: "1"
+          type: query
+        - name: y
+          value: ""
+          type: query
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/xml
+      body:
+        type: xml
+        data: |-
+          <?xml version="1.0" encoding="UTF-8"?>
+          <root>
+            <pet>
+              <id>1</id>
+            </pet>
+          </root>
+  - name: 200 Response
+    description: Liste
+    request:
+      url: "{{baseUrl}}/pets"
+      method: GET
+      headers:
+        - name: X-Req
+          value: ""
+        - name: X-Ex
+          value: exemple
+      params:
+        - name: limit
+          value: "20"
+          type: query
+        - name: status
+          value: available
+          type: query
+          disabled: true
+        - name: status
+          value: sold
+          type: query
+          disabled: true
+        - name: pipes
+          value: a|b
+          type: query
+        - name: csvdef
+          value: b,a
+          type: query
+        - name: multidef
+          value: b
+          type: query
+        - name: multiitemdef
+          value: a
+          type: query
+          disabled: true
+        - name: multiitemdef
+          value: b
+          type: query
+        - name: tsv
+          value: x	y
+          type: query
+          disabled: true
+        - name: sort
+          value: asc
+          type: query
+          disabled: true
+        - name: sort
+          value: desc
+          type: query
+        - name: a
+          value: ""
+          type: query
+          disabled: true
+        - name: b
+          value: "2"
+          type: query
+        - name: x
+          value: "1"
+          type: query
+        - name: y
+          value: ""
+          type: query
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: text/plain
+      body:
+        type: text
+        data: une liste
+  - name: 404 Response
+    description: Introuvable
+    request:
+      url: "{{baseUrl}}/pets"
+      method: GET
+      headers:
+        - name: X-Req
+          value: ""
+        - name: X-Ex
+          value: exemple
+      params:
+        - name: limit
+          value: "20"
+          type: query
+        - name: status
+          value: available
+          type: query
+          disabled: true
+        - name: status
+          value: sold
+          type: query
+          disabled: true
+        - name: pipes
+          value: a|b
+          type: query
+        - name: csvdef
+          value: b,a
+          type: query
+        - name: multidef
+          value: b
+          type: query
+        - name: multiitemdef
+          value: a
+          type: query
+          disabled: true
+        - name: multiitemdef
+          value: b
+          type: query
+        - name: tsv
+          value: x	y
+          type: query
+          disabled: true
+        - name: sort
+          value: asc
+          type: query
+          disabled: true
+        - name: sort
+          value: desc
+          type: query
+        - name: a
+          value: ""
+          type: query
+          disabled: true
+        - name: b
+          value: "2"
+          type: query
+        - name: x
+          value: "1"
+          type: query
+        - name: y
+          value: ""
+          type: query
+          disabled: true
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/xml
+      body:
+        type: xml
+        data: |-
+          <?xml version="1.0" encoding="UTF-8"?>
+          <root>
+            <code>0</code>
+          </root>

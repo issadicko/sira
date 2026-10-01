@@ -1,0 +1,39 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "POST",
+    "url": "https://api.example.com/upload",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "multipart/form-data",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "multipartForm",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

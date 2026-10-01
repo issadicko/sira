@@ -1,0 +1,26 @@
+info:
+  name: Login with header
+  type: http
+  seq: 2
+
+http:
+  method: post
+  url: https://api.example.com/login
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: user
+        value: ada
+      - name: pass
+        value: sécret
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

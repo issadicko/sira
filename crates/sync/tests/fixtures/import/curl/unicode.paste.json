@@ -1,0 +1,45 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "POST",
+    "url": "https://x.test/utilisateurs",
+    "headers": [
+      {
+        "name": "X-Name",
+        "value": "Zoë",
+        "description": "",
+        "enabled": true
+      },
+      {
+        "name": "Cookie",
+        "value": "session=abc",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "formUrlEncoded",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

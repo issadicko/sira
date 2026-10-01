@@ -1,0 +1,83 @@
+openapi: 3.0.3
+info:
+  title: 'Noms: <difficiles>? / spécifiques'
+  version: '1'
+servers:
+  - url: https://names.test
+paths:
+  /leading-space:
+    get:
+      summary: "   Leading spaces"
+      tags: ["Spaces"]
+      responses:
+        '200':
+          description: ok
+  /leading-hyphen:
+    get:
+      summary: "-Leading hyphen"
+      tags: ["Spaces"]
+      responses:
+        '200':
+          description: ok
+  /bad-chars:
+    post:
+      summary: "Bad <chars>: \"quoted\" | pipe? *star* back\\slash"
+      tags: ["a/b"]
+      responses:
+        '200':
+          description: ok
+  /trailing-dots:
+    get:
+      summary: "Trailing dots...   "
+      tags: ["Tag: with <chars>?"]
+      responses:
+        '200':
+          description: ok
+  /unicode:
+    get:
+      summary: "Ünïcödé 日本語 émoji 🎉"
+      tags: ["Ünïcödé"]
+      responses:
+        '200':
+          description: ok
+  /slashes:
+    get:
+      summary: "Report 2020/21: Q1"
+      tags: ["a/b"]
+      responses:
+        '200':
+          description: ok
+  /only-dots:
+    get:
+      summary: "..."
+      tags: ["..."]
+      responses:
+        '200':
+          description: ok
+  /dash-tag:
+    get:
+      summary: "Dash tag"
+      tags: ["--dashes--"]
+      responses:
+        '200':
+          description: ok
+  /case-a:
+    get:
+      summary: "Mixed Case"
+      tags: ["Spaces"]
+      responses:
+        '200':
+          description: ok
+  /no-tag:
+    get:
+      summary: "Without tag"
+      responses:
+        '200':
+          description: ok
+  /with-dot-name:
+    get:
+      summary: "version 1.2.3"
+      tags: ["Spaces"]
+      responses:
+        '200':
+          description: ok

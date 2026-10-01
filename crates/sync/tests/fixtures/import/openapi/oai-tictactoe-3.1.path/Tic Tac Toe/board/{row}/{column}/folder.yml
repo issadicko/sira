@@ -1,0 +1,6 @@
+info:
+  name: "{column}"
+  type: folder
+
+request:
+  auth: inherit

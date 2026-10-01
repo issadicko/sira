@@ -1,0 +1,6 @@
+info:
+  name: "{file.name}.json"
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,47 @@
+{
+  "type": "http-request",
+  "name": "Other scheme",
+  "request": {
+    "method": "get",
+    "url": "http://ftp://x.test/:id/:name",
+    "headers": [],
+    "params": [
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "name",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

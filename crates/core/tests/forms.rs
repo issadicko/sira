@@ -232,3 +232,26 @@ fn ef_req_02_multipart_refuses_files_outside_the_collection() {
         assert!(matches!(send(&collection(&request)), Err(CoreError::OutsideCollection(p)) if p == path), "{path}");
     }
 }
+
+#[test]
+fn ef_req_02_multipart_file_types_follow_the_mime_types_package_of_bruno() {
+    let names = ["a.xml", "b.YML", "c.yaml", "d.js", "e.json", "f.unknown"];
+    let listed: String = names.iter().map(|n| format!("          - files/{n}\n")).collect();
+    let dir = collection(&format!("info:\n  name: M\n  type: http\n\nhttp:\n  method: POST\n  url: https://x.test\n  body:\n    type: multipart-form\n    data:\n      - name: pieces\n        type: file\n        value:\n{listed}"));
+    for name in names {
+        fs::write(dir.path().join("files").join(name), "x").unwrap();
+    }
+    let body = String::from_utf8(send(&dir).unwrap().request.body.unwrap()).unwrap();
+    let types: Vec<&str> = body.lines().filter_map(|l| l.strip_prefix("Content-Type: ")).collect();
+    assert_eq!(
+        types,
+        [
+            "application/xml",
+            "text/yaml",
+            "text/yaml",
+            "application/javascript",
+            "application/json",
+            "application/octet-stream"
+        ]
+    );
+}

@@ -1,0 +1,14 @@
+opencollection: 1.0.0
+
+info:
+  name: Tags
+
+docs:
+  content: Tags spéciaux, numériques et absents.
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

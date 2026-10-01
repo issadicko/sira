@@ -1,0 +1,53 @@
+{
+  "type": "http-request",
+  "name": "Upload avatar",
+  "request": {
+    "method": "post",
+    "url": "https://api.example.com/upload",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "multipart/form-data",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "multipartForm",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [
+        {
+          "name": "name",
+          "value": "Ada",
+          "type": "text",
+          "enabled": true
+        },
+        {
+          "name": "avatar",
+          "value": "/tmp/a.png",
+          "type": "file",
+          "enabled": true
+        }
+      ],
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

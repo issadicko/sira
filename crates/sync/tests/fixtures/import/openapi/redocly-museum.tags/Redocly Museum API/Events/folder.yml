@@ -1,0 +1,10 @@
+info:
+  name: Events
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Special events hosted by the museum.
+  type: text/markdown

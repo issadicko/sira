@@ -1,0 +1,46 @@
+{
+  "type": "http-request",
+  "name": "Double ampersand",
+  "request": {
+    "method": "get",
+    "url": "https://x.test/a?a=1&b",
+    "headers": [],
+    "params": [
+      {
+        "name": "a",
+        "value": "1",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "b",
+        "enabled": true,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use xc_core::assert::{evaluate, ResponseView};
+use xc_core::collection::{resolve_path, write_atomic};
 use xc_core::vars::{Context, Scope};
 use xc_core::{open_collection, prepare, read_request, save_request, Assertion, TreeItem};
 
@@ -145,6 +146,49 @@ fn ef_req_03_saving_without_change_writes_nothing_and_edits_are_atomic() {
 fn paths_outside_the_collection_are_refused() {
     let dir = sample();
     assert!(read_request(dir.path(), "../secret.yml").is_err());
+}
+
+#[test]
+fn ef_col_01_resolve_path_refuses_every_way_out_of_the_collection() {
+    let root = Path::new("/collection");
+    for escape in ["/etc/hosts", "../secret.yml", "a/../../b.yml", "a/../b.yml"] {
+        assert!(resolve_path(root, escape).is_err(), "{escape} aurait dû être refusé");
+    }
+    assert_eq!(resolve_path(root, "a/b.yml").unwrap(), root.join("a/b.yml"));
+}
+
+#[cfg(windows)]
+#[test]
+fn ef_col_01_resolve_path_refuses_windows_roots_and_drives() {
+    let root = Path::new("C:\\collection");
+    for escape in ["/etc/hosts", "\\etc\\hosts", "C:\\Windows\\win.ini", "C:win.ini", "\\\\server\\share\\x.yml"] {
+        assert!(resolve_path(root, escape).is_err(), "{escape}");
+    }
+}
+
+#[test]
+fn ef_col_01_requests_expose_their_raw_url() {
+    let dir = sample();
+    let c = open_collection(dir.path()).unwrap();
+    let TreeItem::Folder { children, .. } = &c.items[1] else { panic!() };
+    let urls: Vec<_> = children
+        .iter()
+        .map(|i| match i {
+            TreeItem::Request { url, .. } => url.as_str(),
+            TreeItem::Folder { .. } => panic!("une requête était attendue"),
+        })
+        .collect();
+    assert_eq!(urls, ["{{baseUrl}}/transactions", "{{baseUrl}}/transactions/:id?expand=client"]);
+    assert_eq!(serde_json::to_value(&children[0]).unwrap()["url"], "{{baseUrl}}/transactions");
+}
+
+#[test]
+fn enf_comp_02_atomic_write_supports_names_at_the_filesystem_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(format!("{}.yml", "n".repeat(251)));
+    write_atomic(&path, "info:\n  name: long\n").unwrap();
+    assert_eq!(fs::read_to_string(&path).unwrap(), "info:\n  name: long\n");
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
 }
 
 #[test]

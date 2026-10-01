@@ -1,0 +1,29 @@
+info:
+  name: Without tag
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/no-tag"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/no-tag"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

@@ -1,0 +1,6 @@
+info:
+  name: "{tenant}"
+  type: folder
+
+request:
+  auth: inherit

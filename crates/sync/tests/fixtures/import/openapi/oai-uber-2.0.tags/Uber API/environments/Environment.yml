@@ -1,0 +1,4 @@
+name: Environment
+variables:
+  - name: baseUrl
+    value: https://api.uber.com/v1

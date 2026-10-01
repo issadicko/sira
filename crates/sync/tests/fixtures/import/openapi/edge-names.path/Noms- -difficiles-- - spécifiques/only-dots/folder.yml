@@ -1,0 +1,6 @@
+info:
+  name: only-dots
+  type: folder
+
+request:
+  auth: inherit

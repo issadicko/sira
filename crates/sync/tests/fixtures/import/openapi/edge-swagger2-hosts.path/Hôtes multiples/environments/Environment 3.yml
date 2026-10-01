@@ -1,0 +1,4 @@
+name: Environment 3
+variables:
+  - name: baseUrl
+    value: wss://api.example.com

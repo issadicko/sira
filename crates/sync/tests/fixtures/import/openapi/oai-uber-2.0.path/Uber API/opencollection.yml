@@ -1,0 +1,14 @@
+opencollection: 1.0.0
+
+info:
+  name: Uber API
+
+docs:
+  content: Move your app forward with the Uber API
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

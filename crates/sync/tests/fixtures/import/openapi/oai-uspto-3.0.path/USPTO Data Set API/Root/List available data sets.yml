@@ -1,0 +1,51 @@
+info:
+  name: List available data sets
+  type: http
+  seq: 1
+  tags:
+    - metadata
+
+http:
+  method: GET
+  url: "{{baseUrl}}/"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: Returns a list of data sets
+    request:
+      url: "{{baseUrl}}/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "total": 2,
+            "apis": [
+              {
+                "apiKey": "oa_citations",
+                "apiVersionNumber": "v1",
+                "apiUrl": "https://developer.uspto.gov/ds-api/oa_citations/v1/fields",
+                "apiDocumentationUrl": "https://developer.uspto.gov/ds-api-docs/index.html?url=https://developer.uspto.gov/ds-api/swagger/docs/oa_citations.json"
+              },
+              {
+                "apiKey": "cancer_moonshot",
+                "apiVersionNumber": "v1",
+                "apiUrl": "https://developer.uspto.gov/ds-api/cancer_moonshot/v1/fields",
+                "apiDocumentationUrl": "https://developer.uspto.gov/ds-api-docs/index.html?url=https://developer.uspto.gov/ds-api/swagger/docs/cancer_moonshot.json"
+              }
+            ]
+          }

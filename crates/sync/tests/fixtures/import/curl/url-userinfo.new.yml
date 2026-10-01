@@ -1,0 +1,23 @@
+info:
+  name: Userinfo
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: https://user:pw@x.test/:id/(:a)/Items(:b)
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: b
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

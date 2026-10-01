@@ -1,0 +1,22 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: GET
+  url: http://[::1]:8080/a/:b?c=:d
+  params:
+    - name: c
+      value: :d
+      type: query
+    - name: b
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

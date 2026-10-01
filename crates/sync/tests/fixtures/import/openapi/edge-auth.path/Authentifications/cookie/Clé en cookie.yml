@@ -1,0 +1,39 @@
+info:
+  name: Clé en cookie
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/cookie"
+  headers:
+    - name: session
+      value: "{{apiKey}}"
+  auth:
+    type: apikey
+    key: session
+    value: "{{apiKey}}"
+    placement: header
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/cookie"
+      method: GET
+      headers:
+        - name: session
+          value: "{{apiKey}}"
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""
