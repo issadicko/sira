@@ -2,27 +2,28 @@ import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 
 import { isTauri } from './core/api';
-import { Workspace } from './core/store';
+import { COMMANDS, isMac, shortcutLabel } from './core/commands';
+import { View, Workspace } from './core/store';
 import { Editor } from './ui/editor';
 import { EnvView } from './ui/env-view';
 import { Icon } from './ui/icon';
 import { methodClass, shortMethod } from './ui/method';
+import { Palette } from './ui/palette';
 import { Tree } from './ui/tree';
 import { VarPopover } from './ui/var-popover';
 import { Welcome } from './ui/welcome';
 
-const isMac = navigator.userAgent.includes('Mac');
-
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover],
+  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover, Palette],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
   protected readonly ws = inject(Workspace);
-  protected readonly mod = isMac ? '⌘' : 'Ctrl+';
+  private readonly commands = inject(COMMANDS);
+  protected readonly key = shortcutLabel;
   protected readonly nativeLights = isTauri && isMac;
   protected readonly envMenu = signal(false);
   protected readonly sidebarWidth = signal(264);
@@ -33,12 +34,29 @@ export class App {
   protected readonly String = String;
   protected readonly lastResult = computed(() => this.ws.active()?.result ?? null);
 
-  protected toggleView(view: 'collections' | 'env') {
+  constructor() {
+    const ws = this.ws;
+    const opened = () => !!ws.collection();
+    this.commands.register(
+      { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => !!ws.active(), run: () => ws.send() },
+      { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
+      { id: 'request.save', title: 'Enregistrer la requête', group: 'Requête', icon: 'download', keys: 'mod+s', when: () => !!ws.active(), run: () => ws.save() },
+      { id: 'tab.close', title: "Fermer l'onglet", group: 'Requête', icon: 'x', keys: 'mod+w', when: () => !!ws.activePath(), run: () => ws.closeTab(ws.activePath()!) },
+      { id: 'collection.open', title: 'Ouvrir une collection…', group: 'Collection', icon: 'folder-open', keys: 'mod+o', run: () => ws.pickAndOpen() },
+      { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
+      { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
+      { id: 'view.env', title: 'Gérer les environnements', group: 'Collection', icon: 'variable', when: opened, run: () => this.show('env') },
+      { id: 'view.sidebar', title: 'Afficher ou masquer la barre latérale', group: 'Affichage', icon: 'cols', keys: 'mod+b', when: opened, run: () => ws.sidebar.update((v) => !v) },
+      { id: 'view.layout', title: 'Empiler ou juxtaposer requête et réponse', group: 'Affichage', icon: 'rows', keys: 'mod+\\', when: opened, run: () => ws.stacked.update((v) => !v) },
+      { id: 'view.theme', title: 'Basculer le thème clair / sombre', group: 'Affichage', icon: 'sun', run: () => ws.toggleTheme() },
+      { id: 'palette.search', title: 'Rechercher une requête ou une commande', group: 'Palette', icon: 'search', keys: 'mod+k', run: () => this.openPalette('') },
+      { id: 'palette.commands', title: 'Afficher toutes les commandes', group: 'Palette', icon: 'settings', keys: 'mod+shift+p', run: () => this.openPalette('>') },
+    );
+  }
+
+  protected toggleView(view: View) {
     if (this.ws.view() === view) this.ws.sidebar.update((v) => !v);
-    else {
-      this.ws.view.set(view);
-      this.ws.sidebar.set(true);
-    }
+    else this.show(view);
   }
 
   protected chooseEnv(env: string | null) {
@@ -60,42 +78,27 @@ export class App {
     handle.addEventListener('pointerup', up);
   }
 
+  protected openPalette(query: string) {
+    this.envMenu.set(false);
+    this.ws.hover.set(null);
+    this.ws.palette.set(query);
+  }
+
   protected focusFilter() {
-    this.ws.view.set('collections');
-    this.ws.sidebar.set(true);
+    this.show('collections');
     setTimeout(() => this.filterInput()?.nativeElement.focus());
+  }
+
+  private show(view: View) {
+    this.ws.view.set(view);
+    this.ws.sidebar.set(true);
   }
 
   @HostListener('document:keydown', ['$event'])
   protected onKey(e: KeyboardEvent) {
-    const mod = isMac ? e.metaKey : e.ctrlKey;
-    const key = e.key.toLowerCase();
-    if (mod && e.key === 'Enter') {
-      e.preventDefault();
-      void this.ws.send();
-    } else if (mod && key === 's') {
-      e.preventDefault();
-      void this.ws.save();
-    } else if (mod && key === 'k') {
-      e.preventDefault();
-      this.focusFilter();
-    } else if (mod && key === 'b') {
-      e.preventDefault();
-      this.ws.sidebar.update((v) => !v);
-    } else if (mod && e.key === '\\') {
-      e.preventDefault();
-      this.ws.stacked.update((v) => !v);
-    } else if (mod && key === 'w' && this.ws.activePath()) {
-      e.preventDefault();
-      this.ws.closeTab(this.ws.activePath()!);
-    } else if (mod && key === 'o') {
-      e.preventDefault();
-      void this.ws.pickAndOpen();
-    } else if (e.key === 'Escape') {
-      if (this.envMenu()) this.envMenu.set(false);
-      else if (this.ws.hover()) this.ws.hover.set(null);
-      else void this.ws.cancel();
-    }
+    if (e.key === 'Escape' && this.envMenu()) this.envMenu.set(false);
+    else if (e.key === 'Escape' && this.ws.hover()) this.ws.hover.set(null);
+    else this.commands.dispatch(e);
   }
 
   @HostListener('document:click', ['$event'])
