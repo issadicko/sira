@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { Choice, SyncOperation } from '../core/model';
-import { dirname } from '../core/paths';
 import { Workspace } from '../core/store';
-import { choiceLabel, isArbitrated, opState, pairingLabel, versionLabel, versionOf } from '../core/sync';
+import { NO_BASE_NOTE, choiceLabel, isArbitrated, opState, pairingLabel, syncedLabel, targetLabel, versionLabel } from '../core/sync';
 import { SyncStore } from '../core/sync-store';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
@@ -14,6 +13,10 @@ import { methodClass, shortMethod } from './method';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { style: 'display: contents' },
+  styles: `
+    .sync-hint { margin: 8px 0 0; color: var(--faint); font-size: 11.5px; }
+    .banner > span { min-width: 0; overflow-wrap: anywhere; }
+  `,
   template: `
     <div class="pane-head">
       <span class="pane-title">Synchro OpenAPI</span>
@@ -28,15 +31,20 @@ import { methodClass, shortMethod } from './method';
       }
     </div>
     @if (sync.plan(); as plan) {
+      @if (sync.error(); as e) {
+        <div class="sync-actions"><div class="banner err" role="alert"><app-ic name="alert" [size]="15" /><span><b>La comparaison a échoué</b> : {{ e }} Le plan affiché est celui de la comparaison précédente.</span></div></div>
+      }
       <div class="sync-src">
         <span class="mono" [title]="plan.source"><app-ic name="file" [size]="13" /><span class="clip-text">{{ plan.source }}</span></span>
-        <span class="muted">{{ versionLabel(plan) }}</span>
+        @if (versionLabel(plan); as version) {
+          <span class="muted">{{ version }}</span>
+        }
       </div>
       @if (ws.demo) {
         <div class="sync-note note"><app-ic name="alert" [size]="14" /><span>Mode démo : plan fictif sur la collection de démo, rien n'est écrit.</span></div>
       }
       @if (!plan.hasBase) {
-        <div class="sync-note note"><app-ic name="alert" [size]="14" /><span>Première synchro : sans base, toute différence est un conflit à arbitrer.</span></div>
+        <div class="sync-note note"><app-ic name="alert" [size]="14" /><span>{{ noBaseNote }}</span></div>
       }
       @if (sync.groups(); as g) {
         <div class="sync-counts">
@@ -78,7 +86,7 @@ import { methodClass, shortMethod } from './method';
                 <span [class]="methodClass(o.method)">{{ shortMethod(o.method) }}</span>
                 <span class="op-path" [title]="o.path">{{ o.path }}</span>
                 <input type="checkbox" class="cb" [checked]="!skipped(o.key)" (change)="sync.toggleSkip(o.key)" [attr.aria-label]="'Créer ' + o.method + ' ' + o.path" />
-                <span class="op-field">{{ skipped(o.key) ? 'ignorée : ne sera pas créée' : target(o) }}</span>
+                <span class="op-field">{{ skipped(o.key) ? 'ignorée : ne sera pas créée' : target(o, plan.groupBy) }}</span>
               </label>
             }
           }
@@ -129,10 +137,21 @@ import { methodClass, shortMethod } from './method';
     } @else if (sync.synced(); as done) {
       <div class="sync-src">
         <span class="mono" [title]="done.source"><app-ic name="file" [size]="13" /><span class="clip-text">{{ done.source }}</span></span>
-        <span class="muted">{{ versionOf(done.to.version) }} · base à jour</span>
+        <span class="muted">{{ syncedLabel(done.to) }}</span>
       </div>
     } @else if (sync.comparing()) {
       <p class="pal-empty"><span class="spinner"></span> Comparaison avec la spec…</p>
+    } @else if (sync.uncompared()) {
+      <div class="sync-src">
+        <span class="mono" [title]="sync.source() ?? ''"><app-ic name="file" [size]="13" /><span class="clip-text">{{ sync.source() }}</span></span>
+        <span class="muted">connectée, pas encore comparée</span>
+      </div>
+      <div class="sync-actions">
+        <button class="btn" (click)="sync.relaunch()"><app-ic name="merge" [size]="14" />Comparer avec la spec</button>
+        @if (sync.remote()) {
+          <p class="sync-hint">Télécharge l'URL de la spec.</p>
+        }
+      </div>
     } @else if (sync.showConnect() || (sync.status() && !sync.connected())) {
       <p class="pal-empty">Cette collection n'est pas connectée à une spec OpenAPI.</p>
       @if (!sync.connecting()) {
@@ -150,7 +169,9 @@ export class SyncSidebar {
   protected readonly shortMethod = shortMethod;
   protected readonly versionLabel = versionLabel;
   protected readonly pairingLabel = pairingLabel;
-  protected readonly versionOf = versionOf;
+  protected readonly syncedLabel = syncedLabel;
+  protected readonly noBaseNote = NO_BASE_NOTE;
+  protected readonly target = targetLabel;
 
   protected label(choice: Choice) {
     return choiceLabel(choice).toLowerCase();
@@ -175,10 +196,5 @@ export class SyncSidebar {
 
   protected recreated(key: string) {
     return this.sync.decisions().recreate.includes(key);
-  }
-
-  protected target(op: SyncOperation) {
-    const folder = op.file ? dirname(op.file) : '';
-    return folder ? `→ ${folder}` : '→ racine';
   }
 }

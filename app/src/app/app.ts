@@ -78,8 +78,9 @@ export class App {
   }
 
   private runSync() {
-    this.show('sync');
-    if (this.sync.connected() && !this.sync.comparing()) void this.sync.relaunch();
+    this.ws.view.set('sync');
+    this.ws.sidebar.set(true);
+    void this.sync.run();
   }
 
   private connectSync() {
@@ -119,9 +120,10 @@ export class App {
   }
 
   private show(view: View) {
+    const reopened = this.ws.view() !== view;
     this.ws.view.set(view);
     this.ws.sidebar.set(true);
-    if (view === 'sync') void this.sync.enter();
+    if (view === 'sync') void this.sync.enter(reopened);
   }
 
   @HostListener('document:keydown', ['$event'])

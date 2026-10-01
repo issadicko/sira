@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, HostListener, inject, signal } from
 import { shortcutLabel } from '../core/commands';
 import { OpenApiPreview } from '../core/model';
 import { Workspace } from '../core/store';
+import { NO_BASE_NOTE } from '../core/sync';
 import { SyncStore } from '../core/sync-store';
 import { Icon } from './icon';
 import { SpecSource } from './spec-source';
@@ -19,7 +20,10 @@ import { SpecSource } from './spec-source';
       <div class="connect-body">
         <span class="empty-ic"><app-ic name="merge" [size]="20" /></span>
         <h2>Connecter une spec OpenAPI</h2>
-        <p>La synchro compare la collection à une spec et fusionne les deux sans rien écraser. Première synchro : sans base, toute différence est un conflit à arbitrer. Rien n'est écrit avant ta validation.</p>
+        <p>La synchro compare la collection à une spec et fusionne les deux sans rien écraser. Rien n'est écrit avant ta validation.</p>
+        @if (!sync.connected()) {
+          <div class="note"><app-ic name="alert" [size]="14" /><span>{{ noBaseNote }}</span></div>
+        }
         @if (ws.demo) {
           <div class="note"><app-ic name="alert" [size]="14" /><span>Mode démo : la comparaison est fictive et ne lit pas la source choisie.</span></div>
         }
@@ -58,6 +62,7 @@ export class SyncConnect {
   protected readonly sync = inject(SyncStore);
   protected readonly ws = inject(Workspace);
   protected readonly confirmKey = shortcutLabel('mod+enter');
+  protected readonly noBaseNote = NO_BASE_NOTE;
   protected readonly source = signal('');
   protected readonly preview = signal<OpenApiPreview | null>(null);
 

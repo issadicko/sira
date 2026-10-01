@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 
 import { shortcutLabel } from '../core/commands';
 import { Choice, SyncChange } from '../core/model';
 import {
+  ADDRESS_HINT,
   CHOICE_LABELS,
   PaneSide,
+  QUERY_DROPPED,
   applyLabel,
   codeLanguage,
   foldRanges,
@@ -15,12 +17,14 @@ import {
   kindTag,
   lensesFor,
   lineCount,
+  noBaseHint,
   paneMarks,
   plural,
   resultMarks,
   sourceName,
   trimEnd,
   versionOf,
+  withoutQuery,
 } from '../core/sync';
 import { SyncStore } from '../core/sync-store';
 import { CodeEditor } from './code-editor';
@@ -36,6 +40,9 @@ import { methodClass } from './method';
   template: `
     @if (plan(); as p) {
       <div class="tabs"><div class="tab" role="tab" aria-selected="true"><app-ic name="merge" [size]="14" /><span class="tab-name">Fusion · {{ specName() }}</span></div></div>
+      @if (sync.error(); as e) {
+        <div class="banner err merge-banner" role="alert"><app-ic name="alert" [size]="15" /><span><b>La comparaison a échoué</b> : {{ e }} Le plan affiché est celui de la comparaison précédente : relance la comparaison avant d'appliquer.</span></div>
+      }
       @if (op(); as o) {
         <div class="view-head">
           <span [class]="methodClass(o.method)" style="width: auto; font-size: 11px">{{ o.method }}</span>
@@ -49,7 +56,7 @@ import { methodClass } from './method';
               <button class="icon-btn sm" (click)="sync.next(1)" aria-label="Conflit suivant" [title]="'Conflit suivant (' + keys.next + ')'"><app-ic name="chev-down" [size]="15" /></button>
             </span>
           }
-          <button class="btn" [class.ghost]="!showBase()" [disabled]="view()?.base == null" [title]="view()?.base == null ? 'Pas de base : première synchro' : 'Afficher la base'" [attr.aria-pressed]="showBase()" (click)="sync.showBase.set(!sync.showBase())">
+          <button class="btn" [class.ghost]="!showBase()" [disabled]="view()?.base == null" [title]="baseTitle()" [attr.aria-pressed]="showBase()" (click)="sync.showBase.set(!sync.showBase())">
             <app-ic name="eye" [size]="14" />Base
           </button>
         </div>
@@ -120,7 +127,10 @@ import { methodClass } from './method';
                   @if (isCode(c)) {
                     <app-code-editor #code class="edit-code" id="edit-value" [language]="language()" [label]="'Valeur de ' + c.label" [value]="editText()" (valueChange)="sync.setEditValue(c.id, $event)" />
                   } @else {
-                    <input #line id="edit-value" class="input mono" type="text" spellcheck="false" autocomplete="off" [value]="editText()" (input)="sync.setEditValue(c.id, $any($event.target).value)" />
+                    <input #line id="edit-value" class="input mono" type="text" spellcheck="false" autocomplete="off" [value]="editText()" (input)="onLine(c, $any($event.target))" />
+                  }
+                  @if (isAddress(c)) {
+                    <span class="edit-hint" [class.is-dropped]="queryDropped()" aria-live="polite">{{ queryDropped() ? queryDroppedNote : addressHint }}</span>
                   }
                 </div>
               }
@@ -167,6 +177,8 @@ import { methodClass } from './method';
     .edit-box { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; border-bottom: 1px solid var(--line); }
     .edit-label { font-size: 12px; color: var(--muted); }
     .edit-label b { color: var(--ink); font-weight: 500; }
+    .edit-hint { font-size: 11.5px; color: var(--faint); }
+    .edit-hint.is-dropped { color: var(--ink); }
     .edit-code { height: 132px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunken); }
     .edit-code:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .merge-banner { margin: 10px 12px 0; }
@@ -182,6 +194,9 @@ export class MergeEditor {
   protected readonly plural = plural;
   protected readonly versionOf = versionOf;
   protected readonly labels = CHOICE_LABELS;
+  protected readonly addressHint = ADDRESS_HINT;
+  protected readonly queryDroppedNote = QUERY_DROPPED;
+  protected readonly queryDropped = signal(false);
   protected readonly keys = { previous: shortcutLabel('alt+arrowup'), next: shortcutLabel('alt+arrowdown') };
   private readonly code = viewChild<CodeEditor>('code');
   private readonly line = viewChild<ElementRef<HTMLInputElement>>('line');
@@ -224,6 +239,10 @@ export class MergeEditor {
     return index < 0 ? plural(total, 'conflit') : `Conflit ${index + 1} sur ${total}`;
   });
   protected readonly baseSub = computed(() => versionOf(this.plan()?.from?.version ?? ''));
+  protected readonly baseTitle = computed(() => {
+    const [plan, op, view] = [this.plan(), this.op(), this.view()];
+    return plan && op && view && view.base == null ? noBaseHint(plan, op) : 'Afficher la base';
+  });
   protected readonly chip = computed(() => {
     const change = this.sync.selectedChange();
     if (!change || change.kind !== 'conflict') return null;
@@ -265,6 +284,7 @@ export class MergeEditor {
 
   constructor() {
     effect(() => {
+      this.queryDropped.set(false);
       if (!this.editing()) return;
       setTimeout(() => (this.code() ?? this.line()?.nativeElement)?.focus());
     });
@@ -284,6 +304,19 @@ export class MergeEditor {
 
   protected isCode(change: SyncChange) {
     return isCodeField(change);
+  }
+
+  protected isAddress(change: SyncChange) {
+    return change.field === 'url';
+  }
+
+  protected onLine(change: SyncChange, input: HTMLInputElement) {
+    const value = this.isAddress(change) ? withoutQuery(input.value) : input.value;
+    if (value !== input.value) {
+      input.value = value;
+      this.queryDropped.set(true);
+    }
+    this.sync.setEditValue(change.id, value);
   }
 
   protected canChoose(choice: Choice) {

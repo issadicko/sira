@@ -1,4 +1,4 @@
-import type { ChangeKind, Choice, Hunk, LineRange, OpStatus, OpView, SyncChange, SyncDecisions, SyncOperation, SyncPlan, SyncReport } from './model';
+import type { ChangeKind, Choice, GroupBy, Hunk, LineRange, OpStatus, OpView, SpecRef, SyncChange, SyncDecisions, SyncOperation, SyncPlan, SyncReport } from './model';
 
 export interface ConflictRef {
   key: string;
@@ -53,6 +53,8 @@ export interface PlanGroups {
   missing: SyncOperation[];
 }
 
+export type Pairing = [removed: string, added: string];
+
 export const CONTEXT_LINES = 3;
 export const MIN_FOLDED_LINES = 3;
 
@@ -64,6 +66,12 @@ export const CHOICE_LABELS: Record<Choice, string> = {
 };
 
 const CHOICE_ORDER: Choice[] = ['team', 'spec', 'both', 'edit'];
+
+export const NO_BASE_NOTE =
+  "Première synchro, sans base : seuls la méthode, l'adresse, le corps et l'authentification qui diffèrent sont des conflits. Paramètres, en-têtes et champs de formulaire : tes valeurs sont gardées, les ajouts de la spec appliqués.";
+
+export const ADDRESS_HINT = 'Sans la query : les paramètres query sont gérés à part.';
+export const QUERY_DROPPED = 'La query a été retirée : les paramètres query sont gérés à part.';
 
 const KIND_LABELS: Record<ChangeKind, string> = {
   applied: 'Appliqué depuis la spec',
@@ -95,6 +103,16 @@ const WRITTEN_AUTO_STATUSES: OpStatus[] = ['updated', 'merged', 'restored'];
 export const noDecisions = (): SyncDecisions => ({ choices: {}, skip: [], recreate: [] });
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
+
+const dotted = (...parts: string[]) => parts.filter(Boolean).join(' · ');
+
+/** Vrai pour une URL http(s), que la comparaison télécharge ; faux pour un fichier. */
+export const isRemoteSource = (source: string | null) => /^https?:\/\//i.test(source ?? '');
+
+/** La vue compare d'elle-même à son ouverture, sauf pour une URL (aucun téléchargement sans demande) et juste après une synchro. */
+export const comparesOnOpen = (source: string | null, afterSync: boolean) => !afterSync && !isRemoteSource(source);
+
+export const withPairing = (pairings: Pairing[], removed: string, added: string): Pairing[] => [...pairings, [removed, added]];
 
 export const choiceLabel = (choice: Choice) => CHOICE_LABELS[choice];
 export const kindLabel = (kind: ChangeKind) => KIND_LABELS[kind];
@@ -142,8 +160,11 @@ export function initialEditValue(change: SyncChange): string {
 }
 
 export function isCodeField(change: SyncChange): boolean {
-  return change.field === 'body';
+  return change.field === 'body' && !change.id.includes('::body/form/');
 }
+
+/** L'adresse sans sa query : le moteur la retire à l'application, les paramètres query se gèrent à part. */
+export const withoutQuery = (address: string) => address.split('?')[0];
 
 export function codeLanguage(text: string): 'json' | 'text' {
   return /^\s*[{[]/.test(text) ? 'json' : 'text';
@@ -240,14 +261,32 @@ export function keepDecisions(previous: SyncPlan | null, next: SyncPlan, decisio
 /** Nom de fichier ou dernier segment d'URL d'une source. */
 export const sourceName = (source: string) => source.split(/[\\/]/).filter(Boolean).pop() ?? source;
 
-export const versionOf = (version: string) => (/^v/i.test(version) ? version : `v${version}`);
+export const versionOf = (version: string) => (!version || /^v/i.test(version) ? version : `v${version}`);
 
-/** « v2.3.0 → v2.4.0 », « v2.4.0 · sans base » à la première synchro, « v2.4.0 · même version » si seule la spec a bougé. */
+/** « v2.3.0 → v2.4.0 », « v2.4.0 · sans base » à la première synchro, « v2.4.0 · même version » si seule la spec a bougé ; rien pour une version vide. */
 export function versionLabel(plan: SyncPlan): string {
   const to = versionOf(plan.to.version);
-  if (!plan.from) return `${to} · sans base`;
+  if (!plan.from) return dotted(to, 'sans base');
   const from = versionOf(plan.from.version);
+  if (!from || !to) return to;
   return from === to ? `${to} · même version` : `${from} → ${to}`;
+}
+
+export const syncedLabel = (to: SpecRef) => dotted(versionOf(to.version), 'base à jour');
+
+/** Infobulle du bouton « Base » quand l'opération n'a pas de base. */
+export function noBaseHint(plan: SyncPlan, op: SyncOperation): string {
+  if (!plan.hasBase) return 'Pas de base : première synchro';
+  if (op.status === 'restored') return 'Pas de base : opération revenue dans la spec après avoir été retirée';
+  if (op.status === 'new') return 'Pas de base : opération nouvelle dans la spec';
+  return 'Pas de base pour cette opération';
+}
+
+/** Où sera créée une nouvelle opération : son dossier si le plan le connaît, sinon celui que l'application choisira. */
+export function targetLabel(op: SyncOperation, groupBy: GroupBy): string {
+  if (op.file === null) return groupBy === 'path' ? '→ dossier de son chemin' : '→ dossier de son tag';
+  const slash = op.file.lastIndexOf('/');
+  return slash < 0 ? '→ racine' : `→ ${op.file.slice(0, slash)}`;
 }
 
 export function pairingLabel(plan: SyncPlan, key: string): string {

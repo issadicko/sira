@@ -40,6 +40,7 @@ interface DemoOp {
   method: string;
   path: string;
   file: string | null;
+  target?: string;
   status: OpStatus;
   segments: Segment[];
 }
@@ -50,6 +51,7 @@ interface DemoPlan {
 }
 
 const SOURCE = './spec/paiements.openapi.yml';
+const PLAN_MISSING = 'plan introuvable : relancer la comparaison';
 const PAIRING = { removed: 'GET /transactions/export', added: 'GET /transactions/exports' };
 const DEFAULT_CHOICES: Partial<Record<SyncChange['field'], Choice[]>> = { body: ['team', 'spec', 'both', 'edit'], url: ['team', 'spec', 'edit'] };
 
@@ -123,7 +125,6 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
     op('transactions/detail.yml', 'getTransaction', 'conflict', [
       ...info(detail, 3),
       urlLine(detail),
-      ...params(detail),
       {
         id: 'header/x-canal',
         field: 'header',
@@ -136,6 +137,7 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
         choices: ['team', 'spec'],
         render: header('X-Canal'),
       },
+      ...params(detail),
       ...tail(detail),
     ]),
     op('transactions/annuler.yml', 'cancelTransaction', 'conflict', [
@@ -224,7 +226,6 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
     op('transactions/justificatif.yml', 'attachProof', 'updated', [
       ...info(proof, 6),
       urlLine(proof),
-      ...params(proof),
       {
         id: 'header/accept',
         field: 'header',
@@ -236,6 +237,7 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
         theirs: 'application/json',
         render: lines((v) => ['  headers:', ...headerItem('Accept')(v)]),
       },
+      ...params(proof),
       '  body:',
       '    type: multipart-form',
       ...tail(proof),
@@ -262,7 +264,8 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
       name: 'Créer un remboursement',
       method: 'POST',
       path: '/remboursements',
-      file: 'remboursements/Créer un remboursement.yml',
+      file: null,
+      target: 'remboursements/Créer un remboursement.yml',
       status: 'new',
       segments: [],
     },
@@ -271,20 +274,23 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
       name: "Détail d'un remboursement",
       method: 'GET',
       path: '/remboursements/{id}',
-      file: "remboursements/Détail d'un remboursement.yml",
+      file: null,
+      target: "remboursements/Détail d'un remboursement.yml",
       status: 'new',
       segments: [],
     },
     ...(paired
       ? []
-      : [{ key: PAIRING.added, name: 'Export des transactions', method: 'GET', path: '/transactions/exports', file: 'transactions/Export des transactions.yml', status: 'new' as const, segments: [] }]),
+      : [{ key: PAIRING.added, name: 'Export des transactions', method: 'GET', path: '/transactions/exports', file: null, target: 'transactions/Export des transactions.yml', status: 'new' as const, segments: [] }]),
     { key: 'getClient', name: "Détail d'un client", method: 'GET', path: '/clients/{id}', file: 'clients/detail.yml', status: 'missing', segments: [] },
   ];
 
+  const isKeyed = (c: Chunk) => c.field === 'param' || c.field === 'header' || c.id.startsWith('body/form/');
+
   const withoutBase = (c: Chunk): Chunk | null => {
     if (c.ours === c.theirs) return null;
-    const keyed = c.field === 'param' || c.field === 'header';
-    return { ...c, base: null, kind: keyed ? (c.ours === null ? 'applied' : 'kept') : 'conflict' };
+    if (!isKeyed(c)) return { ...c, base: null, kind: 'conflict' };
+    return c.theirs === null ? null : { ...c, base: null, kind: c.ours === null ? 'applied' : 'kept' };
   };
 
   const noBaseStatus = (chunks: Chunk[]): OpStatus => {
@@ -411,19 +417,20 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
     syncOpView: async (planId, key, decisions) => {
       const plan = plans.get(planId);
       const o = plan?.ops.find((x) => x.key === key);
-      if (!plan || !o) return Promise.reject('Plan inconnu : relance la comparaison.');
+      if (!plan) return Promise.reject(PLAN_MISSING);
+      if (!o) return Promise.reject(`opération inconnue : ${key}`);
       return compose(o, decisions, plan.noBase);
     },
     syncApply: async (planId, decisions) => {
       const plan = plans.get(planId);
-      if (!plan) return Promise.reject('Plan inconnu : relance la comparaison.');
+      if (!plan) return Promise.reject(PLAN_MISSING);
       const open = plan.ops.flatMap((o) => chunksOf(o).filter((c) => c.kind === 'conflict').map((c) => changeId(o, c))).filter((id) => !decisions.choices[id]);
-      if (open.length) return Promise.reject(`Il reste ${open.length} conflit(s) à arbitrer.`);
+      if (open.length) return Promise.reject(`${open.length} conflit(s) sans choix : ${open.join(', ')}`);
       plans.delete(planId);
       const withFile = (statuses: OpStatus[]) => plan.ops.filter((o) => statuses.includes(o.status)).map((o) => o.file);
       const report: SyncReport = {
         written: withFile(['updated', 'merged', 'restored', 'conflict']).filter((f): f is string => !!f),
-        created: plan.ops.filter((o) => o.status === 'new' && !decisions.skip.includes(o.key)).flatMap((o) => (o.file ? [o.file] : [])),
+        created: plan.ops.filter((o) => o.status === 'new' && !decisions.skip.includes(o.key)).flatMap((o) => (o.target ? [o.target] : [])),
         removed: withFile(['removed']).filter((f): f is string => !!f),
         ignored: plan.ops.filter((o) => (o.status === 'new' && decisions.skip.includes(o.key)) || (o.status === 'missing' && !decisions.recreate.includes(o.key))).map((o) => o.key),
       };

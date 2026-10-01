@@ -7,6 +7,7 @@ import {
   Selection,
   applyCount,
   choose,
+  comparesOnOpen,
   conflictPaths,
   conflictRefs,
   conflictsLeft,
@@ -14,6 +15,7 @@ import {
   firstSelection,
   groupOps,
   initialEditValue,
+  isRemoteSource,
   isValidSelection,
   keepDecisions,
   noDecisions,
@@ -23,6 +25,7 @@ import {
   stepConflict,
   toggleSkip,
   touchedFiles,
+  withPairing,
 } from './sync';
 
 const EDIT_DELAY_MS = 200;
@@ -51,9 +54,12 @@ export class SyncStore {
   readonly error = signal<string | null>(null);
   readonly viewError = signal<string | null>(null);
   readonly synced = signal<Synced | null>(null);
+  readonly uncompared = signal(false);
 
   readonly root = computed(() => this.ws.collection()?.root ?? null);
   readonly connected = computed(() => !!this.status()?.connected);
+  readonly source = computed(() => this.status()?.source ?? null);
+  readonly remote = computed(() => isRemoteSource(this.source()));
   readonly showConnect = computed(() => this.connecting() || (!!this.status() && !this.connected() && !this.plan() && !this.synced()));
   readonly refs = computed(() => {
     const plan = this.plan();
@@ -104,6 +110,7 @@ export class SyncStore {
     this.error.set(null);
     this.viewError.set(null);
     this.synced.set(null);
+    this.uncompared.set(false);
     if (root) void this.refreshStatus();
   }
 
@@ -119,10 +126,25 @@ export class SyncStore {
     }
   }
 
-  /** Ouvre la vue : compare avec la spec enregistrée si la collection est connectée et qu'aucun plan n'existe. */
-  async enter() {
+  /**
+   * Ouvre la vue : compare avec la spec enregistrée si la collection est connectée et qu'aucun plan n'existe, sauf
+   * pour une URL ou juste après une synchro réussie, où la comparaison attend le bouton. `reopened` est faux quand
+   * la vue est déjà affichée : le bilan de la synchro reste alors à l'écran.
+   */
+  async enter(reopened = true) {
     if (!this.status()) await this.refreshStatus();
-    if (this.connected() && !this.plan() && !this.synced() && !this.comparing() && !this.error() && !this.connecting()) await this.compare();
+    const afterSync = reopened && !!this.synced();
+    if (afterSync) this.synced.set(null);
+    const idle = this.connected() && !this.plan() && !this.synced() && !this.comparing() && !this.error() && !this.connecting() && !this.uncompared();
+    if (!idle) return;
+    if (comparesOnOpen(this.source(), afterSync)) await this.compare();
+    else this.uncompared.set(true);
+  }
+
+  /** Comparaison demandée par la commande « Lancer la synchro », quelle que soit la source enregistrée. */
+  async run() {
+    if (!this.status()) await this.refreshStatus();
+    if (this.connected() && !this.comparing()) await this.relaunch();
   }
 
   beginConnect() {
@@ -133,6 +155,7 @@ export class SyncStore {
   cancelConnect() {
     this.connecting.set(false);
     this.error.set(null);
+    if (this.connected() && !this.plan() && !this.synced()) this.uncompared.set(true);
   }
 
   /** Première comparaison avec une source choisie : sans base, la collection n'est pas encore connectée. */
@@ -148,9 +171,11 @@ export class SyncStore {
     return this.compare();
   }
 
-  pair(removed: string, added: string) {
-    this.pairings.update((p) => [...p, [removed, added]]);
-    return this.compare();
+  async pair(removed: string, added: string) {
+    const before = this.pairings();
+    this.pairings.set(withPairing(before, removed, added));
+    await this.compare();
+    if (this.error()) this.pairings.set(before);
   }
 
   private async compare() {
@@ -158,6 +183,7 @@ export class SyncStore {
     if (!root) return;
     const seq = ++this.planSeq;
     this.comparing.set(true);
+    this.uncompared.set(false);
     this.error.set(null);
     try {
       const previous = this.plan();
@@ -245,6 +271,7 @@ export class SyncStore {
     this.pairings.set([]);
     this.requestedSource = null;
     this.comparing.set(false);
+    this.uncompared.set(false);
     this.error.set(null);
   }
 

@@ -3,10 +3,12 @@ import { test } from 'node:test';
 
 import type { Hunk, OpStatus, OpView, SyncChange, SyncDecisions, SyncOperation, SyncPlan } from './model.ts';
 import {
+  NO_BASE_NOTE,
   applyCount,
   applyLabel,
   choose,
   codeLanguage,
+  comparesOnOpen,
   conflictPaths,
   conflictRefs,
   conflictsLeft,
@@ -17,11 +19,14 @@ import {
   groupOps,
   initialEditValue,
   isArbitrated,
+  isCodeField,
+  isRemoteSource,
   isUpToDate,
   isValidSelection,
   keepDecisions,
   lensesFor,
   lineCount,
+  noBaseHint,
   noDecisions,
   opState,
   paneMarks,
@@ -32,10 +37,15 @@ import {
   sourceName,
   specStatus,
   stepConflict,
+  syncedLabel,
+  targetLabel,
   toggleSkip,
   touchedFiles,
   trimEnd,
   versionLabel,
+  versionOf,
+  withPairing,
+  withoutQuery,
 } from './sync.ts';
 
 const change = (id: string, kind: SyncChange['kind'], extra: Partial<SyncChange> = {}): SyncChange => ({
@@ -435,4 +445,79 @@ test('ef_syn_06_bilan_apres_application_accorde_et_omet_les_postes_vides', () =>
   assert.equal(reportSummary({ written: ['a.yml', 'b.yml'], created: [], removed: [], ignored: [] }), '2 requêtes modifiées');
   assert.equal(reportSummary({ written: [], created: [], removed: [], ignored: ['x'] }), 'Aucune requête modifiée');
   assert.deepEqual(touchedFiles({ written: ['a.yml'], created: ['b.yml'], removed: ['d.yml'], ignored: ['e'] }), ['a.yml', 'b.yml', 'd.yml']);
+});
+
+test('ef_syn_05_ouverture_ne_telecharge_jamais_une_url_sans_demande', () => {
+  assert.equal(isRemoteSource('https://api.example.com/openapi.json'), true);
+  assert.equal(isRemoteSource('HTTP://api.example.com/openapi.json'), true);
+  assert.equal(isRemoteSource('./spec/openapi.yml'), false);
+  assert.equal(isRemoteSource('C:\\specs\\https.yml'), false);
+  assert.equal(isRemoteSource('httpsfoo/openapi.yml'), false);
+  assert.equal(isRemoteSource(null), false);
+  assert.equal(comparesOnOpen('./spec/openapi.yml', false), true);
+  assert.equal(comparesOnOpen('https://api.example.com/openapi.json', false), false);
+});
+
+test('ef_syn_05_ouverture_apres_une_synchro_attend_le_bouton_meme_pour_un_fichier', () => {
+  assert.equal(comparesOnOpen('./spec/openapi.yml', true), false);
+  assert.equal(comparesOnOpen('https://api.example.com/openapi.json', true), false);
+});
+
+test('ef_syn_01_rapprochement_est_retire_en_revenant_a_la_liste_d_avant', () => {
+  const before: [string, string][] = [['a', 'b']];
+  const after = withPairing(before, 'c', 'd');
+  assert.deepEqual(after, [['a', 'b'], ['c', 'd']]);
+  assert.deepEqual(before, [['a', 'b']]);
+  assert.deepEqual(withPairing([], 'c', 'd'), [['c', 'd']]);
+});
+
+test('ef_syn_02_nouvelle_operation_sans_fichier_annonce_le_dossier_de_son_tag_ou_de_son_chemin', () => {
+  assert.equal(targetLabel(op('n', 'new', [], { file: null }), 'tags'), '→ dossier de son tag');
+  assert.equal(targetLabel(op('n', 'new', [], { file: null }), 'path'), '→ dossier de son chemin');
+  assert.equal(targetLabel(op('n', 'new', [], { file: 'remboursements/Créer.yml' }), 'tags'), '→ remboursements');
+  assert.equal(targetLabel(op('n', 'new', [], { file: 'a/b/Créer.yml' }), 'path'), '→ a/b');
+  assert.equal(targetLabel(op('n', 'new', [], { file: 'Créer.yml' }), 'tags'), '→ racine');
+});
+
+test('ef_syn_04_champ_de_formulaire_s_edite_sur_une_ligne_et_le_corps_dans_l_editeur_de_code', () => {
+  assert.equal(isCodeField(change('op::body', 'conflict', { field: 'body' })), true);
+  assert.equal(isCodeField(change('op::body/form/client_id', 'conflict', { field: 'body' })), false);
+  assert.equal(isCodeField(change('GET /pets/{}::body/form/nom', 'conflict', { field: 'body' })), false);
+  assert.equal(isCodeField(change('op::url', 'conflict', { field: 'url' })), false);
+  assert.equal(isCodeField(change('op::header/accept', 'conflict', { field: 'header' })), false);
+});
+
+test('ef_syn_04_adresse_saisie_a_la_main_perd_sa_query', () => {
+  assert.equal(withoutQuery('{{baseUrl}}/paiements?page=2&taille=10'), '{{baseUrl}}/paiements');
+  assert.equal(withoutQuery('{{baseUrl}}/paiements?'), '{{baseUrl}}/paiements');
+  assert.equal(withoutQuery('?page=2'), '');
+  assert.equal(withoutQuery('{{baseUrl}}/paiements/:id'), '{{baseUrl}}/paiements/:id');
+  assert.equal(withoutQuery(''), '');
+});
+
+test('ef_syn_05_version_vide_n_affiche_rien', () => {
+  const unversioned = { title: 'API', version: '' };
+  assert.equal(versionOf(''), '');
+  assert.equal(versionOf('2.4.0'), 'v2.4.0');
+  assert.equal(versionOf('v2.4.0'), 'v2.4.0');
+  assert.equal(versionLabel(plan([], { to: unversioned })), '');
+  assert.equal(versionLabel(plan([], { from: unversioned })), 'v2.4.0');
+  assert.equal(versionLabel(plan([], { from: unversioned, to: unversioned })), '');
+  assert.equal(versionLabel(plan([], { from: null, to: unversioned })), 'sans base');
+  assert.equal(syncedLabel({ title: 'API', version: '2.4.0' }), 'v2.4.0 · base à jour');
+  assert.equal(syncedLabel(unversioned), 'base à jour');
+});
+
+test('ef_syn_04_infobulle_de_la_base_dit_pourquoi_il_n_y_en_a_pas', () => {
+  assert.equal(noBaseHint(plan([], { hasBase: false }), op('a', 'conflict')), 'Pas de base : première synchro');
+  assert.match(noBaseHint(plan([]), op('a', 'restored')), /revenue dans la spec/);
+  assert.match(noBaseHint(plan([]), op('a', 'new')), /nouvelle dans la spec/);
+  assert.equal(noBaseHint(plan([]), op('a', 'updated')), 'Pas de base pour cette opération');
+  assert.doesNotMatch(noBaseHint(plan([]), op('a', 'restored')), /première synchro/);
+});
+
+test('ef_syn_04_note_sans_base_ne_dit_pas_que_toute_difference_est_un_conflit', () => {
+  assert.match(NO_BASE_NOTE, /méthode.*adresse.*corps.*authentification/);
+  assert.match(NO_BASE_NOTE, /paramètres, en-têtes et champs de formulaire/i);
+  assert.doesNotMatch(NO_BASE_NOTE, /toute différence/);
 });
