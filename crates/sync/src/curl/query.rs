@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 
-use super::js::{decode_uri_component_utf16, js_trim, replace_all, utf16, JsObject};
+use crate::js::{decode_uri_component_utf16, replace_all_utf16, trim, utf16, JsObject};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct QueryParam {
@@ -40,7 +40,7 @@ pub(crate) fn parse_query_params(query: Option<&str>) -> Vec<QueryParam> {
 pub(crate) fn build_query_string(params: &[QueryParam]) -> String {
     params
         .iter()
-        .filter(|p| !js_trim(&p.name).is_empty())
+        .filter(|p| !trim(&p.name).is_empty())
         .map(|p| match &p.value {
             Some(value) => format!("{}={value}", p.name),
             None => p.name.clone(),
@@ -78,7 +78,7 @@ impl QsValue {
 /// `queryString.parse(query, { sort: false })`.
 pub(crate) fn query_string_parse(query: &str) -> JsObject<QsValue> {
     let mut result = JsObject::null_proto();
-    let query = js_trim(query);
+    let query = trim(query);
     let query = query.strip_prefix(['?', '#', '&']).unwrap_or(query);
     if query.is_empty() {
         return result;
@@ -127,7 +127,7 @@ fn custom_decode(mut input: Vec<u16>) -> Vec<u16> {
     }
     set(utf16("%C2"), utf16("\u{FFFD}"), &mut replacements);
     for (key, value) in &replacements {
-        input = replace_all(&input, key, value);
+        input = replace_all_utf16(&input, key, value);
     }
     input
 }

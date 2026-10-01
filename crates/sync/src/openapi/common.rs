@@ -8,8 +8,9 @@ use std::sync::LazyLock;
 use regex::Regex;
 use serde_json::{json, Map, Value};
 
-use super::js::{collapse_spaces, is_space, js_order, number_value, string_to_number, trim, type_error, Heap, Js};
+use super::heap::{type_error, Heap, Js};
 use super::R;
+use crate::js::{collapse_spaces, is_js_space, js_order, number_value, string_to_number, trim};
 
 const MAX_DEPTH: usize = 400;
 
@@ -60,7 +61,7 @@ pub fn to_spec_string(v: &Js) -> String {
 
 pub fn normalize_item_name(name: &str) -> String {
     let collapsed = collapse_spaces(name, " ");
-    trim(&collapsed).trim_end_matches(|c: char| c == '.' || is_space(c)).to_owned()
+    trim(&collapsed).trim_end_matches(|c: char| c == '.' || is_js_space(c)).to_owned()
 }
 
 /// `name`, sinon `name (MÉTHODE)`, sinon `name (n)`.

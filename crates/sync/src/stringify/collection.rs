@@ -3,8 +3,9 @@
 use serde_json::Value as Json;
 use xc_core::yaml::{Map, Value};
 
+use super::access::{get, has_length, is_false, is_true, or, yaml};
 use super::common::{map, markdown_docs, put, put_some, request_defaults};
-use super::js::{get, has_length, is_false, is_true, or, string, truthy, yaml};
+use crate::js::{string, trim, truthy};
 
 pub fn folder(root: &Json) -> Map {
     let meta = root.get("meta");
@@ -26,7 +27,7 @@ pub fn folder(root: &Json) -> Map {
 fn normalize_tags(tags: Option<&Json>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for tag in tags.and_then(Json::as_array).into_iter().flatten().filter_map(Json::as_str) {
-        let tag = super::js::trim(tag);
+        let tag = trim(tag);
         if !tag.is_empty() && !out.iter().any(|t| t == tag) {
             out.push(tag.to_owned());
         }

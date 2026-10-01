@@ -2,7 +2,7 @@
 //! est indenté par `format` de `jsonc-parser` 3 (2 espaces), ou par `fast-json-format` si une ligne dépasse
 //! 20 000 caractères.
 
-use super::js::{replace_all, utf16, utf16_len};
+use crate::js::{replace_all_utf16, utf16, utf16_len};
 
 const LONG_LINE_LIMIT: usize = 20_000;
 
@@ -11,7 +11,7 @@ pub(crate) fn prettify_json_string(text: &str) -> String {
     let formatted = if has_long_line(text) { fast_json_format(&hashed) } else { jsonc_format(&hashed) };
     let mut restored = utf16(&formatted);
     for (hash, original) in &originals {
-        restored = replace_all(&restored, &utf16(hash), &utf16(original));
+        restored = replace_all_utf16(&restored, &utf16(hash), &utf16(original));
     }
     String::from_utf16_lossy(&restored)
 }

@@ -3,14 +3,12 @@
 use serde_json::Value as Json;
 use xc_core::yaml::{Map, Value};
 
+use super::access::{get, has_length, is_false, is_true, non_empty, non_empty_array, nullish, or, yaml};
 use super::auth::auth;
 use super::common::{
     actions, assertions, body, headers, map, params, put, put_some, response_headers, scripts, variables,
 };
-use super::js::{
-    get, has_length, is_false, is_true, json_pretty, non_empty, non_empty_array, nullish, or, to_number, trim, truthy,
-    yaml,
-};
+use crate::js::{json_stringify, to_number, trim, truthy};
 
 pub fn http(item: &Json) -> Map {
     let req = item.get("request");
@@ -144,7 +142,7 @@ fn example(ex: &Json) -> Value {
         put_some(&mut r, "headers", response_headers(get(response, "headers")));
         let body = get(response, "body");
         if let (true, true, Some(content)) = (truthy(body), truthy(get(body, "type")), get(body, "content")) {
-            let data = content.as_str().map_or_else(|| json_pretty(content), str::to_owned);
+            let data = content.as_str().map_or_else(|| json_stringify(content, true), str::to_owned);
             put(
                 &mut r,
                 "body",

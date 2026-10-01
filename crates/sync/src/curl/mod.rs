@@ -6,7 +6,6 @@
 
 mod content_type;
 mod domain;
-mod js;
 mod json;
 mod node_url;
 mod parse;
@@ -17,10 +16,11 @@ mod to_json;
 
 use serde_json::{json, Map, Value};
 
-pub use js::JsError;
+pub use crate::js::JsError;
 pub use parse::{parse_curl_command, ParsedCurl};
 pub use to_json::{curl_to_json, CurlJson};
 
+use crate::js::{json_stringify, truthy};
 use content_type::{is_json_like, is_plain_text, is_xml_like};
 use json::JsonValue;
 use shell::Token;
@@ -53,7 +53,7 @@ fn bruno_request(request: CurlJson, request_type: &str) -> Value {
     for key in ["json", "text", "xml", "sparql", "multipartForm", "formUrlEncoded", "graphql", "file"] {
         body.insert(key.into(), Value::Null);
     }
-    if let Some(parsed) = request.data.as_ref().filter(|d| js::truthy(d)) {
+    if let Some(parsed) = request.data.as_ref().filter(|d| truthy(*d)) {
         if let Some((mode, value)) = body_for(parsed, content_type, request_type, request.is_data_binary) {
             body.insert("mode".into(), json!(mode));
             body.insert(mode.into(), value);
@@ -145,7 +145,7 @@ fn graphql(parsed: &Value) -> Value {
         map.insert("query".into(), query.to_value());
     }
     if let Some(variables) = document.get("variables") {
-        map.insert("variables".into(), json!(json::stringify_pretty(variables)));
+        map.insert("variables".into(), json!(json_stringify(&variables.to_value(), true)));
     }
     Value::Object(map)
 }

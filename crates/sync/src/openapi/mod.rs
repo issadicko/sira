@@ -6,7 +6,7 @@
 //! avec ses caches. Chaque requête porte en plus une clé d'opération (`operationKey`).
 
 mod common;
-mod js;
+mod heap;
 mod resolve;
 mod v2;
 mod v3;
@@ -16,7 +16,8 @@ mod yaml;
 use serde::Serialize;
 use serde_json::Value;
 
-use js::{Heap, Js};
+use crate::js;
+use heap::{type_error, Heap, Js};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpenApiError {
@@ -48,7 +49,7 @@ pub fn load_spec(text: &str) -> Result<Value, OpenApiError> {
 /// près (`uid`, `itemUid` absents) ; chaque requête porte en dernier sa clé `operationKey`.
 pub fn to_bruno(spec: &Value, group_by: GroupBy) -> Result<Value, OpenApiError> {
     if spec.is_null() {
-        return Err(js::type_error("la spécification est nulle"));
+        return Err(type_error("la spécification est nulle"));
     }
     let heap = Heap::default();
     let collection = if is_swagger2(&heap, spec) {
@@ -84,7 +85,7 @@ pub fn summary(spec: &Value) -> SpecSummary {
     let heap = Heap::default();
     let swagger = is_swagger2(&heap, spec);
     let text = |v: Option<&Value>| match v {
-        Some(Value::String(s)) => Some(s.trim().to_owned()),
+        Some(Value::String(s)) => Some(js::trim(s).to_owned()),
         Some(Value::Number(n)) => n.as_f64().map(js::number_to_string),
         _ => None,
     };
@@ -92,7 +93,7 @@ pub fn summary(spec: &Value) -> SpecSummary {
     let methods: &[&str] = if swagger { &v2::METHODS } else { &v3::METHODS };
     let mut tags: Vec<String> = Vec::new();
     let mut add_tag = |t: &str| {
-        let t = t.trim();
+        let t = js::trim(t);
         if !t.is_empty() && !tags.iter().any(|x| x == t) {
             tags.push(t.to_owned());
         }
@@ -125,7 +126,7 @@ pub fn summary(spec: &Value) -> SpecSummary {
         let urls = spec.get("servers").and_then(Value::as_array).into_iter().flatten();
         urls.filter_map(|s| s.get("url").and_then(Value::as_str).map(str::to_owned)).collect()
     };
-    let title = info.and_then(|i| i.get("title")).and_then(Value::as_str).map(str::trim).unwrap_or_default();
+    let title = info.and_then(|i| i.get("title")).and_then(Value::as_str).map(js::trim).unwrap_or_default();
     SpecSummary {
         title: if title.is_empty() { "Untitled Collection".into() } else { title.to_owned() },
         version: text(info.and_then(|i| i.get("version"))),

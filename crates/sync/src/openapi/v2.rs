@@ -9,7 +9,7 @@ use super::common::{
     group_by_tags, handle_body, merge_params, object, operation_name, sanitize_tags, str_of, to_spec_string,
     unique_name, Body, Draft, Example, Handler, Item, Request,
 };
-use super::js::{type_error, Heap, Js};
+use super::heap::{type_error, Heap, Js};
 use super::resolve::{resolve, Flavor};
 use super::v3::{collection_name, first_key};
 use super::{GroupBy, R};

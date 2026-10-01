@@ -3,11 +3,11 @@
 //! Chaque fonction prend le JSON de Bruno, tel que le produisent ses convertisseurs, et rend le
 //! fichier YAML identique à l'octet près à celui qu'écrit Bruno.
 
+mod access;
 mod auth;
 mod collection;
 mod common;
 mod environment;
-mod js;
 mod request;
 
 use serde_json::Value as Json;

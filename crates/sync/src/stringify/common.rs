@@ -3,10 +3,8 @@
 use serde_json::Value as Json;
 use xc_core::yaml::{Map, Value};
 
-use super::js::{
-    ensure_string, get, has_length, is_false, json_pretty, non_empty, non_empty_array, nullish, or, string, trim,
-    truthy, yaml,
-};
+use super::access::{ensure_string, get, has_length, is_false, non_empty, non_empty_array, nullish, or, yaml};
+use crate::js::{json_stringify, string, trim, truthy};
 
 pub fn put(m: &mut Map, key: &str, value: Value) {
     m.set(key, value, &[]);
@@ -117,7 +115,7 @@ fn multipart_entry(e: &Json) -> Map {
 /// `serializeVariableValue`.
 pub fn variable_value(v: Option<&Json>) -> String {
     match v {
-        Some(o @ (Json::Object(_) | Json::Array(_))) => json_pretty(o),
+        Some(o @ (Json::Object(_) | Json::Array(_))) => json_stringify(o, true),
         Some(Json::Null) | None => String::new(),
         Some(other) => string(other),
     }

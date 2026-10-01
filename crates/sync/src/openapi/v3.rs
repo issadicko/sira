@@ -10,9 +10,10 @@ use super::common::{
     group_by_tags, handle_body, merge_params, normalize_item_name, object, operation_name, sanitize_tags, str_of,
     to_spec_string, unique_name, Body, Draft, Example, Handler, Item, Request,
 };
-use super::js::{replace_all, substitute, trim, type_error, Heap, Js};
+use super::heap::{type_error, Heap, Js};
 use super::resolve::{resolve, Flavor};
 use super::{GroupBy, R};
+use crate::js::{expand_replacement, replace_all, trim, utf16};
 
 pub const METHODS: [&str; 8] = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
 
@@ -193,22 +194,23 @@ fn requests(h: &Heap, spec: &Js) -> R<Vec<Request>> {
 
 /// `path.replace(/{([a-zA-Z]+)}/g, '{{<operationId>_$1}}')`
 fn link_variables(path: &str, operation_id: &str) -> String {
-    let replacement = format!("{{{{{operation_id}_$1}}}}");
-    let mut out = String::new();
+    let input = utf16(path);
+    let replacement = utf16(&format!("{{{{{operation_id}_$1}}}}"));
+    let is_letter = |unit: &u16| u8::try_from(*unit).is_ok_and(|b| b.is_ascii_alphabetic());
+    let mut out = Vec::with_capacity(input.len());
     let mut i = 0;
-    while i < path.len() {
-        let rest = &path[i..];
-        let letters = rest.strip_prefix('{').map_or(0, |r| r.bytes().take_while(u8::is_ascii_alphabetic).count());
-        if letters > 0 && rest.as_bytes().get(letters + 1) == Some(&b'}') {
-            out.push_str(&substitute(&replacement, path, i, i + letters + 2, &[&rest[1..=letters]]));
+    while i < input.len() {
+        let letters =
+            if input[i] == u16::from(b'{') { input[i + 1..].iter().take_while(|u| is_letter(u)).count() } else { 0 };
+        if letters > 0 && input.get(i + letters + 1) == Some(&u16::from(b'}')) {
+            expand_replacement(&mut out, &replacement, &input, i..i + letters + 2, &[&input[i + 1..=i + letters]]);
             i += letters + 2;
         } else {
-            let c = rest.chars().next().unwrap_or_default();
-            out.push(c);
-            i += c.len_utf8();
+            out.push(input[i]);
+            i += 1;
         }
     }
-    out
+    String::from_utf16_lossy(&out)
 }
 
 struct Converter<'a> {

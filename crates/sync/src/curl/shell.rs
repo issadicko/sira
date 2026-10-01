@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 
-use super::js::{is_js_whitespace, JsError};
+use crate::js::{is_js_space, push_char, JsError};
 
 /// Élément produit par `shell-quote` : un mot ou l'un de ses objets (`{op}`, `{op: 'glob'}`, `{comment}`).
 #[derive(Clone, Debug, PartialEq)]
@@ -149,7 +149,7 @@ fn bareword_unit(s: &[char], r: usize) -> Option<usize> {
         let opens_ansi_c = next == Some('\'') && ansi_c_quote_end(s, r).is_some();
         return (!opens_ansi_c).then_some(r + 1);
     }
-    (!is_js_whitespace(c) && !BAREWORD_EXCLUDED.contains(&c)).then_some(r + 1)
+    (!is_js_space(c) && !BAREWORD_EXCLUDED.contains(&c)).then_some(r + 1)
 }
 
 fn scan_chunk(
@@ -299,8 +299,7 @@ fn expand_ansi_c(body: &[char]) -> String {
                 continue;
             }
         }
-        let mut buf = [0u16; 2];
-        out.extend_from_slice(body[i].encode_utf16(&mut buf));
+        push_char(&mut out, body[i]);
         i += 1;
     }
     let end = out.iter().position(|&u| u == 0).unwrap_or(out.len());
