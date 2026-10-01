@@ -1,13 +1,13 @@
 //! Appariement des opérations (EF-SYN-01) : chemins normalisés pour connecter une collection sans base,
 //! et rapprochements proposés quand un chemin change sans `operationId`.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
 use xc_core::{open_collection, RequestDoc, TreeItem};
 
 use super::specs::Op;
-use super::{Fate, Item, OpStatus, Pairing, SyncError};
+use super::{Base, Fate, Item, OpStatus, Pairing, SyncError};
 use crate::store::Entry;
 
 /// Le chemin d'une URL : sans `{{variables}}` en tête, sans schéma ni hôte, sans query.
@@ -60,10 +60,15 @@ pub(super) fn display(url: &str) -> String {
     }
 }
 
-/// Sans `source.yml` : chaque opération de la spec est rapprochée de la requête de la collection qui a la même
-/// méthode et le même chemin normalisé ; un rapprochement ambigu n'est pas fait.
-pub(super) fn connect(root: &Path, specs: &[Op]) -> Result<Vec<Entry>, SyncError> {
-    let mut files: HashMap<(String, String), Vec<String>> = HashMap::new();
+type Key = (String, String);
+
+fn key_of(doc: &RequestDoc) -> Key {
+    (doc.method.clone(), normalize(&doc.url))
+}
+
+/// Chemins relatifs des requêtes HTTP lisibles de la collection, par méthode et chemin normalisé.
+fn requests(root: &Path) -> Result<HashMap<Key, Vec<String>>, SyncError> {
+    let mut files: HashMap<Key, Vec<String>> = HashMap::new();
     let mut stack = open_collection(root)?.items;
     while let Some(item) = stack.pop() {
         match item {
@@ -74,11 +79,23 @@ pub(super) fn connect(root: &Path, specs: &[Op]) -> Result<Vec<Entry>, SyncError
             TreeItem::Request { .. } => {}
         }
     }
-    let key_of = |doc: &RequestDoc| (doc.method.clone(), normalize(&doc.url));
-    let mut wanted: HashMap<(String, String), usize> = HashMap::new();
+    Ok(files)
+}
+
+/// Nombre d'opérations de la spec pour chaque méthode et chemin normalisé.
+fn wanted(specs: &[Op]) -> HashMap<Key, usize> {
+    let mut wanted = HashMap::new();
     for op in specs {
         *wanted.entry(key_of(&op.doc)).or_default() += 1;
     }
+    wanted
+}
+
+/// Sans `source.yml` : chaque opération de la spec est rapprochée de la requête de la collection qui a la même
+/// méthode et le même chemin normalisé ; un rapprochement ambigu n'est pas fait.
+pub(super) fn connect(root: &Path, specs: &[Op]) -> Result<Vec<Entry>, SyncError> {
+    let files = requests(root)?;
+    let wanted = wanted(specs);
     let matched = specs.iter().filter_map(|op| {
         let key = key_of(&op.doc);
         match (wanted[&key], files.get(&key).map(Vec::as_slice)) {
@@ -89,12 +106,61 @@ pub(super) fn connect(root: &Path, specs: &[Op]) -> Result<Vec<Entry>, SyncError
     Ok(matched.collect())
 }
 
+/// Retrouve le fichier d'une opération dont le fichier suivi a disparu (déplacé ou renommé par l'équipe) : la
+/// requête non suivie qui a la même méthode et le même chemin normalisé, selon la spec puis selon la base, si elle
+/// est la seule. Même logique que la connexion sans base ; en cas d'ambiguïté, l'opération reste manquante.
+pub(super) struct Relinker<'a> {
+    root: &'a Path,
+    tracked: HashSet<String>,
+    wanted: HashMap<Key, usize>,
+    files: Option<HashMap<Key, Vec<String>>>,
+}
+
+impl<'a> Relinker<'a> {
+    pub fn new(root: &'a Path, entries: &[Entry], specs: &[Op]) -> Self {
+        let tracked = entries.iter().filter(|e| !e.ignored).filter_map(|e| e.file.as_deref()).map(str::to_lowercase);
+        Self { root, tracked: tracked.collect(), wanted: wanted(specs), files: None }
+    }
+
+    pub fn find(&mut self, spec: &Op, base: Option<&Base>) -> Result<Option<String>, SyncError> {
+        let own = key_of(&spec.doc);
+        let keys = [Some(own.clone()), base.map(|b| key_of(&b.doc))];
+        for key in keys.into_iter().flatten() {
+            let rivals = self.wanted.get(&key).copied().unwrap_or(0) - usize::from(key == own);
+            if rivals > 0 {
+                continue;
+            }
+            if self.files.is_none() {
+                self.files = Some(requests(self.root)?);
+            }
+            let free: Vec<&String> = (self.files.iter().flat_map(|files| files.get(&key)).flatten())
+                .filter(|file| !self.tracked.contains(&file.to_lowercase()))
+                .collect();
+            if let [file] = free.as_slice() {
+                let file = (*file).clone();
+                self.tracked.insert(file.to_lowercase());
+                return Ok(Some(file));
+            }
+        }
+        Ok(None)
+    }
+}
+
 struct Profile<'a> {
     method: &'a str,
     names: Vec<&'a str>,
     params: BTreeSet<&'a str>,
     segments: Vec<String>,
 }
+
+/// Plus petit est meilleur : le critère de ressemblance, puis le nombre de segments égaux.
+type Score = (u8, std::cmp::Reverse<usize>);
+
+const REASONS: [&str; 3] =
+    ["même méthode et même nom de requête", "même méthode et mêmes paramètres", "même méthode et chemins proches"];
+
+/// Nombre de rapprochements proposés au plus : une liste plus longue ne se relit plus.
+const MAX_SUGGESTIONS: usize = 50;
 
 impl<'a> Profile<'a> {
     fn new(docs: &[&'a RequestDoc]) -> Self {
@@ -107,36 +173,57 @@ impl<'a> Profile<'a> {
         }
     }
 
-    fn resembles(&self, added: &Profile) -> Option<&'static str> {
+    fn resembles(&self, added: &Profile) -> Option<Score> {
         if self.method != added.method {
             return None;
         }
+        let equal = self.segments.iter().zip(&added.segments).filter(|(a, b)| a == b).count();
+        let rank = |reason: u8| Some((reason, std::cmp::Reverse(equal)));
         if self.names.iter().any(|name| added.names.contains(name) && !name.is_empty()) {
-            return Some("même méthode et même nom de requête");
+            return rank(0);
         }
         if !self.params.is_empty() && self.params == added.params {
-            return Some("même méthode et mêmes paramètres");
+            return rank(1);
         }
-        let equal = self.segments.iter().zip(&added.segments).filter(|(a, b)| a == b).count();
         let (count, same_count) = (self.segments.len(), self.segments.len() == added.segments.len());
-        (same_count && count > 0 && equal * 2 >= count).then_some("même méthode et chemins proches")
+        if same_count && count > 0 && equal * 2 >= count {
+            return rank(2);
+        }
+        None
     }
 }
 
-/// Opérations retirées et nouvelles qui se ressemblent : candidates à un rapprochement manuel.
+/// Opérations retirées et nouvelles qui se ressemblent : candidates à un rapprochement manuel. Chaque opération
+/// retirée n'a qu'une candidate, la plus proche, et une nouvelle opération n'est proposée qu'à une seule ; au plus
+/// [`MAX_SUGGESTIONS`] rapprochements, les plus sûrs d'abord.
 pub(super) fn suggest(items: &[Item]) -> Vec<Pairing> {
     let with_status = |wanted: OpStatus| items.iter().filter(move |i| matches!(i.fate, Fate::Listed(s) if s == wanted));
-    let mut out = Vec::new();
-    for removed in with_status(OpStatus::Removed) {
+    let added: Vec<(&Item, Profile)> = with_status(OpStatus::New)
+        .filter_map(|i| i.spec.as_ref().map(|spec| (i, Profile::new(&[&spec.doc]))))
+        .collect();
+    let mut pairs = Vec::new();
+    for (removed_at, removed) in with_status(OpStatus::Removed).enumerate() {
         let docs: Vec<&RequestDoc> =
             removed.base.iter().map(|b| &b.doc).chain(removed.ours.iter().map(|o| &o.doc)).collect();
         let profile = Profile::new(&docs);
-        for added in with_status(OpStatus::New) {
-            let Some(spec) = &added.spec else { continue };
-            if let Some(reason) = profile.resembles(&Profile::new(&[&spec.doc])) {
-                out.push(Pairing { removed: removed.key.clone(), added: added.key.clone(), reason: reason.to_owned() });
-            }
-        }
+        let best = added.iter().enumerate().filter_map(|(at, (_, other))| Some((profile.resembles(other)?, at))).min();
+        pairs.extend(best.map(|(score, at)| (score, removed_at, at)));
     }
-    out
+    pairs.sort();
+    let (mut removed_used, mut added_used) = (HashSet::new(), HashSet::new());
+    let mut chosen: Vec<_> = pairs
+        .into_iter()
+        .filter(|(_, removed_at, at)| removed_used.insert(*removed_at) && added_used.insert(*at))
+        .take(MAX_SUGGESTIONS)
+        .collect();
+    chosen.sort_by_key(|(_, removed_at, at)| (*removed_at, *at));
+    let removed: Vec<&Item> = with_status(OpStatus::Removed).collect();
+    chosen
+        .into_iter()
+        .map(|((reason, _), removed_at, at)| Pairing {
+            removed: removed[removed_at].key.clone(),
+            added: added[at].0.key.clone(),
+            reason: REASONS[usize::from(reason)].to_owned(),
+        })
+        .collect()
 }

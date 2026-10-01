@@ -1,22 +1,28 @@
 //! Stockage `.oc-sync/openapi/` : `source.yml` (source, regroupement, opérations suivies) et copie brute de la spec.
 //!
 //! La base d'une opération n'est pas stockée : elle est recalculée à chaque synchro depuis la copie brute avec le
-//! convertisseur courant. `source.yml` ne contient aucun champ volatil (ni date, ni empreinte).
+//! convertisseur courant, sauf pour une opération retirée de la spec, dont la dernière version est gardée dans
+//! `removed/` le temps qu'elle reste retirée. `source.yml` ne contient aucun champ volatil (ni date, ni empreinte).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::fmt::Write as _;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io::ErrorKind;
+use std::path::{Component, Path, PathBuf};
 
-use xc_core::collection::write_atomic;
+use xc_core::collection::{is_hidden, write_atomic};
 use xc_core::pretty::pretty_json;
 use xc_core::yaml::{self, emit, Map, Value};
 use xc_core::CoreError;
 
+use crate::import::{fit, is_device_name};
 use crate::openapi::GroupBy;
 
 pub const SYNC_DIR: &str = ".oc-sync";
 const SOURCE_FILE: &str = "source.yml";
 const SPEC_FILES: [&str; 2] = ["spec.json", "spec.yaml"];
+const REMOVED_DIR: &str = "removed";
+const REMOVED_EXT: &str = ".yml";
 
 /// Opération suivie : sa clé, son fichier de requête et son état.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,8 +92,43 @@ pub fn read(root: &Path) -> Result<Option<Store>, CoreError> {
     if spec.contains(['/', '\\']) || spec.starts_with('.') {
         return Err(invalid(&path, format!("« spec » doit être un nom de fichier : {spec}")));
     }
-    let operations = tree.seq("operations").iter().map(|op| entry(&path, op)).collect::<Result<_, _>>()?;
+    let operations: Vec<Entry> = tree.seq("operations").iter().map(|op| entry(&path, op)).collect::<Result<_, _>>()?;
+    distinct_files(&path, &operations)?;
     Ok(Some(Store { source: text_of("source")?, group_by, spec, operations }))
+}
+
+/// Un fichier n'est suivi que par une entrée : deux entrées sur le même fichier lui feraient subir deux mises à jour,
+/// dont une seule survivrait.
+fn distinct_files(path: &Path, operations: &[Entry]) -> Result<(), CoreError> {
+    let mut seen: HashMap<String, &str> = HashMap::new();
+    for entry in operations.iter().filter(|e| !e.ignored) {
+        let Some(file) = &entry.file else { continue };
+        if let Some(other) = seen.insert(file_id(file), &entry.key) {
+            return Err(invalid(path, format!("« {other} » et « {} » désignent le même fichier : {file}", entry.key)));
+        }
+    }
+    Ok(())
+}
+
+fn file_id(file: &str) -> String {
+    let names: Vec<_> = Path::new(file).components().filter(|c| !matches!(c, Component::CurDir)).collect();
+    names.iter().map(|c| c.as_os_str().to_string_lossy().to_lowercase()).collect::<Vec<_>>().join("/")
+}
+
+/// Le fichier d'une entrée est une requête que l'arbre montre : ni hors de la collection, ni caché, ni réservé
+/// (`opencollection.yml`, `folder.yml`, `environments`…), à aucun niveau du chemin.
+fn check_file(path: &Path, file: &str) -> Result<(), CoreError> {
+    let mut at_root = true;
+    for component in Path::new(file).components() {
+        match component {
+            Component::CurDir => continue,
+            Component::Normal(name) if !is_hidden(&name.to_string_lossy(), at_root) => at_root = false,
+            _ => {
+                return Err(invalid(path, format!("chemin refusé (hors de la collection, caché ou réservé) : {file}")))
+            }
+        }
+    }
+    Ok(())
 }
 
 fn entry(path: &Path, value: &Value) -> Result<Entry, CoreError> {
@@ -104,13 +145,74 @@ fn entry(path: &Path, value: &Value) -> Result<Entry, CoreError> {
     if entry.file.is_none() && !entry.ignored {
         return Err(invalid(path, format!("l'opération « {} » n'a ni « file » ni « ignored »", entry.key)));
     }
+    if let Some(file) = &entry.file {
+        check_file(path, file)?;
+    }
     Ok(entry)
 }
 
-/// Copie brute de la spec de la base, telle que `source.yml` la désigne.
-pub fn read_spec(root: &Path, store: &Store) -> Result<String, CoreError> {
+/// Copie brute de la spec de la base, telle que `source.yml` la désigne ; `None` si le fichier a disparu.
+pub fn read_spec(root: &Path, store: &Store) -> Result<Option<String>, CoreError> {
     let path = dir(root).join(&store.spec);
-    fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))
+    match fs::read_to_string(&path) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(CoreError::io(&path, e)),
+    }
+}
+
+/// Nom du fichier qui garde la dernière version de l'opération `key` : la clé, dont les caractères interdits dans un
+/// nom de fichier sont écrits `%XX`, ce qui ne confond jamais deux clés.
+fn removed_name(key: &str) -> String {
+    let mut name = String::new();
+    for c in key.chars() {
+        let plain = c.is_alphanumeric() || " _-.(){}[]#,=+@!~'".contains(c);
+        if plain && !(name.is_empty() && c == '.') {
+            name.push(c);
+        } else {
+            let mut utf8 = [0; 4];
+            c.encode_utf8(&mut utf8).bytes().for_each(|byte| write!(name, "%{byte:02X}").unwrap_or_default());
+        }
+    }
+    let name = if is_device_name(&name) { format!("_{name}") } else { name };
+    fit(&name, "", REMOVED_EXT)
+}
+
+fn removed_path(root: &Path, key: &str) -> PathBuf {
+    dir(root).join(REMOVED_DIR).join(removed_name(key))
+}
+
+/// Dernière version de la requête de l'opération `key`, gardée quand la spec l'a retirée.
+pub fn read_removed(root: &Path, key: &str) -> Option<String> {
+    fs::read_to_string(removed_path(root, key)).ok()
+}
+
+/// Garde la dernière version de la requête de l'opération `key` que la spec vient de retirer.
+pub fn write_removed(root: &Path, key: &str, text: &str) -> Result<(), CoreError> {
+    let path = removed_path(root, key);
+    let parent = path.parent().unwrap_or(&path);
+    if parent.is_symlink() {
+        return Err(invalid(parent, "un lien symbolique n'est pas suivi"));
+    }
+    fs::create_dir_all(parent).map_err(|e| CoreError::io(parent, e))?;
+    write_if_changed(&path, text)
+}
+
+/// Supprime les versions gardées des opérations qui ne sont plus retirées de la spec (restaurées, rapprochées ou
+/// oubliées). Seuls les fichiers `.yml` du dossier sont touchés, jamais un lien ni un dossier.
+fn prune_removed(root: &Path, operations: &[Entry]) {
+    let dir = dir(root).join(REMOVED_DIR);
+    if dir.is_symlink() {
+        return;
+    }
+    let wanted: HashSet<String> = operations.iter().filter(|e| e.removed).map(|e| removed_name(&e.key)).collect();
+    for entry in fs::read_dir(&dir).into_iter().flatten().flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let is_copy = name.ends_with(REMOVED_EXT) && entry.file_type().is_ok_and(|kind| kind.is_file());
+        if is_copy && !wanted.contains(&name) {
+            fs::remove_file(entry.path()).ok();
+        }
+    }
 }
 
 /// Fichiers de requête que `source.yml` marque comme retirés de la spec (chemins relatifs, avec des `/`).
@@ -120,7 +222,11 @@ pub fn removed_files(root: &Path) -> HashSet<String> {
     entries.filter(|e| e.removed).filter_map(|e| e.file).collect()
 }
 
+/// Un lien symbolique est remplacé par le fichier, jamais suivi : le stockage ne doit pas écrire hors de lui.
 fn write_if_changed(path: &Path, text: &str) -> Result<(), CoreError> {
+    if path.is_symlink() {
+        fs::remove_file(path).map_err(|e| CoreError::io(path, e))?;
+    }
     if fs::read_to_string(path).is_ok_and(|current| current == text) {
         return Ok(());
     }
@@ -128,7 +234,8 @@ fn write_if_changed(path: &Path, text: &str) -> Result<(), CoreError> {
 }
 
 /// Écrit la copie brute de la spec, puis `source.yml` en dernier : une écriture interrompue avant la fin laisse la
-/// base d'avant intacte, et la synchro se rejoue sans dégât.
+/// base d'avant intacte, et la synchro se rejoue sans dégât. Les versions gardées des opérations qui ne sont plus
+/// retirées sont ensuite supprimées.
 pub fn write(
     root: &Path,
     source: &str,
@@ -150,6 +257,7 @@ pub fn write(
     for stale in SPEC_FILES.iter().filter(|name| **name != spec) {
         fs::remove_file(dir.join(stale)).ok();
     }
+    prune_removed(root, operations);
     Ok(())
 }
 

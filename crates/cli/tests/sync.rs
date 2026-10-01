@@ -151,6 +151,9 @@ fn ef_syn_07_flags_are_checked_by_the_usage() {
         vec!["sync", c.path(), "--check", "--apply"],
         vec!["sync", c.path(), "--apply", "--keep-team", "--take-spec"],
         vec!["sync", c.path(), "--check", "--keep-team"],
+        vec!["sync", c.path(), "--check", "--forget-missing"],
+        vec!["sync", c.path(), "--check", "--recreate-missing"],
+        vec!["sync", c.path(), "--apply", "--forget-missing", "--recreate-missing"],
     ] {
         let (code, _, stderr) = xc(&args);
         assert_eq!(code, 2, "{args:?} : {stderr}");
@@ -248,4 +251,73 @@ fn ef_syn_07_the_source_can_be_an_url() {
     let (code, stdout, stderr) = xc(&["sync", c.path(), "--apply", "--source", &url]);
     assert_eq!(code, 0, "{stdout}{stderr}");
     assert!(c.read(".oc-sync/openapi/source.yml").starts_with(&format!("source: {url}\n")));
+}
+
+const SHOW_PET: &str = "pets/Info for a specific pet.yml";
+
+#[test]
+fn ef_syn_07_check_exits_1_when_a_tracked_file_has_disappeared() {
+    let c = collection();
+    fs::remove_file(c.root.join(SHOW_PET)).unwrap();
+    let (code, stdout, stderr) = xc(&["sync", c.path(), "--check"]);
+    assert_eq!(code, 1, "{stdout}{stderr}");
+    assert!(stdout.contains("1 manquante(s)") && stdout.contains("manquante   GET /pets/{petId}"), "{stdout}");
+}
+
+#[test]
+fn ef_syn_07_a_file_moved_by_the_team_is_found_again_and_check_stays_green() {
+    let c = collection();
+    fs::create_dir_all(c.root.join("mes-trucs")).unwrap();
+    fs::rename(c.root.join(SHOW_PET), c.root.join("mes-trucs/Ma requête.yml")).unwrap();
+    let (code, stdout, stderr) = xc(&["sync", c.path(), "--check"]);
+    assert_eq!(code, 0, "{stdout}{stderr}");
+    assert!(stdout.contains("0 manquante(s)") && stdout.contains("3 inchangée(s)"), "{stdout}");
+    let (code, stdout, stderr) = xc(&["sync", c.path(), "--apply"]);
+    assert_eq!(code, 0, "{stdout}{stderr}");
+    assert!(c.read(".oc-sync/openapi/source.yml").contains("file: mes-trucs/Ma requête.yml"));
+}
+
+#[test]
+fn ef_syn_07_apply_refuses_missing_operations_unless_they_are_forgotten_or_recreated() {
+    let c = collection();
+    fs::remove_file(c.root.join(SHOW_PET)).unwrap();
+    let before = c.snapshot();
+    let (code, _, stderr) = xc(&["sync", c.path(), "--apply"]);
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.contains("refus : 1 opération(s) dont le fichier a disparu"), "{stderr}");
+    assert!(stderr.contains("showPetById  pets/Info for a specific pet.yml"), "{stderr}");
+    assert!(stderr.contains("--forget-missing ou --recreate-missing"), "{stderr}");
+    assert_eq!(c.snapshot(), before, "rien n'est écrit");
+
+    let (code, stdout, stderr) = xc(&["sync", c.path(), "--apply", "--forget-missing"]);
+    assert_eq!(code, 0, "{stdout}{stderr}");
+    assert!(stdout.contains("1 ignorée(s)"), "{stdout}");
+    assert!(c.read(".oc-sync/openapi/source.yml").contains("  - key: showPetById\n    ignored: true\n"));
+    assert!(!c.root.join(SHOW_PET).exists());
+}
+
+#[test]
+fn ef_syn_07_apply_recreate_missing_writes_the_file_again() {
+    let c = collection();
+    fs::remove_file(c.root.join(SHOW_PET)).unwrap();
+    let (code, stdout, stderr) = xc(&["sync", c.path(), "--apply", "--recreate-missing"]);
+    assert_eq!(code, 0, "{stdout}{stderr}");
+    assert!(stdout.contains("créé     pets/Info for a specific pet.yml"), "{stdout}");
+    assert!(c.root.join(SHOW_PET).is_file());
+    let (code, stdout, _) = xc(&["sync", c.path(), "--check"]);
+    assert_eq!(code, 0, "{stdout}");
+}
+
+#[test]
+fn ef_syn_07_a_spec_without_operations_is_refused_with_exit_2() {
+    let c = collection();
+    let empty = c.root.join("../empty.yaml");
+    fs::write(&empty, "openapi: 3.0.0\ninfo: {title: T, version: 1.0.0}\npaths: {}\n").unwrap();
+    let before = c.snapshot();
+    for mode in ["--check", "--apply"] {
+        let (code, _, stderr) = xc(&["sync", c.path(), mode, "--source", empty.to_str().unwrap()]);
+        assert_eq!(code, 2, "{mode} : {stderr}");
+        assert!(stderr.contains("aucune opération"), "{stderr}");
+    }
+    assert_eq!(c.snapshot(), before);
 }

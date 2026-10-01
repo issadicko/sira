@@ -20,6 +20,7 @@ use crate::import::{fetch_spec, is_url, source_value, ImportError};
 use crate::merge::{merge, Change, Choice, Choices, Decision, Kind, MergeError, Merged};
 use crate::openapi::{load_spec, summary, GroupBy, OpenApiError};
 use crate::store::{self, Entry, Store};
+use pairing::Relinker;
 use specs::{load_ours, Op, Ours};
 
 pub use apply::Report;
@@ -37,6 +38,12 @@ pub enum SyncError {
     Merge(#[from] MergeError),
     #[error("la collection n'est pas connectée à une spec OpenAPI : indiquer la source")]
     NotConnected,
+    #[error("la spec ne contient aucune opération alors que {0} opération(s) sont suivies : spec vide ou tronquée, rien n'est comparé")]
+    EmptySpec(usize),
+    #[error("fichier de l'équipe illisible : {file} : {message}")]
+    Unreadable { file: String, message: String },
+    #[error("{0} n'est pas une requête HTTP (info.type : http) : la synchro ne l'écrit pas")]
+    NotARequest(String),
     #[error("rapprochement impossible : {0}")]
     Pairing(String),
     #[error("{count} conflit(s) sans choix : {ids}")]
@@ -52,7 +59,10 @@ impl SyncError {
     pub fn is_input(&self) -> bool {
         match self {
             Self::Import(e) => e.is_input(),
-            Self::Spec(OpenApiError::Syntax(_) | OpenApiError::Empty) | Self::NotConnected => true,
+            Self::Spec(OpenApiError::Syntax(_) | OpenApiError::Empty)
+            | Self::NotConnected
+            | Self::EmptySpec(_)
+            | Self::Unreadable { .. } => true,
             Self::Core(CoreError::NotACollection(_) | CoreError::Yaml { .. }) => true,
             _ => false,
         }
@@ -156,6 +166,9 @@ struct Base {
     doc: xc_core::RequestDoc,
 }
 
+/// Les opérations de la base, par clé.
+type Bases = HashMap<String, Base>;
+
 struct Item {
     key: String,
     entry: Option<Entry>,
@@ -207,6 +220,25 @@ struct State {
     items: Vec<Item>,
 }
 
+impl State {
+    /// Fichiers (en minuscules) que suit une entrée qui reste, et ceux que ne suit plus qu'une opération retirée : une
+    /// nouvelle opération ne réutilise pas les premiers et peut reprendre les seconds.
+    fn claimed_files(&self) -> (HashSet<String>, HashSet<String>) {
+        let (mut held, mut adoptable) = (HashSet::new(), HashSet::new());
+        for item in &self.items {
+            let (file, removed) = match (&item.fate, &item.ours) {
+                (Fate::Carry(entry), _) if !entry.ignored => (entry.file.as_deref(), entry.removed),
+                (Fate::Listed(OpStatus::Removed), Some(ours)) => (Some(ours.file.as_str()), true),
+                (Fate::Listed(_), Some(ours)) => (Some(ours.file.as_str()), false),
+                _ => continue,
+            };
+            let set = if removed { &mut adoptable } else { &mut held };
+            set.extend(file.map(str::to_lowercase));
+        }
+        (held, adoptable)
+    }
+}
+
 impl std::fmt::Debug for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("State").field("root", &self.root).field("items", &self.items.len()).finish()
@@ -230,10 +262,12 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// Une opération au moins a divergé de la base (`--check`).
+    /// Une opération au moins a divergé de la base, ou son fichier a disparu (`--check`).
     pub fn diverged(&self) -> bool {
-        use OpStatus::{Conflict, Merged, New, Removed, Restored, Updated};
-        self.operations.iter().any(|op| matches!(op.status, Updated | Merged | Conflict | New | Removed | Restored))
+        use OpStatus::{Conflict, Merged, Missing, New, Removed, Restored, Updated};
+        self.operations
+            .iter()
+            .any(|op| matches!(op.status, Updated | Merged | Conflict | New | Removed | Restored | Missing))
     }
 }
 
@@ -272,15 +306,20 @@ fn spec_ref(spec: &Value) -> SpecRef {
     SpecRef { title: summary.title, version: summary.version.unwrap_or_default() }
 }
 
-fn load_base(root: &Path, store: &Store) -> Result<(SpecRef, HashMap<String, Base>), SyncError> {
-    let spec = load_spec(&store::read_spec(root, store)?)?;
+/// La base : la version de la spec et chaque opération telle qu'elle était. `None` quand la copie brute de la spec a
+/// disparu : la synchro se fait alors sans base, et conflit au moindre doute.
+fn load_base(root: &Path, store: &Store) -> Result<Option<(SpecRef, Bases)>, SyncError> {
+    let Some(text) = store::read_spec(root, store)? else { return Ok(None) };
+    let spec = load_spec(&text)?;
     let bases = specs::operations(&spec, store.group_by)?;
-    Ok((spec_ref(&spec), bases.into_iter().map(|op| (op.key, Base { text: op.text, doc: op.doc })).collect()))
+    let bases = bases.into_iter().map(|op| (op.key, Base { text: op.text, doc: op.doc })).collect();
+    Ok(Some((spec_ref(&spec), bases)))
 }
 
 /// Compare `spec_text` à la base et à la collection, sans rien écrire. `source` est la valeur à enregistrer dans
 /// `source.yml` ; `pairings` sont les rapprochements manuels (clé retirée, clé ajoutée). Sans `source.yml`, il n'y a
-/// pas de base : chaque opération est rapprochée d'une requête de même méthode et de même chemin normalisé.
+/// pas de base : chaque opération est rapprochée d'une requête de même méthode et de même chemin normalisé. Une spec
+/// sans aucune opération est refusée quand des opérations sont suivies : elle retirerait toutes les requêtes.
 pub fn plan(root: &Path, spec_text: &str, source: String, pairings: &[(String, String)]) -> Result<Plan, SyncError> {
     if !root.join(COLLECTION_FILE).is_file() {
         return Err(CoreError::NotACollection(root.display().to_string()).into());
@@ -289,8 +328,16 @@ pub fn plan(root: &Path, spec_text: &str, source: String, pairings: &[(String, S
     let store = store::read(root)?;
     let group_by = store.as_ref().map_or(GroupBy::Tags, |s| s.group_by);
     let specs = specs::operations(&spec, group_by)?;
-    let (from, bases) = match &store {
-        Some(store) => load_base(root, store).map(|(from, bases)| (Some(from), bases))?,
+    let tracked = store.iter().flat_map(|s| &s.operations).filter(|e| !e.ignored && !e.removed).count();
+    if specs.is_empty() && tracked > 0 {
+        return Err(SyncError::EmptySpec(tracked));
+    }
+    let loaded = match &store {
+        Some(store) => load_base(root, store)?,
+        None => None,
+    };
+    let (from, bases) = match loaded {
+        Some((from, bases)) => (Some(from), bases),
         None => (None, HashMap::new()),
     };
     let entries = match &store {
@@ -302,7 +349,7 @@ pub fn plan(root: &Path, spec_text: &str, source: String, pairings: &[(String, S
     Ok(Plan {
         source,
         group_by,
-        has_base: store.is_some(),
+        has_base: from.is_some(),
         from,
         to: spec_ref(&spec),
         summary: summarize(&operations),
@@ -353,7 +400,7 @@ fn classify(
     root: &Path,
     specs: Vec<Op>,
     entries: &[Entry],
-    mut bases: HashMap<String, Base>,
+    mut bases: Bases,
     pairings: &[(String, String)],
 ) -> Result<Vec<Item>, SyncError> {
     let spec_keys: HashSet<String> = specs.iter().map(|s| s.key.clone()).collect();
@@ -362,6 +409,7 @@ fn classify(
         by_key.entry(&entry.key).or_insert(i);
     }
     let paired = validate_pairings(pairings, entries, &by_key, &spec_keys)?;
+    let mut relinker = Relinker::new(root, entries, &specs);
     let mut used = vec![false; entries.len()];
     let mut items = Vec::new();
     for spec in specs {
@@ -371,7 +419,7 @@ fn classify(
         }
         items.push(match index {
             None => with_spec(spec, None, Fate::Listed(OpStatus::New)),
-            Some(i) => matched(root, &entries[i], spec, &mut bases)?,
+            Some(i) => matched(root, &entries[i], spec, &mut bases, &mut relinker)?,
         });
     }
     for (i, entry) in entries.iter().enumerate() {
@@ -411,18 +459,38 @@ fn validate_pairings(
     Ok(paired)
 }
 
-fn matched(root: &Path, entry: &Entry, spec: Op, bases: &mut HashMap<String, Base>) -> Result<Item, SyncError> {
+/// Dernière version de la requête d'une opération que la spec avait retirée : la base d'une opération restaurée.
+fn removed_base(root: &Path, entry: &Entry) -> Option<Base> {
+    let text = store::read_removed(root, &entry.key).filter(|_| entry.removed)?;
+    let doc = xc_core::RequestDoc::from_tree(&specs::tree(&text, &entry.key).ok()?);
+    Some(Base { text, doc })
+}
+
+fn matched(
+    root: &Path,
+    entry: &Entry,
+    spec: Op,
+    bases: &mut Bases,
+    relinker: &mut Relinker,
+) -> Result<Item, SyncError> {
     if entry.ignored {
         return Ok(Item::bare(&spec.key, Some(entry), Fate::Carry(entry.clone())));
     }
-    let base = bases.remove(&entry.key);
-    let ours = load_ours(root, entry.file.as_deref().unwrap_or_default())?;
-    let Some(ours) = ours else { return Ok(with_spec(spec, Some(entry), Fate::Listed(OpStatus::Missing))) };
+    let base = bases.remove(&entry.key).or_else(|| removed_base(root, entry));
+    let mut entry = entry.clone();
+    let mut ours = load_ours(root, entry.file.as_deref().unwrap_or_default())?;
+    if ours.is_none() {
+        if let Some(file) = relinker.find(&spec, base.as_ref())? {
+            ours = load_ours(root, &file)?;
+            entry.file = Some(file);
+        }
+    }
+    let Some(ours) = ours else { return Ok(with_spec(spec, Some(&entry), Fate::Listed(OpStatus::Missing))) };
     let merged = merge(&spec.key, base.as_ref().map(|b| &b.doc), &ours.doc, &spec.doc, &Choices::new())?;
     let status = status_of(&merged.changes, entry.removed);
     Ok(Item {
         key: spec.key.clone(),
-        entry: Some(entry.clone()),
+        entry: Some(entry),
         spec: Some(spec),
         base,
         ours: Some(ours),
@@ -431,7 +499,7 @@ fn matched(root: &Path, entry: &Entry, spec: Op, bases: &mut HashMap<String, Bas
     })
 }
 
-fn absent(root: &Path, entry: &Entry, bases: &mut HashMap<String, Base>) -> Result<Option<Item>, SyncError> {
+fn absent(root: &Path, entry: &Entry, bases: &mut Bases) -> Result<Option<Item>, SyncError> {
     let file = entry.file.as_deref().unwrap_or_default();
     if entry.ignored {
         return Ok(None);

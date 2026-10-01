@@ -11,7 +11,7 @@ use xc_core::{normalize, open_collection, prepare, read_request, TreeItem};
 use xc_sync::import::{fetch_spec, import_spec};
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
-use xc_sync::sync::{self, Decisions, OpStatus, Plan, Report, SyncError};
+use xc_sync::sync::{self, Decisions, OpStatus, Operation, Plan, Report, SyncError};
 
 #[derive(Parser)]
 #[command(
@@ -62,7 +62,7 @@ enum Command {
         /// Sort avec le code 1 si la spec a divergé de la base ; n'écrit rien
         #[arg(long)]
         check: bool,
-        /// Applique la synchro ; refuse s'il reste un conflit sans --keep-team ni --take-spec
+        /// Applique la synchro ; refuse s'il reste un conflit sans --keep-team ni --take-spec, ou une opération dont le fichier a disparu sans --forget-missing ni --recreate-missing
         #[arg(long)]
         apply: bool,
         /// Fichier ou URL de la spec ; par défaut, la source enregistrée dans .oc-sync
@@ -74,6 +74,12 @@ enum Command {
         /// Avec --apply : prend la version de la spec pour tous les conflits
         #[arg(long)]
         take_spec: bool,
+        /// Avec --apply : oublie les opérations dont le fichier a disparu (elles ne sont plus suivies)
+        #[arg(long, conflicts_with = "recreate_missing")]
+        forget_missing: bool,
+        /// Avec --apply : recrée le fichier des opérations dont il a disparu
+        #[arg(long)]
+        recreate_missing: bool,
     },
 }
 
@@ -92,20 +98,41 @@ fn main() -> ExitCode {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(import(&source, &location, group_by))
         }
-        Command::Sync { collection, apply, source, keep_team, take_spec, .. } => {
-            if !apply && (keep_team || take_spec) {
-                eprintln!("erreur : --keep-team et --take-spec s'utilisent avec --apply");
+        Command::Sync { collection, apply, source, keep_team, take_spec, forget_missing, recreate_missing, .. } => {
+            if !apply && (keep_team || take_spec || forget_missing || recreate_missing) {
+                eprintln!(
+                    "erreur : --keep-team, --take-spec, --forget-missing et --recreate-missing s'utilisent avec --apply"
+                );
                 return ExitCode::from(2);
             }
-            let choice = if keep_team { Some(Choice::Team) } else { take_spec.then_some(Choice::Spec) };
+            let choices = Arbitration {
+                conflicts: if keep_team { Some(Choice::Team) } else { take_spec.then_some(Choice::Spec) },
+                missing: if recreate_missing {
+                    Some(Missing::Recreate)
+                } else {
+                    forget_missing.then_some(Missing::Forget)
+                },
+            };
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
-            runtime.block_on(sync(&collection, apply, source.as_deref(), choice))
+            runtime.block_on(sync(&collection, apply, source.as_deref(), choices))
         }
     }
 }
 
-async fn sync(root: &Path, apply: bool, source: Option<&str>, choice: Option<Choice>) -> ExitCode {
-    match run_sync(root, apply, source, choice).await {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Missing {
+    Forget,
+    Recreate,
+}
+
+/// Les options d'arbitrage de `--apply` : le choix pour tous les conflits, et le sort des opérations manquantes.
+struct Arbitration {
+    conflicts: Option<Choice>,
+    missing: Option<Missing>,
+}
+
+async fn sync(root: &Path, apply: bool, source: Option<&str>, choices: Arbitration) -> ExitCode {
+    match run_sync(root, apply, source, choices).await {
         Ok(code) => code,
         Err(e) => {
             eprintln!("erreur : {e}");
@@ -114,20 +141,17 @@ async fn sync(root: &Path, apply: bool, source: Option<&str>, choice: Option<Cho
     }
 }
 
-async fn run_sync(
-    root: &Path,
-    apply: bool,
-    source: Option<&str>,
-    choice: Option<Choice>,
-) -> Result<ExitCode, SyncError> {
+async fn run_sync(root: &Path, apply: bool, source: Option<&str>, choices: Arbitration) -> Result<ExitCode, SyncError> {
     let (text, recorded) = sync::read_source(root, source).await?;
     let plan = sync::plan(root, &text, recorded, &[])?;
     println!("{}", describe(&plan));
     if !apply {
         return Ok(if plan.diverged() { ExitCode::FAILURE } else { ExitCode::SUCCESS });
     }
-    let decisions = choice.map(|choice| Decisions::uniform(&plan, choice)).unwrap_or_default();
-    if choice.is_none() && plan.summary.conflicts > 0 {
+    let missing: Vec<&Operation> = plan.operations.iter().filter(|op| op.status == OpStatus::Missing).collect();
+    let undecided_conflicts = choices.conflicts.is_none() && plan.summary.conflicts > 0;
+    let undecided_missing = choices.missing.is_none() && !missing.is_empty();
+    if undecided_conflicts {
         eprintln!(
             "refus : {} conflit(s) à arbitrer, utiliser --keep-team ou --take-spec",
             plan.summary.conflict_fields
@@ -135,7 +159,22 @@ async fn run_sync(
         for change in conflicts(&plan) {
             eprintln!("  {}  {}", change.id, change.label);
         }
+    }
+    if undecided_missing {
+        eprintln!(
+            "refus : {} opération(s) dont le fichier a disparu, utiliser --forget-missing ou --recreate-missing",
+            missing.len()
+        );
+        for op in &missing {
+            eprintln!("  {}  {}", op.key, op.file.as_deref().unwrap_or_default());
+        }
+    }
+    if undecided_conflicts || undecided_missing {
         return Ok(ExitCode::FAILURE);
+    }
+    let mut decisions = choices.conflicts.map(|choice| Decisions::uniform(&plan, choice)).unwrap_or_default();
+    if choices.missing == Some(Missing::Recreate) {
+        decisions.recreate = missing.iter().map(|op| op.key.clone()).collect();
     }
     println!("{}", applied(&plan.apply(&decisions)?));
     Ok(ExitCode::SUCCESS)

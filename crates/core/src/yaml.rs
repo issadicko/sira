@@ -113,6 +113,19 @@ impl Value {
         matches!(self, Self::Bool(true))
     }
 
+    /// Copie dont les clés de chaque table sont triées : deux arbres équivalents donnent la même copie.
+    pub fn sorted(&self) -> Self {
+        match self {
+            Self::Map(m) => {
+                let mut entries: Vec<_> = m.0.iter().map(|(k, v)| (k.clone(), v.sorted())).collect();
+                entries.sort_by(|a, b| a.0.cmp(&b.0));
+                Self::Map(Map(entries))
+            }
+            Self::Seq(items) => Self::Seq(items.iter().map(Self::sorted).collect()),
+            other => other.clone(),
+        }
+    }
+
     /// Représentation texte d'un scalaire, quel que soit son type YAML.
     pub fn scalar(&self) -> Option<String> {
         match self {

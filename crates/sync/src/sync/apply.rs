@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::fs;
+use std::path::Path;
 
 use serde::Serialize;
 use xc_core::collection::{resolve_visible_path, write_atomic};
@@ -25,11 +26,39 @@ pub struct Report {
 }
 
 impl Plan {
-    /// Écrit le plan selon les décisions, dans cet ordre : fichiers modifiés, nouveaux fichiers, copie brute de la
-    /// spec, `source.yml`. Refuse, sans rien écrire, s'il reste un conflit sans choix ou si un fichier à réécrire a
-    /// changé depuis le plan.
+    /// Écrit le plan selon les décisions, dans cet ordre : fichiers modifiés, nouveaux fichiers, dernière version des
+    /// opérations retirées, copie brute de la spec, `source.yml`. Refuse, sans rien écrire, s'il reste un conflit sans
+    /// choix, si un fichier à réécrire a changé depuis le plan ou n'est pas une requête HTTP.
     pub fn apply(&self, decisions: &Decisions) -> Result<Report, SyncError> {
         let root = &self.state.root;
+        let writes = self.rewrites(decisions)?;
+        let jobs: Vec<_> = writes
+            .iter()
+            .map(|(ours, text)| Ok((resolve_visible_path(root, &ours.file)?, text)))
+            .collect::<Result<_, CoreError>>()?;
+        write_parallel(&jobs, |(path, text)| write_atomic(path, text))?;
+
+        let mut run = Run::new(root, self.state.claimed_files());
+        run.report.written.extend(writes.iter().map(|(ours, _)| ours.file.clone()));
+        let mut entries = self.entries(decisions, &mut run)?;
+        run.creator.flush()?;
+
+        let (mut report, adopted) = (run.report, run.adopted);
+        let is_adopted = |file: &str| adopted.contains(&file.to_lowercase());
+        entries.retain(|entry| !(entry.removed && entry.file.as_deref().is_some_and(is_adopted)));
+        report.removed.retain(|file| !is_adopted(file));
+        for item in &self.state.items {
+            let kept = item.entry.as_ref().and_then(|entry| entry.file.as_deref()).is_some_and(|f| !is_adopted(f));
+            if let (Fate::Listed(OpStatus::Removed), Some(base), true) = (&item.fate, &item.base, kept) {
+                store::write_removed(root, &item.key, &base.text)?;
+            }
+        }
+        store::write(root, &self.source, self.group_by, &entries, &self.state.spec_text)?;
+        Ok(report)
+    }
+
+    /// Les fichiers de l'équipe à réécrire avec leur nouveau texte, après vérification des décisions et des fichiers.
+    fn rewrites(&self, decisions: &Decisions) -> Result<Vec<(&Ours, String)>, SyncError> {
         let mut writes = Vec::new();
         let mut unresolved = Vec::new();
         for item in &self.state.items {
@@ -46,35 +75,32 @@ impl Plan {
             return Err(SyncError::Unresolved { count: unresolved.len(), ids: unresolved.join(", ") });
         }
         for (ours, _) in &writes {
-            let path = resolve_visible_path(root, &ours.file)?;
+            if !ours.is_request {
+                return Err(SyncError::NotARequest(ours.file.clone()));
+            }
+            let path = resolve_visible_path(&self.state.root, &ours.file)?;
             if fs::read_to_string(&path).ok().as_deref() != Some(ours.text.as_str()) {
                 return Err(SyncError::Stale(ours.file.clone()));
             }
         }
+        Ok(writes)
+    }
 
-        let mut report = Report::default();
-        let jobs: Vec<_> = writes
-            .iter()
-            .map(|(ours, text)| Ok((resolve_visible_path(root, &ours.file)?, text)))
-            .collect::<Result<_, CoreError>>()?;
-        write_parallel(&jobs, |(path, text)| write_atomic(path, text))?;
-        report.written.extend(writes.iter().map(|(ours, _)| ours.file.clone()));
-
+    /// Les entrées de `source.yml` après la synchro, dans l'ordre du plan ; les nouvelles requêtes sont choisies
+    /// (écrites par `flush`).
+    fn entries(&self, decisions: &Decisions, run: &mut Run) -> Result<Vec<Entry>, SyncError> {
         let skip: HashSet<&str> = decisions.skip.iter().map(String::as_str).collect();
         let recreate: HashSet<&str> = decisions.recreate.iter().map(String::as_str).collect();
-        let mut creator = Creator::new(root);
         let mut entries = Vec::new();
         for item in &self.state.items {
             let entry = match (&item.fate, &item.spec, &item.entry) {
                 (Fate::Carry(entry), ..) => entry.clone(),
-                (Fate::Listed(OpStatus::New), Some(spec), _) => {
-                    created_or_ignored(&mut creator, &mut report, spec, !skip.contains(spec.key.as_str()))?
-                }
+                (Fate::Listed(OpStatus::New), Some(spec), _) => run.entry(spec, !skip.contains(spec.key.as_str()))?,
                 (Fate::Listed(OpStatus::Missing), Some(spec), _) => {
-                    created_or_ignored(&mut creator, &mut report, spec, recreate.contains(spec.key.as_str()))?
+                    run.entry(spec, recreate.contains(spec.key.as_str()))?
                 }
                 (Fate::Listed(OpStatus::Removed), None, Some(entry)) => {
-                    report.removed.extend(entry.file.clone());
+                    run.report.removed.extend(entry.file.clone());
                     Entry { removed: true, ..entry.clone() }
                 }
                 (Fate::Listed(_), Some(spec), _) => match &item.ours {
@@ -85,21 +111,42 @@ impl Plan {
             };
             entries.push(entry);
         }
-        creator.flush()?;
-
-        store::write(root, &self.source, self.group_by, &entries, &self.state.spec_text)?;
-        Ok(report)
+        Ok(entries)
     }
 }
 
-fn created_or_ignored(creator: &mut Creator, report: &mut Report, spec: &Op, create: bool) -> Result<Entry, SyncError> {
-    if !create {
-        report.ignored.push(spec.key.clone());
-        return Ok(Entry::ignored(&spec.key));
+/// Création des nouvelles requêtes d'une application : fichiers déjà suivis (`held`), fichiers d'opérations retirées
+/// qu'une nouvelle opération peut reprendre (`adoptable`) et ceux qu'elle a repris (`adopted`).
+struct Run<'a> {
+    creator: Creator<'a>,
+    report: Report,
+    held: HashSet<String>,
+    adoptable: HashSet<String>,
+    adopted: HashSet<String>,
+}
+
+impl<'a> Run<'a> {
+    fn new(root: &'a Path, (held, adoptable): (HashSet<String>, HashSet<String>)) -> Self {
+        Self { creator: Creator::new(root), report: Report::default(), held, adoptable, adopted: HashSet::new() }
     }
-    let file = creator.create(spec)?;
-    report.created.push(file.clone());
-    Ok(Entry::tracked(&spec.key, &file))
+
+    /// L'entrée d'une nouvelle opération (ou d'une manquante à recréer) : son fichier créé, ou `ignored` si `create`
+    /// est faux. Un fichier existant, identique à ce que la synchro écrirait et suivi seulement par une opération
+    /// retirée, est repris : c'est un rapprochement, l'ancienne entrée disparaît et rien n'est créé.
+    fn entry(&mut self, spec: &Op, create: bool) -> Result<Entry, SyncError> {
+        if !create {
+            self.report.ignored.push(spec.key.clone());
+            return Ok(Entry::ignored(&spec.key));
+        }
+        let claimed = self.creator.create(spec, &self.held)?;
+        let id = claimed.file.to_lowercase();
+        if claimed.reused && self.adoptable.contains(&id) {
+            self.adopted.insert(id);
+        } else {
+            self.report.created.push(claimed.file.clone());
+        }
+        Ok(Entry::tracked(&spec.key, &claimed.file))
+    }
 }
 
 /// Le fichier de l'équipe avec le document fusionné : seules les sections modifiées sont réécrites, le reste

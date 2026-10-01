@@ -8,12 +8,13 @@ mod json;
 mod keyed;
 mod url;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use xc_core::{Auth, Param, ParamKind, RequestDoc};
 
-use keyed::{header_ident, param_ident, Group};
+use keyed::{header_ident, param_ident, Entry, Group};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -238,6 +239,15 @@ fn settle<T: Clone + PartialEq>(
     Ok(value)
 }
 
+/// Un type que le modèle ne détaille pas : son nom, suivi de sa configuration canonique.
+fn show_other(label: &str, config: &str) -> String {
+    if config.is_empty() {
+        label.to_owned()
+    } else {
+        format!("{label}\n{config}")
+    }
+}
+
 fn show_auth(auth: &Auth) -> Option<String> {
     Some(match auth {
         Auth::Inherit => "inherit".into(),
@@ -245,7 +255,7 @@ fn show_auth(auth: &Auth) -> Option<String> {
         Auth::Bearer { token } => format!("bearer : {token}"),
         Auth::Basic { username, .. } => format!("basic : {username}"),
         Auth::Apikey { key, placement, .. } => format!("apikey : {key} ({placement})"),
-        Auth::Other { label } => label.clone(),
+        Auth::Other { label, config } => show_other(label, config),
     })
 }
 
@@ -286,15 +296,18 @@ pub fn merge(
     let headers = Group::plain(Field::Header, header_ident);
     doc.headers = keyed::merge(&mut cx, &headers, base.map(|d| d.headers.as_slice()), &ours.headers, &theirs.headers)?;
 
+    let paths = PathNames::new(&own_address, &address);
+    let own_params = paths.rename(&ours.params);
+    let base_params = base.map(|d| paths.rename(&d.params));
     let spec_paths = url::path_names(&spec_address);
     let implied = |p: &Param| p.kind == ParamKind::Path && !spec_paths.contains(&p.name);
     let params = Group { field: Field::Param, ident: param_ident, implied_removal: &implied };
-    let mut merged = keyed::merge(&mut cx, &params, base.map(|d| d.params.as_slice()), &ours.params, &theirs.params)?;
-    follow_address(&mut merged, ours, theirs, &address);
+    let merged = keyed::merge(&mut cx, &params, base_params.as_deref(), &own_params, &theirs.params)?;
+    let merged = follow_address(&mut cx, merged, &paths, base_params.as_deref(), &own_params, &theirs.params)?;
     doc.url = if url::query_view(&merged) == url::query_view(&ours.params) {
         format!("{address}{}", url::query_suffix(&ours.url))
     } else {
-        url::from_params(&address, &merged)
+        url::with_query(&address, &ours.url, &ours.params, &merged)
     };
     doc.params = merged;
 
@@ -306,25 +319,76 @@ pub fn merge(
     Ok(Merged { doc, changes: cx.changes })
 }
 
+/// Noms des segments `:nom` de l'adresse de l'équipe (`old`) et de l'adresse fusionnée (`new`), et le segment
+/// que la spec a renommé s'il est le seul à avoir changé, à la même position.
+struct PathNames {
+    old: Vec<String>,
+    new: Vec<String>,
+    renamed: Option<(String, String)>,
+}
+
+impl PathNames {
+    fn new(own_address: &str, address: &str) -> Self {
+        let (old, new) = (url::path_names(own_address), url::path_names(address));
+        let differing: Vec<_> = old.iter().zip(&new).filter(|(a, b)| a != b).collect();
+        let renamed = match differing.as_slice() {
+            [(from, to)] if old.len() == new.len() => Some(((*from).clone(), (*to).clone())),
+            _ => None,
+        };
+        let old = old
+            .into_iter()
+            .map(|name| renamed.as_ref().filter(|(from, _)| *from == name).map_or(name, |(_, to)| to.clone()))
+            .collect();
+        Self { old, new, renamed }
+    }
+
+    /// Les paramètres de chemin, dont celui du segment renommé suit son nouveau nom : sa valeur n'est pas perdue.
+    fn rename<'a>(&self, params: &'a [Param]) -> Cow<'a, [Param]> {
+        let Some((from, to)) = &self.renamed else { return Cow::Borrowed(params) };
+        let named = |p: &Param, name: &str| p.kind == ParamKind::Path && p.name == name;
+        if params.iter().any(|p| named(p, to)) || !params.iter().any(|p| named(p, from)) {
+            return Cow::Borrowed(params);
+        }
+        let rename = |mut p: Param| {
+            if named(&p, from) {
+                p.name.clone_from(to);
+            }
+            p
+        };
+        Cow::Owned(params.iter().cloned().map(rename).collect())
+    }
+}
+
 /// Les paramètres de chemin suivent les segments `:nom` de l'adresse fusionnée, leurs valeurs reprises par nom :
 /// ceux de l'ancienne adresse disparaissent avec leur segment, ceux de la nouvelle sont créés au besoin. Un paramètre
-/// de chemin ajouté par l'équipe sans segment correspondant n'est pas touché.
-fn follow_address(params: &mut Vec<Param>, ours: &RequestDoc, theirs: &RequestDoc, address: &str) {
-    let old = url::path_names(url::address(&ours.url));
-    let new = url::path_names(address);
+/// de chemin ajouté par l'équipe sans segment correspondant n'est pas touché. Celui dont le segment disparaît alors
+/// que l'équipe en a saisi la valeur est un conflit : sa valeur n'est jamais perdue en silence.
+fn follow_address(
+    cx: &mut Cx,
+    params: Vec<Param>,
+    paths: &PathNames,
+    base: Option<&[Param]>,
+    ours: &[Param],
+    theirs: &[Param],
+) -> Result<Vec<Param>, MergeError> {
     let is_path = |p: &Param| p.kind == ParamKind::Path;
-    let team_junk = |p: &Param| ours.params.iter().any(|o| is_path(o) && o.name == p.name) && !old.contains(&p.name);
-    params.retain(|p| !is_path(p) || new.contains(&p.name) || team_junk(p));
-    if new == old {
-        return;
+    let team_junk = |p: &Param| ours.iter().any(|o| is_path(o) && o.name == p.name) && !paths.old.contains(&p.name);
+    let mut kept = Vec::with_capacity(params.len());
+    for param in params {
+        if !is_path(&param) || paths.new.contains(&param.name) || team_junk(&param) || retire(cx, &param, base)? {
+            kept.push(param);
+        }
     }
-    for name in &new {
-        if params.iter().any(|p| is_path(p) && &p.name == name) {
+    if paths.new == paths.old {
+        return Ok(kept);
+    }
+    for name in &paths.new {
+        if kept.iter().any(|p| is_path(p) && &p.name == name) {
             continue;
         }
         let known = |list: &[Param]| list.iter().find(|p| is_path(p) && &p.name == name).cloned();
-        let param = known(&ours.params).or_else(|| known(&theirs.params));
-        params.push(param.unwrap_or_else(|| Param {
+        let param = known(ours).or_else(|| known(theirs));
+        kept.push(param.unwrap_or_else(|| Param {
             name: name.clone(),
             value: String::new(),
             kind: ParamKind::Path,
@@ -332,4 +396,24 @@ fn follow_address(params: &mut Vec<Param>, ours: &RequestDoc, theirs: &RequestDo
             description: None,
         }));
     }
+    Ok(kept)
+}
+
+/// Le paramètre de chemin dont l'adresse n'a plus le segment : `true` s'il reste, c'est-à-dire si l'équipe en avait
+/// saisi la valeur et ne l'abandonne pas ; sans choix, la valeur de l'équipe reste en place.
+fn retire(cx: &mut Cx, param: &Param, base: Option<&[Param]>) -> Result<bool, MergeError> {
+    let before = base.and_then(|list| list.iter().find(|b| b.kind == ParamKind::Path && b.name == param.name));
+    let typed = !param.value.trim().is_empty() && before.is_none_or(|b| !param.same_value(b));
+    if !typed {
+        return Ok(false);
+    }
+    let ident = param_ident(param);
+    let reason = "Segment retiré de l'adresse par la spec, mais valeur saisie par l'équipe";
+    let mut change = cx.change(&ident.id, Field::Param, &ident.label, Kind::Conflict, reason);
+    (change.base, change.ours) = (before.map(Entry::show), Some(param.show()));
+    change.choices = vec![Choice::Team, Choice::Spec];
+    let kept = cx.decide(&mut change)?.is_none_or(|decision| decision.choice == Choice::Team);
+    change.result = (change.decided && kept).then(|| param.show());
+    cx.changes.push(change);
+    Ok(kept)
 }

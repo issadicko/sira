@@ -30,11 +30,12 @@ pub(super) struct Op {
     pub doc: RequestDoc,
 }
 
-/// Fichier de requête de l'équipe tel qu'il est sur le disque.
+/// Fichier de requête de l'équipe tel qu'il est sur le disque ; `is_request` : son `info.type` est bien `http`.
 pub(super) struct Ours {
     pub file: String,
     pub text: String,
     pub doc: RequestDoc,
+    pub is_request: bool,
 }
 
 pub(super) fn tree(text: &str, path: &str) -> Result<Map, CoreError> {
@@ -79,8 +80,13 @@ pub(super) fn load_ours(root: &Path, file: &str) -> Result<Option<Ours>, SyncErr
         Err(e) if e.kind() == ErrorKind::NotFound || !path.is_file() => return Ok(None),
         Err(e) => return Err(CoreError::io(&path, e).into()),
     };
-    let doc = RequestDoc::from_tree(&tree(&text, file)?);
-    Ok(Some(Ours { file: file.to_owned(), text, doc }))
+    let unreadable = |e: CoreError| match e {
+        CoreError::Yaml { message, .. } => SyncError::Unreadable { file: file.to_owned(), message },
+        other => other.into(),
+    };
+    let tree = tree(&text, file).map_err(unreadable)?;
+    let is_request = tree.map("info").and_then(|info| info.str("type")) == Some("http");
+    Ok(Some(Ours { file: file.to_owned(), text, doc: RequestDoc::from_tree(&tree), is_request }))
 }
 
 pub(super) fn exists(root: &Path, file: &str) -> Result<bool, SyncError> {

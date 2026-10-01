@@ -250,10 +250,11 @@ fn ef_syn_04_path_params_follow_the_merged_address_and_keep_team_values() {
     assert_eq!(merged.doc.url, "{{baseUrl}}/pets/:petId");
     assert_eq!(
         merged.doc.params,
-        vec![param("petId", "", ParamKind::Path)],
-        "le paramètre suit le segment de l'adresse"
+        vec![param("petId", "42", ParamKind::Path)],
+        "le paramètre suit le segment renommé avec sa valeur"
     );
-    assert_eq!(merged.unresolved().count(), 0, "la valeur de l'ancien paramètre ne fait pas de conflit");
+    assert_eq!(change(&merged, "param/path/petId").kind, Kind::Kept);
+    assert_eq!(merged.unresolved().count(), 0);
 
     let team_address = edit(&team_value, |d| d.url = "{{host}}/pets/:id".into());
     let merged = run(Some(&base), &team_address, &renamed);
@@ -264,7 +265,7 @@ fn ef_syn_04_path_params_follow_the_merged_address_and_keep_team_values() {
         "l'adresse de l'équipe garde son paramètre"
     );
     let spec = choose(Some(&base), &team_address, &renamed, "url", Choice::Spec, None).unwrap();
-    assert_eq!(spec.doc.params, vec![param("petId", "", ParamKind::Path)]);
+    assert_eq!(spec.doc.params, vec![param("petId", "42", ParamKind::Path)], "la valeur suit le segment renommé");
 
     let (team, spec) = (
         edit(&base, |d| d.params = vec![Param { description: Some("a".into()), ..param("id", "", ParamKind::Path) }]),
@@ -675,4 +676,275 @@ fn ef_syn_04_decisions_on_unknown_changes_are_ignored_and_unavailable_choices_re
     assert_eq!(unknown.unresolved().count(), 1);
     let both = choose(Some(&base), &ours, &theirs, "method", Choice::Both, None).unwrap_err();
     assert!(both.to_string().contains("method") && both.to_string().contains("both"), "{both}");
+}
+
+fn oauth(client: &str, token_url: &str) -> Auth {
+    let config = format!("accessTokenUrl: {token_url}\ncredentials:\n  clientId: {client}\nflow: client_credentials");
+    Auth::Other { label: "oauth2".into(), config }
+}
+
+#[test]
+fn ef_syn_04_an_untyped_auth_is_compared_by_its_whole_configuration_not_by_its_type() {
+    let mut base = doc();
+    base.auth = oauth("{{id}}", "https://auth.test/token");
+    let with = |auth: Auth| edit(&base, |d| d.auth = auth);
+    let team = with(oauth("mine", "https://auth.test/token"));
+    let spec = with(oauth("{{id}}", "https://auth.test/v2/token"));
+
+    let merged = run(Some(&base), &base, &base);
+    assert!(merged.changes.is_empty());
+
+    let merged = run(Some(&base), &team, &base);
+    assert_eq!(change(&merged, "auth").kind, Kind::Kept);
+    assert_eq!(merged.doc.auth, oauth("mine", "https://auth.test/token"));
+
+    let merged = run(Some(&base), &base, &spec);
+    assert_eq!(change(&merged, "auth").kind, Kind::Applied);
+    assert_eq!(merged.doc.auth, oauth("{{id}}", "https://auth.test/v2/token"));
+
+    let merged = run(Some(&base), &team, &spec);
+    let conflict = change(&merged, "auth");
+    assert_eq!((conflict.kind, conflict.choices.clone()), (Kind::Conflict, vec![Choice::Team, Choice::Spec]));
+    assert_eq!(merged.doc.auth, oauth("mine", "https://auth.test/token"), "la valeur de l'équipe reste en place");
+    assert_eq!(
+        conflict.ours.as_deref(),
+        Some(
+            "oauth2\naccessTokenUrl: https://auth.test/token\ncredentials:\n  clientId: mine\nflow: client_credentials"
+        )
+    );
+    assert!(conflict.theirs.as_deref().is_some_and(|t| t.starts_with("oauth2\n") && t.contains("/v2/token")));
+    let chosen = choose(Some(&base), &team, &spec, "auth", Choice::Spec, None).unwrap();
+    assert_eq!(chosen.doc.auth, oauth("{{id}}", "https://auth.test/v2/token"));
+
+    let merged = run(None, &team, &spec);
+    assert_eq!(change(&merged, "auth").kind, Kind::Conflict, "sans base non plus");
+    let merged = run(None, &team, &team);
+    assert!(merged.changes.is_empty());
+
+    let digest = with(Auth::Other { label: "digest".into(), config: "password: x\nusername: u".into() });
+    assert_eq!(change(&run(Some(&base), &base, &digest), "auth").kind, Kind::Applied, "un autre type de la spec");
+}
+
+#[test]
+fn ef_syn_04_a_body_of_an_untyped_kind_is_compared_by_its_whole_configuration() {
+    let file = |path: &str| Body::Other { label: "file".into(), config: format!("data:\n  - filePath: {path}") };
+    let mut base = doc();
+    base.body = file("a.bin");
+    let with = |body: Body| edit(&base, |d| d.body = body);
+    let merged = run(Some(&base), &base, &with(file("b.bin")));
+    assert_eq!(change(&merged, "body").kind, Kind::Applied);
+    assert_eq!(merged.doc.body, file("b.bin"));
+    let merged = run(Some(&base), &with(file("mine.bin")), &with(file("b.bin")));
+    assert_eq!(change(&merged, "body").kind, Kind::Conflict);
+    assert_eq!(change(&merged, "body").ours.as_deref(), Some("file\ndata:\n  - filePath: mine.bin"));
+}
+
+#[test]
+fn ef_syn_04_a_path_param_the_spec_drops_with_its_segment_is_a_conflict_when_the_team_typed_its_value() {
+    let mut base = doc();
+    base.params = vec![param("id", "", ParamKind::Path)];
+    let team = edit(&base, |d| d.params = vec![param("id", "42", ParamKind::Path)]);
+    let spec = edit(&base, |d| {
+        d.url = "{{baseUrl}}/pets/by-id".into();
+        d.params = vec![];
+    });
+
+    let merged = run(Some(&base), &team, &spec);
+    let conflict = change(&merged, "param/path/id");
+    assert_eq!((conflict.kind, conflict.choices.clone()), (Kind::Conflict, vec![Choice::Team, Choice::Spec]));
+    assert_eq!((conflict.ours.as_deref(), conflict.result.clone()), (Some("42"), None));
+    assert_eq!(merged.doc.url, "{{baseUrl}}/pets/by-id");
+    assert_eq!(merged.doc.params, vec![param("id", "42", ParamKind::Path)], "sans choix, la valeur reste");
+    assert_eq!(merged.unresolved().count(), 1);
+
+    let dropped = choose(Some(&base), &team, &spec, "param/path/id", Choice::Spec, None).unwrap();
+    assert!(dropped.doc.params.is_empty() && dropped.unresolved().count() == 0);
+    let kept = choose(Some(&base), &team, &spec, "param/path/id", Choice::Team, None).unwrap();
+    assert_eq!(kept.doc.params, vec![param("id", "42", ParamKind::Path)]);
+    assert_eq!(change(&kept, "param/path/id").result.as_deref(), Some("42"));
+    let refused = choose(Some(&base), &team, &spec, "param/path/id", Choice::Edit, Some("1")).unwrap_err();
+    assert!(matches!(refused, MergeError::Unavailable { .. }), "{refused}");
+
+    let untouched = run(Some(&base), &base, &spec);
+    assert!(untouched.doc.params.is_empty() && untouched.unresolved().count() == 0, "pas de valeur saisie");
+    let no_base = choose(None, &team, &spec, "url", Choice::Spec, None).unwrap();
+    assert_eq!(change(&no_base, "param/path/id").kind, Kind::Conflict, "sans base non plus");
+}
+
+#[test]
+fn ef_syn_04_only_a_single_renamed_segment_carries_the_path_param_value() {
+    let mut base = doc();
+    base.url = "{{baseUrl}}/a/:x/b/:y".into();
+    base.params = vec![param("x", "", ParamKind::Path), param("y", "", ParamKind::Path)];
+    let team = edit(&base, |d| d.params = vec![param("x", "1", ParamKind::Path), param("y", "2", ParamKind::Path)]);
+    let one = edit(&base, |d| {
+        d.url = "{{baseUrl}}/a/:x/b/:z".into();
+        d.params = vec![param("x", "", ParamKind::Path), param("z", "", ParamKind::Path)];
+    });
+    let merged = run(Some(&base), &team, &one);
+    assert_eq!(merged.doc.params, vec![param("x", "1", ParamKind::Path), param("z", "2", ParamKind::Path)]);
+    assert_eq!(merged.unresolved().count(), 0);
+
+    let two = edit(&base, |d| {
+        d.url = "{{baseUrl}}/a/:p/b/:q".into();
+        d.params = vec![param("p", "", ParamKind::Path), param("q", "", ParamKind::Path)];
+    });
+    let merged = run(Some(&base), &team, &two);
+    let ids: Vec<_> = merged.unresolved().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, ["op::param/path/x", "op::param/path/y"], "deux segments renommés : chaque valeur est signalée");
+    assert_eq!(merged.doc.params.len(), 4, "les valeurs de l'équipe restent tant qu'il n'y a pas de choix");
+
+    let only_y = edit(&base, |d| d.params = vec![param("x", "", ParamKind::Path), param("y", "2", ParamKind::Path)]);
+    let merged = run(Some(&base), &only_y, &two);
+    assert_eq!(merged.unresolved().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["op::param/path/y"]);
+}
+
+fn json_doc(data: &str) -> RequestDoc {
+    edit(&doc(), |d| d.body = Body::Json { data: data.into() })
+}
+
+fn merged_json(merged: &Merged) -> &str {
+    match &merged.doc.body {
+        Body::Json { data } => data,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn ef_syn_04_json_numbers_keep_the_token_the_team_wrote() {
+    let base = json_doc("{\"a\": 1}");
+    let team = json_doc("{\"a\": 1, \"id\": 12345678901234567890123, \"qty\": 1.50, \"big\": 1E3, \"neg\": -0.0e-5, \"price\": 0.30000000000000004}");
+    let spec = json_doc("{\"a\": 2}");
+    let merged = run(Some(&base), &team, &spec);
+    assert_eq!(change(&merged, "body").kind, Kind::Merged);
+    assert_eq!(
+        merged_json(&merged),
+        "{\n  \"a\": 2,\n  \"id\": 12345678901234567890123,\n  \"qty\": 1.50,\n  \"big\": 1E3,\n  \"neg\": -0.0e-5,\n  \"price\": 0.30000000000000004\n}"
+    );
+
+    let base = json_doc("{\"n\": 1, \"m\": 2}");
+    let (team, spec) = (json_doc("{\"n\": 1.0, \"m\": 2}"), json_doc("{\"n\": 1, \"m\": 3}"));
+    let merged = run(Some(&base), &team, &spec);
+    assert_eq!(
+        merged_json(&merged),
+        "{\n  \"n\": 1.0,\n  \"m\": 3\n}",
+        "1.0 est un autre jeton que 1 : modifié par l'équipe"
+    );
+    let conflicting = run(Some(&json_doc("{\"n\": 1}")), &json_doc("{\"n\": 1.0}"), &json_doc("{\"n\": 1.00}"));
+    assert_eq!(change(&conflicting, "body").kind, Kind::Conflict);
+    let kept = choose(
+        Some(&json_doc("{\"n\": 1}")),
+        &json_doc("{\"n\": 1.0}"),
+        &json_doc("{\"n\": 1.00}"),
+        "body",
+        Choice::Both,
+        None,
+    )
+    .unwrap();
+    assert_eq!(merged_json(&kept), "{\n  \"n\": 1.0\n}", "combiner : l'équipe gagne, avec son jeton");
+
+    let not_json = run(Some(&json_doc("{\"a\": 1}")), &json_doc("{\"a\": 01}"), &json_doc("{\"a\": 2}"));
+    assert_eq!(change(&not_json, "body").kind, Kind::Conflict, "01 n'est pas un nombre JSON : pas de fusion JSON");
+}
+
+#[test]
+fn ef_syn_04_new_query_params_are_appended_to_the_query_the_team_typed() {
+    let mut base = doc();
+    base.url = "{{baseUrl}}/pets".into();
+    base.params = vec![Param { enabled: false, ..query("limit", "") }];
+    let ours = edit(&base, |d| d.url = "{{baseUrl}}/pets?debug=1&token={{tok}}".into());
+    let theirs = edit(&base, |d| d.params = vec![Param { enabled: false, ..query("limit", "") }, query("offset", "5")]);
+    let merged = run(Some(&base), &ours, &theirs);
+    assert_eq!(
+        merged.doc.url, "{{baseUrl}}/pets?debug=1&token={{tok}}&offset=5",
+        "ce qu'aucun paramètre ne représente est gardé"
+    );
+
+    let mut base = doc();
+    base.url = "{{baseUrl}}/pets".into();
+    base.params = vec![query("limit", "10"), query("sort", "name")];
+    let team = edit(&base, |d| d.url = "{{baseUrl}}/pets?limit=10&debug=1&sort=name".into());
+    let changed = edit(&base, |d| d.params = vec![query("limit", "25"), query("sort", "name"), query("page", "2")]);
+    let merged = run(Some(&base), &team, &changed);
+    assert_eq!(
+        merged.doc.url, "{{baseUrl}}/pets?limit=25&debug=1&sort=name&page=2",
+        "remplacé sur place, ajouté à la fin"
+    );
+
+    let retired = edit(&base, |d| d.params = vec![query("sort", "name")]);
+    let merged = run(Some(&base), &team, &retired);
+    assert_eq!(merged.doc.url, "{{baseUrl}}/pets?debug=1&sort=name", "le segment du paramètre retiré disparaît");
+
+    let team_disabled = edit(&base, |d| {
+        d.url = "{{baseUrl}}/pets?sort=name".into();
+        d.params = vec![Param { enabled: false, ..query("limit", "10") }, query("sort", "name")];
+    });
+    let merged = run(Some(&base), &team_disabled, &changed);
+    assert!(merged.doc.url.starts_with("{{baseUrl}}/pets?sort=name"), "{}", merged.doc.url);
+}
+
+#[test]
+fn ef_syn_04_an_edit_conflict_on_a_keyed_element_carries_the_raw_value() {
+    let described =
+        |value: &str, enabled: bool| Param { description: Some("max".into()), enabled, ..query("limit", value) };
+    let mut base = doc();
+    base.params = vec![described("10", true)];
+    let team = edit(&base, |d| d.params = vec![described("20", false)]);
+    let retired = edit(&base, |d| d.params = vec![]);
+    let merged = run(Some(&base), &team, &retired);
+    let conflict = change(&merged, "param/query/limit");
+    assert_eq!(conflict.choices, [Choice::Team, Choice::Spec, Choice::Edit]);
+    assert_eq!(
+        (conflict.base.as_deref(), conflict.ours.as_deref(), conflict.theirs.as_deref()),
+        (Some("10"), Some("20"), None),
+        "la valeur brute, sans « (désactivé) » ni description"
+    );
+    let typed =
+        choose(Some(&base), &team, &retired, "param/query/limit", Choice::Edit, Some(&conflict.ours.clone().unwrap()))
+            .unwrap();
+    assert_eq!(typed.doc.params[0].value, "20", "valider sans retaper n'ajoute rien à la valeur");
+    assert_eq!(
+        change(&typed, "param/query/limit").result.as_deref(),
+        Some("20 (désactivé) — max"),
+        "le résultat reste le texte affiché"
+    );
+
+    let mut base = doc();
+    base.headers = vec![kv("B", "2")];
+    let removed_by_team = edit(&base, |d| d.headers = vec![]);
+    let changed_by_spec = edit(&base, |d| {
+        d.headers = vec![KeyValue { description: Some("corr".into()), enabled: false, ..kv("B", "3") }]
+    });
+    let merged = run(Some(&base), &removed_by_team, &changed_by_spec);
+    let conflict = change(&merged, "header/b");
+    assert_eq!(conflict.choices, [Choice::Team, Choice::Spec, Choice::Edit]);
+    assert_eq!(
+        (conflict.base.as_deref(), conflict.theirs.as_deref(), conflict.ours.as_deref()),
+        (Some("2"), Some("3"), None)
+    );
+
+    let mut base = doc();
+    base.body = Body::MultipartForm { fields: vec![field("file", "")] };
+    let team = edit(&base, |d| {
+        d.body = Body::MultipartForm {
+            fields: vec![MultipartField {
+                value: MultipartValue::File(vec!["a.png".into(), "b.png".into()]),
+                ..field("file", "")
+            }],
+        }
+    });
+    let retired = edit(&base, |d| d.body = Body::MultipartForm { fields: vec![] });
+    let merged = run(Some(&base), &team, &retired);
+    assert_eq!(change(&merged, "body/form/file").ours.as_deref(), Some("a.png, b.png"));
+
+    let mut base = doc();
+    base.params = vec![Param { description: Some("a".into()), ..query("limit", "10") }];
+    let (team, spec) = (
+        edit(&base, |d| d.params = vec![Param { description: Some("b".into()), ..query("limit", "10") }]),
+        edit(&base, |d| d.params = vec![Param { description: Some("c".into()), ..query("limit", "10") }]),
+    );
+    let merged = run(Some(&base), &team, &spec);
+    let conflict = change(&merged, "param/query/limit");
+    assert_eq!(conflict.choices, [Choice::Team, Choice::Spec]);
+    assert_eq!(conflict.ours.as_deref(), Some("10 — b"), "pas d'édition proposée : le texte affiché");
 }

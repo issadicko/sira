@@ -1104,3 +1104,614 @@ fn enf_perf_07_plan_and_apply_of_500_operations() {
     let budget = if cfg!(debug_assertions) { 10.0 } else { 2.0 };
     assert!(total.as_secs_f64() < budget, "plan + application : {total:?} (budget {budget} s)");
 }
+
+const PETS: &str = "openapi: 3.0.0
+info: {title: T, version: 1.0.0}
+servers: [{url: http://api.test/v1}]
+paths:
+  /pets:
+    get:
+      summary: List pets
+      operationId: listPets
+      tags: [pets]
+      parameters:
+        - {name: limit, in: query, description: \"How many\", schema: {type: integer}}
+        - {name: X-Req, in: header, description: \"corr\", schema: {type: string}}
+      responses: {'200': {description: ok}}
+    post:
+      summary: Create pet
+      operationId: createPet
+      tags: [pets]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: {type: integer}
+                name: {type: string}
+      responses: {'201': {description: ok}}
+  /pets/{petId}:
+    get:
+      summary: Show pet
+      operationId: showPet
+      tags: [pets]
+      parameters:
+        - {name: petId, in: path, required: true, schema: {type: string}}
+      security:
+        - oauth: [read]
+      responses: {'200': {description: ok}}
+components:
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.test/token
+          scopes: {read: r}
+";
+
+const PETS_LIST: &str = "pets/List pets.yml";
+const PETS_SHOW: &str = "pets/Show pet.yml";
+
+fn replace_in(world: &World, relative: &str, from: &str, to: &str) {
+    let text = read(&world.root, relative);
+    assert!(text.contains(from), "{relative} ne contient pas {from:?} :\n{text}");
+    fs::write(world.root.join(relative), text.replacen(from, to, 1)).unwrap();
+}
+
+fn pets_with_header() -> String {
+    PETS.replace(
+        "{name: X-Req, in: header, description: \"corr\", schema: {type: string}}",
+        "{name: X-Req, in: header, description: \"corr\", schema: {type: string}}\n        - {name: X-New, in: header, schema: {type: string}}",
+    )
+}
+
+fn pets_without_show() -> String {
+    let (start, end) = (PETS.find("  /pets/{petId}:").unwrap(), PETS.find("components:").unwrap());
+    format!("{}{}", &PETS[..start], &PETS[end..])
+}
+
+fn source_keys(root: &Path) -> Vec<String> {
+    let text = read(root, ".oc-sync/openapi/source.yml");
+    text.lines().filter_map(|l| l.strip_prefix("  - key: ")).map(|k| k.trim_matches('"').to_owned()).collect()
+}
+
+#[test]
+fn ef_syn_04_an_untyped_auth_changed_by_the_team_or_the_spec_is_never_overwritten_silently() {
+    let world = world(PETS);
+    replace_in(&world, PETS_SHOW, "clientId: \"{{oauth_client_id}}\"", "clientId: real-team-client-id");
+    let token_url = PETS.replace("tokenUrl: https://auth.test/token", "tokenUrl: https://auth.test/v2/token");
+    let plan = plan_of(&world, &token_url);
+    assert_eq!(op(&plan, "showPet").status, OpStatus::Conflict, "les deux ont changé la même auth");
+    let change = &op(&plan, "showPet").changes[0];
+    assert_eq!((change.id.as_str(), change.kind), ("showPet::auth", Kind::Conflict));
+    assert!(change.ours.as_deref().is_some_and(|s| s.starts_with("oauth2\n") && s.contains("real-team-client-id")));
+    assert!(change.theirs.as_deref().is_some_and(|s| s.contains("auth.test/v2/token")));
+    let before = files_under(&world.root);
+    assert!(plan.apply(&Decisions::default()).is_err(), "un conflit sans choix est refusé");
+    assert_eq!(files_under(&world.root), before);
+    plan.apply(&Decisions::uniform(&plan, Choice::Team)).unwrap();
+    let kept = read(&world.root, PETS_SHOW);
+    assert!(kept.contains("clientId: real-team-client-id") && kept.contains("accessTokenUrl: https://auth.test/token"));
+
+    let world = self::world(PETS);
+    replace_in(&world, PETS_SHOW, "clientId: \"{{oauth_client_id}}\"", "clientId: real-team-client-id");
+    let unchanged_by_spec = plan_of(&world, &PETS.replace("version: 1.0.0", "version: 1.0.1"));
+    assert_eq!(op(&unchanged_by_spec, "showPet").status, OpStatus::Kept, "la config de l'équipe est conservée");
+
+    let world = self::world(PETS);
+    let plan = plan_of(&world, &token_url);
+    assert_eq!(op(&plan, "showPet").status, OpStatus::Updated, "l'équipe n'a rien changé : la spec s'applique");
+    plan.apply(&Decisions::default()).unwrap();
+    assert!(read(&world.root, PETS_SHOW).contains("accessTokenUrl: https://auth.test/v2/token"));
+}
+
+#[test]
+fn ef_syn_04_numbers_of_the_team_body_keep_their_tokens_through_the_merge() {
+    let world = world(PETS);
+    let body = "      {\n        \"id\": 12345678901234567890123,\n        \"price\": 0.30000000000000004,\n        \"qty\": 1.50,\n        \"big\": 1E3,\n        \"name\": \"Rex\"\n      }";
+    replace_in(&world, "pets/Create pet.yml", "      {\n        \"id\": 0,\n        \"name\": \"\"\n      }", body);
+    let spec = PETS.replace(
+        "                name: {type: string}\n",
+        "                name: {type: string}\n                tag: {type: string}\n",
+    );
+    let plan = plan_of(&world, &spec);
+    assert_eq!(op(&plan, "createPet").status, OpStatus::Merged);
+    plan.apply(&Decisions::default()).unwrap();
+    let written = read(&world.root, "pets/Create pet.yml");
+    for token in ["12345678901234567890123", "0.30000000000000004", "1.50", "1E3", "\"tag\": \"\""] {
+        assert!(written.contains(token), "{token} absent :\n{written}");
+    }
+}
+
+#[test]
+fn ef_syn_04_unknown_keys_inside_the_rewritten_lists_survive_the_sync() {
+    let world = world(PETS);
+    replace_in(
+        &world,
+        PETS_LIST,
+        "      description: corr\n      disabled: true\n",
+        "      description: corr\n      disabled: true\n      x-team-note: important\n",
+    );
+    replace_in(
+        &world,
+        PETS_LIST,
+        "      description: How many\n      disabled: true\n",
+        "      description: How many\n      disabled: true\n      x-param-note: keep me\n",
+    );
+    let plan = plan_of(&world, &pets_with_header());
+    assert_eq!(op(&plan, "listPets").status, OpStatus::Updated);
+    plan.apply(&Decisions::default()).unwrap();
+    let written = read(&world.root, PETS_LIST);
+    assert!(written.contains("x-team-note: important") && written.contains("x-param-note: keep me"), "{written}");
+    assert!(written.contains("    - name: X-New\n"), "{written}");
+}
+
+#[test]
+fn ef_syn_04_a_hand_typed_query_survives_a_new_query_parameter() {
+    let world = world(PETS);
+    replace_in(&world, PETS_LIST, "url: \"{{baseUrl}}/pets\"", "url: \"{{baseUrl}}/pets?debug=1&token={{tok}}\"");
+    let spec = PETS.replace(
+        "{name: limit, in: query, description: \"How many\", schema: {type: integer}}",
+        "{name: limit, in: query, description: \"How many\", schema: {type: integer}}\n        - {name: offset, in: query, required: true, schema: {type: integer, default: 5}}",
+    );
+    plan_of(&world, &spec).apply(&Decisions::default()).unwrap();
+    let doc = read_request(&world.root, PETS_LIST).unwrap();
+    assert_eq!(doc.url, "{{baseUrl}}/pets?debug=1&token={{tok}}&offset=5");
+}
+
+#[test]
+fn ef_syn_04_a_path_param_value_typed_by_the_team_follows_a_renamed_segment() {
+    let world = world(PETS);
+    replace_in(&world, PETS_SHOW, "      value: \"\"\n      type: path", "      value: \"42\"\n      type: path");
+    let renamed =
+        PETS.replace("/pets/{petId}:", "/pets/{id}:").replace("{name: petId, in: path", "{name: id, in: path");
+    let plan = plan_of(&world, &renamed);
+    assert_eq!(op(&plan, "showPet").status, OpStatus::Merged);
+    plan.apply(&Decisions::default()).unwrap();
+    let doc = read_request(&world.root, PETS_SHOW).unwrap();
+    assert_eq!(doc.url, "{{baseUrl}}/pets/:id");
+    assert_eq!((doc.params[0].name.as_str(), doc.params[0].value.as_str()), ("id", "42"));
+}
+
+#[test]
+fn ef_syn_04_a_path_param_value_typed_by_the_team_is_a_conflict_when_its_segment_disappears() {
+    let world = world(PETS);
+    replace_in(&world, PETS_SHOW, "      value: \"\"\n      type: path", "      value: \"42\"\n      type: path");
+    let spec = PETS
+        .replace("/pets/{petId}:", "/pets/by-id:")
+        .replace("        - {name: petId, in: path, required: true, schema: {type: string}}\n", "");
+    let plan = plan_of(&world, &spec);
+    let show = op(&plan, "showPet");
+    assert_eq!(show.status, OpStatus::Conflict);
+    let conflict = show.changes.iter().find(|c| c.id == "showPet::param/path/petId").expect("conflit visible");
+    assert_eq!((conflict.kind, conflict.choices.clone()), (Kind::Conflict, vec![Choice::Team, Choice::Spec]));
+    assert_eq!(conflict.ours.as_deref(), Some("42"));
+    plan.apply(&choice("showPet::param/path/petId", Choice::Spec)).unwrap();
+    assert!(read_request(&world.root, PETS_SHOW).unwrap().params.is_empty());
+
+    let world = self::world(PETS);
+    plan_of(&world, &spec).apply(&Decisions::default()).unwrap();
+    assert!(
+        read_request(&world.root, PETS_SHOW).unwrap().params.is_empty(),
+        "sans valeur saisie : retiré sans conflit"
+    );
+}
+
+#[test]
+fn ef_syn_01_a_renamed_operation_id_takes_over_the_untouched_file() {
+    let world = world(PETS);
+    let renamed = PETS.replace("operationId: listPets", "operationId: listAllPets");
+    let plan = plan_of(&world, &renamed);
+    assert_eq!((op(&plan, "listAllPets").status, op(&plan, "listPets").status), (OpStatus::New, OpStatus::Removed));
+    let before = files_under(&world.root);
+    let report = plan.apply(&Decisions::default()).unwrap();
+    assert!(report.created.is_empty() && report.removed.is_empty(), "rien n'est créé ni retiré : {report:?}");
+    assert_eq!(source_keys(&world.root), ["listAllPets", "createPet", "showPet"]);
+    assert!(store::removed_files(&world.root).is_empty(), "le fichier vivant n'est pas dépréciée");
+    let after = files_under(&world.root);
+    assert_eq!(
+        after.keys().filter(|k| k.starts_with("pets/")).collect::<Vec<_>>(),
+        before.keys().filter(|k| k.starts_with("pets/")).collect::<Vec<_>>(),
+        "aucun fichier de requête créé"
+    );
+    assert!(!after.keys().any(|k| k.contains("removed/")), "{:?}", after.keys().collect::<Vec<_>>());
+    let again = plan_of(&world, &renamed);
+    assert!(!again.diverged(), "{:?}", statuses(&again));
+    assert_eq!(op(&again, "listAllPets").file.as_deref(), Some(PETS_LIST));
+}
+
+#[test]
+fn ef_syn_01_a_renamed_operation_id_does_not_take_over_a_file_the_team_edited() {
+    let world = world(PETS);
+    replace_in(&world, PETS_LIST, "name: List pets", "name: List pets (equipe)");
+    let renamed = PETS
+        .replace("operationId: listPets", "operationId: listAllPets")
+        .replace("summary: List pets", "summary: List pets (equipe)");
+    let plan = plan_of(&world, &renamed);
+    let report = plan.apply(&Decisions::default()).unwrap();
+    assert_eq!(report.removed, [PETS_LIST]);
+    assert_eq!(report.created, ["pets/List pets (equipe).yml"], "le fichier de l'équipe garde son ancienne opération");
+    assert!(store::removed_files(&world.root).contains(PETS_LIST));
+}
+
+#[test]
+fn ef_syn_01_a_new_operation_never_reuses_a_file_another_operation_tracks() {
+    let world = world(PETS);
+    let start = PETS.find("  /pets:").unwrap();
+    let end = PETS.find("    post:").unwrap();
+    let copy = PETS[start..end].replace("  /pets:", "  /pets2:").replace("listPets", "listPets2");
+    let spec = PETS.replacen("components:", &format!("{copy}components:"), 1);
+    let created = plan_of(&world, &spec).apply(&Decisions::default()).unwrap().created;
+    assert_eq!(created.len(), 1);
+    let twin = &created[0];
+
+    let store = world.root.join(".oc-sync/openapi/source.yml");
+    let text = read(&world.root, ".oc-sync/openapi/source.yml");
+    let shared = text
+        .replace(&format!("  - key: listPets2\n    file: {twin}\n"), "")
+        .replace("key: listPets\n    file: pets/List pets.yml", &format!("key: listPets\n    file: {twin}"));
+    assert_ne!(shared, text);
+    fs::write(&store, shared).unwrap();
+    let plan = plan_of(&world, &spec);
+    assert_eq!(op(&plan, "listPets2").status, OpStatus::New, "{:?}", statuses(&plan));
+    let report = plan.apply(&Decisions::default()).unwrap();
+    assert_eq!(report.created, [twin.replace(".yml", " 1.yml")], "le fichier suivi par listPets n'est pas partagé");
+    let source = read(&world.root, ".oc-sync/openapi/source.yml");
+    assert!(source.contains(&format!("key: listPets\n    file: {twin}\n")), "{source}");
+    assert!(source.contains(&format!("key: listPets2\n    file: {}\n", twin.replace(".yml", " 1.yml"))), "{source}");
+}
+
+#[test]
+fn ef_syn_01_a_moved_or_renamed_file_is_found_again_by_method_and_path() {
+    let world = world(PETS);
+    fs::create_dir_all(world.root.join("mes-trucs")).unwrap();
+    fs::rename(world.root.join(PETS_LIST), world.root.join("mes-trucs/Ma liste.yml")).unwrap();
+    let plan = plan_of(&world, &pets_with_header());
+    assert_eq!(plan.summary.missing, 0);
+    assert_eq!(op(&plan, "listPets").status, OpStatus::Updated);
+    assert_eq!(op(&plan, "listPets").file.as_deref(), Some("mes-trucs/Ma liste.yml"));
+    let report = plan.apply(&Decisions::default()).unwrap();
+    assert_eq!(report.written, ["mes-trucs/Ma liste.yml"]);
+    assert!(report.ignored.is_empty() && report.created.is_empty());
+    assert!(
+        read(&world.root, ".oc-sync/openapi/source.yml").contains("key: listPets\n    file: mes-trucs/Ma liste.yml\n")
+    );
+    let again = plan_of(&world, &pets_with_header());
+    assert!(!again.diverged(), "{:?}", statuses(&again));
+
+    let folder = self::world(PETS);
+    fs::rename(folder.root.join("pets"), folder.root.join("animaux")).unwrap();
+    let plan = plan_of(&folder, PETS);
+    assert_eq!((plan.summary.missing, plan.summary.unchanged), (0, 3), "{:?}", statuses(&plan));
+    assert_eq!(op(&plan, "showPet").file.as_deref(), Some("animaux/Show pet.yml"));
+}
+
+#[test]
+fn ef_syn_01_a_missing_file_stays_missing_when_the_match_is_not_certain() {
+    let world = world(PETS);
+    fs::rename(world.root.join(PETS_LIST), world.root.join("Ma liste.yml")).unwrap();
+    fs::copy(world.root.join("Ma liste.yml"), world.root.join("Autre copie.yml")).unwrap();
+    let plan = plan_of(&world, PETS);
+    assert_eq!(op(&plan, "listPets").status, OpStatus::Missing, "deux candidates : pas de rapprochement");
+    assert!(plan.diverged(), "une opération manquante est un écart");
+
+    let world = self::world(PETS);
+    fs::rename(world.root.join(PETS_LIST), world.root.join("Ma liste.yml")).unwrap();
+    replace_in(&world, "Ma liste.yml", "url: \"{{baseUrl}}/pets\"", "url: \"{{baseUrl}}/autre\"");
+    let plan = plan_of(&world, PETS);
+    assert_eq!(op(&plan, "listPets").status, OpStatus::Missing, "méthode ou chemin différents");
+
+    let world = self::world(PETS);
+    fs::remove_file(world.root.join(PETS_LIST)).unwrap();
+    let plan = plan_of(&world, PETS);
+    assert_eq!((plan.summary.missing, plan.diverged()), (1, true));
+}
+
+#[test]
+fn ef_syn_06_a_spec_without_operations_is_refused_while_operations_are_tracked() {
+    let world = world(PETS);
+    let before = files_under(&world.root);
+    let empty = "openapi: 3.0.0\ninfo: {title: T, version: 1.0.0}\npaths: {}\n";
+    let error = sync::plan(&world.root, empty, recorded(&world.root), &[]).unwrap_err();
+    assert!(error.is_input() && error.to_string().contains("aucune opération"), "{error}");
+    assert!(error.to_string().contains("3 opération"), "{error}");
+    assert_eq!(files_under(&world.root), before);
+
+    let bare = self::world(empty);
+    assert!(sync::plan(&bare.root, empty, recorded(&bare.root), &[]).is_ok(), "rien n'est suivi : rien n'est perdu");
+}
+
+#[test]
+fn ef_syn_03_a_restored_operation_is_merged_against_the_version_kept_when_it_was_removed() {
+    let world = world(PETS);
+    let imported = read(&world.root, PETS_SHOW);
+    plan_of(&world, &pets_without_show()).apply(&Decisions::default()).unwrap();
+    let kept = world.root.join(".oc-sync/openapi/removed");
+    let files: Vec<_> =
+        fs::read_dir(&kept).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    assert_eq!(files, ["showPet.yml"]);
+    assert_eq!(fs::read_to_string(kept.join("showPet.yml")).unwrap(), imported, "dernière version de la requête");
+
+    let bearer = PETS.replace(
+        "oauth2\n      flows:\n        clientCredentials:\n          tokenUrl: https://auth.test/token\n          scopes: {read: r}",
+        "http\n      scheme: bearer",
+    );
+    let plan = plan_of(&world, &bearer);
+    let show = op(&plan, "showPet");
+    assert_eq!(show.status, OpStatus::Restored, "aucun faux conflit : {:?}", show.changes);
+    assert_eq!((show.changes[0].id.as_str(), show.changes[0].kind), ("showPet::auth", Kind::Applied));
+    assert_eq!(show.changes[0].base.as_deref().map(|b| b.starts_with("oauth2")), Some(true));
+    plan.apply(&Decisions::default()).unwrap();
+    assert!(read(&world.root, PETS_SHOW).contains("type: bearer"));
+    assert!(!kept.join("showPet.yml").exists(), "supprimée après la restauration");
+    assert!(!plan_of(&world, &bearer).diverged());
+
+    let lost = self::world(PETS);
+    plan_of(&lost, &pets_without_show()).apply(&Decisions::default()).unwrap();
+    fs::remove_file(lost.root.join(".oc-sync/openapi/removed/showPet.yml")).unwrap();
+    let plan = plan_of(&lost, &bearer);
+    assert_eq!(op(&plan, "showPet").status, OpStatus::Conflict, "sans base, conflit au moindre doute");
+}
+
+#[test]
+fn ef_syn_03_the_kept_version_of_a_removed_operation_follows_its_key_and_goes_when_it_is_forgotten() {
+    let world = world(USERS_V1);
+    let dir = world.root.join(".oc-sync/openapi/removed");
+    let gone = USERS_V1
+        .replace("  /health:\n    get:\n      summary: Health\n      responses: {'200': {description: ok}}\n", "");
+    plan_of(&world, &gone).apply(&Decisions::default()).unwrap();
+    let names: Vec<_> =
+        fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    assert_eq!(names, ["GET %2Fhealth.yml"], "la clé, caractères interdits écrits %XX");
+    let health = store::removed_files(&world.root).into_iter().next().unwrap();
+    fs::remove_file(world.root.join(&health)).unwrap();
+    plan_of(&world, &gone).apply(&Decisions::default()).unwrap();
+    assert_eq!(fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0), 0, "l'opération oubliée n'a plus de copie");
+}
+
+fn many(count: usize, folder: &str) -> String {
+    let mut spec = String::from("openapi: 3.0.0\ninfo: {title: Large, version: 1.0.0}\npaths:\n");
+    for i in 0..count {
+        spec.push_str(&format!(
+            "  /{folder}/r{i}/items/{{id}}:\n    get:\n      summary: Item {i}\n      tags: [t{}]\n      responses: {{'200': {{description: ok}}}}\n",
+            i % 20
+        ));
+    }
+    spec
+}
+
+#[test]
+fn ef_syn_01_pairing_suggestions_are_one_per_operation_and_bounded() {
+    let world = world(&many(500, "v1"));
+    let plan = plan_of(&world, &many(500, "v2"));
+    assert_eq!((plan.summary.removed, plan.summary.created), (500, 500));
+    assert_eq!(plan.suggestions.len(), 50, "plafonné");
+    let (mut removed, mut added): (Vec<_>, Vec<_>) =
+        plan.suggestions.iter().map(|s| (s.removed.as_str(), s.added.as_str())).unzip();
+    removed.sort_unstable();
+    added.sort_unstable();
+    assert!(removed.windows(2).all(|w| w[0] != w[1]) && added.windows(2).all(|w| w[0] != w[1]), "appariement 1-1");
+    for s in &plan.suggestions {
+        assert_eq!(s.reason, "même méthode et même nom de requête");
+        assert_eq!(s.removed.replace("/v1/", "/v2/"), s.added, "la meilleure candidate : le même nom");
+    }
+    assert!(serde_json::to_string(&plan).unwrap().len() < 1 << 20, "quelques Ko, pas des dizaines de Mo");
+
+    let small = self::world(&many(3, "v1"));
+    let plan = plan_of(&small, &many(2, "v2"));
+    assert_eq!(plan.suggestions.len(), 2, "une candidate par opération retirée, une opération retirée par candidate");
+}
+
+#[test]
+fn ef_syn_06_entries_cannot_target_reserved_files_or_share_one() {
+    let world = world(PETS);
+    let source = world.root.join(".oc-sync/openapi/source.yml");
+    let text = fs::read_to_string(&source).unwrap();
+    for file in [
+        "opencollection.yml",
+        "pets/folder.yml",
+        "environments/Environment 1.yml",
+        "pets/node_modules/x.yml",
+        "./.hidden.yml",
+    ] {
+        let hostile = text.replace(PETS_LIST, file);
+        fs::write(&source, &hostile).unwrap();
+        let error = sync::plan(&world.root, &pets_with_header(), "x".into(), &[]).unwrap_err();
+        assert!(error.is_input() && error.to_string().contains("chemin refusé"), "{file} : {error}");
+    }
+    let shared = text.replace(
+        "  - key: createPet\n    file: pets/Create pet.yml",
+        "  - key: createPet\n    file: pets/List pets.yml",
+    );
+    fs::write(&source, shared).unwrap();
+    let before = files_under(&world.root);
+    let error = sync::plan(&world.root, &pets_with_header(), "x".into(), &[]).unwrap_err();
+    assert!(
+        error.is_input() && error.to_string().contains("« listPets » et « createPet » désignent le même fichier"),
+        "{error}"
+    );
+    assert_eq!(files_under(&world.root), before);
+    let again = text.replace("pets/List pets.yml", "Pets/./list pets.yml").replace(
+        "  - key: createPet\n    file: pets/Create pet.yml",
+        "  - key: createPet\n    file: pets/List pets.yml",
+    );
+    fs::write(&source, again).unwrap();
+    assert!(sync::plan(&world.root, PETS, "x".into(), &[]).is_err(), "même fichier sous une autre graphie");
+}
+
+#[test]
+fn ef_syn_06_apply_only_writes_requests_of_type_http() {
+    let world = world(PETS);
+    replace_in(&world, PETS_LIST, "type: http", "type: graphql");
+    let plan = plan_of(&world, &pets_with_header());
+    let before = files_under(&world.root);
+    let error = plan.apply(&Decisions::default()).unwrap_err();
+    assert!(matches!(&error, SyncError::NotARequest(file) if file == PETS_LIST), "{error}");
+    assert_eq!(files_under(&world.root), before, "rien n'est écrit, la base n'a pas bougé");
+}
+
+#[test]
+fn ef_syn_06_an_unreadable_team_file_is_named_and_a_lost_base_copy_means_no_base() {
+    let world = world(PETS);
+    fs::write(world.root.join("pets/Create pet.yml"), "info: [\n").unwrap();
+    let error = sync::plan(&world.root, &pets_with_header(), recorded(&world.root), &[]).unwrap_err();
+    assert!(error.is_input(), "{error}");
+    assert!(error.to_string().starts_with("fichier de l'équipe illisible : pets/Create pet.yml : "), "{error}");
+
+    let lost = self::world(PETS);
+    fs::remove_file(lost.root.join(".oc-sync/openapi/spec.yaml")).unwrap();
+    let plan = plan_of(&lost, &pets_with_header());
+    assert!(!plan.has_base && plan.from.is_none());
+    assert_eq!(plan.summary.conflicts, 0);
+    assert_eq!(op(&plan, "listPets").status, OpStatus::Updated, "{:?}", statuses(&plan));
+    plan.apply(&Decisions::default()).unwrap();
+    assert!(lost.root.join(".oc-sync/openapi/spec.yaml").is_file(), "la base est reconstituée");
+    assert!(plan_of(&lost, &pets_with_header()).has_base);
+}
+
+#[test]
+fn ef_syn_06_a_resumed_sync_writes_the_folder_file_that_is_missing() {
+    let world = world(PETS);
+    let spec = PETS.replace("components:", "  /owners:\n    get:\n      summary: List owners\n      operationId: listOwners\n      tags: [owners]\n      responses: {'200': {description: ok}}\ncomponents:");
+    let plan = plan_of(&world, &spec);
+    plan.apply(&Decisions::default()).unwrap();
+    let folder = read(&world.root, "owners/folder.yml");
+    let store_dir = world.root.join(".oc-sync/openapi");
+    let (source, copy) =
+        (read(&world.root, ".oc-sync/openapi/source.yml"), fs::read(store_dir.join("spec.yaml")).unwrap());
+    fs::remove_file(world.root.join("owners/folder.yml")).unwrap();
+    fs::remove_file(world.root.join("owners/List owners.yml")).unwrap();
+    fs::write(
+        store_dir.join("source.yml"),
+        source.replace("  - key: listOwners\n    file: owners/List owners.yml\n", ""),
+    )
+    .unwrap();
+    fs::write(store_dir.join("spec.yaml"), copy).unwrap();
+    let replay = plan_of(&world, &spec);
+    assert_eq!(op(&replay, "listOwners").status, OpStatus::New);
+    replay.apply(&Decisions::default()).unwrap();
+    assert_eq!(read(&world.root, "owners/folder.yml"), folder, "le dossier existant reçoit son folder.yml");
+    assert!(world.root.join("owners/List owners.yml").is_file());
+
+    fs::write(world.root.join("owners/folder.yml"), "info:\n  name: Équipe\n  type: folder\n").unwrap();
+    let again = plan_of(&world, &spec.replace("operationId: listOwners", "operationId: listAllOwners"));
+    again.apply(&Decisions::default()).unwrap();
+    assert!(
+        read(&world.root, "owners/folder.yml").contains("name: Équipe"),
+        "un folder.yml existant n'est jamais écrasé"
+    );
+}
+
+#[test]
+fn ef_syn_05_op_view_locates_ranges_in_files_indented_by_hand() {
+    let world = world(PETS);
+    let four = "info:\n  name: List pets\n  type: http\n  seq: 1\nhttp:\n    method: GET\n    url: \"{{baseUrl}}/pets\"\n    headers:\n        - name: X-Req\n          value: team\n          description: corr\n    params:\n        - name: limit\n          value: ''\n          type: query\n          description: team desc\n          disabled: true\n    auth: inherit\n";
+    fs::write(world.root.join(PETS_LIST), four).unwrap();
+    let spec = PETS.replace(
+        "{name: limit, in: query, description: \"How many\"",
+        "{name: limit, in: query, description: \"spec desc\"",
+    );
+    let plan = plan_of(&world, &spec);
+    let view = plan.op_view("listPets", &Decisions::uniform(&plan, Choice::Team)).unwrap();
+    let hunk = view.hunks.iter().find(|h| h.change_id == "listPets::param/query/limit").unwrap();
+    assert_eq!(lines(&view.ours, hunk.ours.unwrap())[0], "        - name: limit");
+    assert_eq!(lines(&view.ours, hunk.ours.unwrap()).len(), 5);
+    let header = view.hunks.iter().find(|h| h.change_id == "listPets::header/x-req").unwrap();
+    assert_eq!(lines(&view.ours, header.ours.unwrap())[0], "        - name: X-Req");
+
+    let flat = "info:\n  name: List pets\n  type: http\nhttp:\n  method: GET\n  url: \"{{baseUrl}}/pets\"\n  params:\n  - name: limit\n    value: ''\n    type: query\n    description: team desc\n    disabled: true\n  auth: inherit\n";
+    fs::write(world.root.join(PETS_LIST), flat).unwrap();
+    let plan = plan_of(&world, &spec);
+    let view = plan.op_view("listPets", &Decisions::uniform(&plan, Choice::Team)).unwrap();
+    let hunk = view.hunks.iter().find(|h| h.change_id == "listPets::param/query/limit").unwrap();
+    assert_eq!(
+        lines(&view.ours, hunk.ours.unwrap()),
+        ["  - name: limit", "    value: ''", "    type: query", "    description: team desc", "    disabled: true"]
+    );
+}
+
+#[test]
+fn ef_syn_01_a_shared_operation_id_keeps_each_file_on_its_own_operation() {
+    let both = "openapi: 3.0.0
+info: {title: D, version: 1.0.0}
+paths:
+  /a:
+    get: {summary: A, operationId: dup, tags: [t], responses: {'200': {description: ok}}}
+  /b:
+    get: {summary: B, operationId: dup, tags: [t], responses: {'200': {description: ok}}}
+";
+    let world = world(both);
+    assert_eq!(source_keys(&world.root), ["dup (GET /a)", "dup (GET /b)"]);
+    let swapped = both.replace("/a:", "/tmp:").replace("/b:", "/a:").replace("/tmp:", "/b:");
+    let before = files_under(&world.root);
+    let plan = plan_of(&world, &swapped);
+    assert!(plan.operations.iter().all(|o| o.status == OpStatus::Unchanged), "{:?}", statuses(&plan));
+    plan.apply(&Decisions::default()).unwrap();
+    assert_eq!(read(&world.root, "t/A.yml"), String::from_utf8(before["t/A.yml"].clone()).unwrap());
+    assert_eq!(read_request(&world.root, "t/B.yml").unwrap().url, "{{baseUrl}}/b");
+
+    let only_b = "openapi: 3.0.0\ninfo: {title: D, version: 1.0.0}\npaths:\n  /b:\n    get: {summary: B, operationId: dup, tags: [t], responses: {'200': {description: ok}}}\n";
+    let plan = plan_of(&world, only_b);
+    assert_eq!(op(&plan, "dup (GET /a)").status, OpStatus::Removed, "/a n'est plus dans la spec");
+    assert_eq!(op(&plan, "dup (GET /a)").file.as_deref(), Some("t/A.yml"));
+    assert!(plan.operations.iter().all(|o| o.file.as_deref() != Some("t/A.yml") || o.status == OpStatus::Removed));
+}
+
+#[cfg(unix)]
+#[test]
+fn ef_syn_06_a_symbolic_link_of_the_collection_stays_a_link_and_its_target_is_updated() {
+    let world = world(PETS);
+    std::os::unix::fs::symlink(world.root.join(PETS_LIST), world.root.join("pets/alias.yml")).unwrap();
+    let source = read(&world.root, ".oc-sync/openapi/source.yml");
+    fs::write(world.root.join(".oc-sync/openapi/source.yml"), source.replace(PETS_LIST, "pets/alias.yml")).unwrap();
+    plan_of(&world, &pets_with_header()).apply(&Decisions::default()).unwrap();
+    assert!(fs::symlink_metadata(world.root.join("pets/alias.yml")).unwrap().file_type().is_symlink());
+    assert!(read(&world.root, PETS_LIST).contains("X-New"));
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_the_store_never_writes_through_a_symbolic_link() {
+    let world = world(PETS);
+    let outside = world._dir.path().join("outside.txt");
+    fs::write(&outside, "intact").unwrap();
+    let copy = world.root.join(".oc-sync/openapi/spec.yaml");
+    fs::remove_file(&copy).unwrap();
+    std::os::unix::fs::symlink(&outside, &copy).unwrap();
+    let plan = sync::plan(&world.root, &pets_with_header(), recorded(&world.root), &[]);
+    assert!(plan.is_err(), "la copie brute qui sort du stockage n'est pas lue comme une spec");
+    fs::write(&outside, PETS).unwrap();
+    plan_of(&world, &pets_with_header()).apply(&Decisions::default()).unwrap();
+    assert_eq!(fs::read_to_string(&outside).unwrap(), PETS, "la cible du lien n'est pas modifiée");
+    assert!(!fs::symlink_metadata(&copy).unwrap().file_type().is_symlink());
+    assert!(read(&world.root, ".oc-sync/openapi/spec.yaml").contains("X-New"));
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_the_kept_versions_are_never_written_or_pruned_through_a_link_or_among_foreign_files() {
+    let world = world(PETS);
+    let outside = world._dir.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    fs::write(outside.join("precious.yml"), "intact").unwrap();
+    std::os::unix::fs::symlink(&outside, world.root.join(".oc-sync/openapi/removed")).unwrap();
+    plan_of(&world, &pets_with_header()).apply(&Decisions::default()).unwrap();
+    assert_eq!(
+        fs::read_to_string(outside.join("precious.yml")).unwrap(),
+        "intact",
+        "rien n'est supprimé hors du stockage"
+    );
+    let error = plan_of(&world, &pets_without_show()).apply(&Decisions::default()).unwrap_err();
+    assert!(error.to_string().contains("lien symbolique"), "{error}");
+    assert_eq!(fs::read_dir(&outside).unwrap().count(), 1, "rien n'est écrit hors du stockage");
+
+    let world = self::world(PETS);
+    let dir = world.root.join(".oc-sync/openapi/removed");
+    fs::create_dir(&dir).unwrap();
+    fs::write(dir.join("notes.txt"), "à moi").unwrap();
+    fs::write(dir.join("stale.yml"), "plus utile").unwrap();
+    plan_of(&world, &pets_with_header()).apply(&Decisions::default()).unwrap();
+    assert!(dir.join("notes.txt").is_file() && !dir.join("stale.yml").exists());
+}

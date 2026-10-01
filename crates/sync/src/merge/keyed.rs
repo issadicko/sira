@@ -29,6 +29,8 @@ impl<E> Group<'static, E> {
 
 pub(super) trait Entry: Clone + PartialEq {
     fn show(&self) -> String;
+    /// La valeur seule, que l'interface préremplit quand le conflit propose de la saisir (`edit`).
+    fn raw(&self) -> String;
     fn description(&self) -> Option<&str>;
     fn same_value(&self, other: &Self) -> bool;
     fn take_value(&mut self, other: &Self);
@@ -51,6 +53,10 @@ fn display(value: &str, enabled: bool, description: Option<&str>) -> String {
 impl Entry for Param {
     fn show(&self) -> String {
         display(&self.value, self.enabled, self.description.as_deref())
+    }
+
+    fn raw(&self) -> String {
+        self.value.clone()
     }
 
     fn description(&self) -> Option<&str> {
@@ -80,6 +86,10 @@ impl Entry for KeyValue {
         display(&self.value, self.enabled, self.description.as_deref())
     }
 
+    fn raw(&self) -> String {
+        self.value.clone()
+    }
+
     fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
@@ -105,10 +115,17 @@ impl Entry for KeyValue {
 impl Entry for MultipartField {
     fn show(&self) -> String {
         let value = match &self.value {
-            MultipartValue::Text(text) => text.clone(),
-            MultipartValue::File(paths) => format!("fichier : {}", paths.join(", ")),
+            MultipartValue::Text(_) => self.raw(),
+            MultipartValue::File(_) => format!("fichier : {}", self.raw()),
         };
         display(&value, self.enabled, self.description.as_deref())
+    }
+
+    fn raw(&self) -> String {
+        match &self.value {
+            MultipartValue::Text(text) => text.clone(),
+            MultipartValue::File(paths) => paths.join(", "),
+        }
     }
 
     fn description(&self) -> Option<&str> {
@@ -341,11 +358,12 @@ fn retired_by_spec<E: Entry>(
         (Kind::Conflict, "Retiré par la spec, mais modifié par l'équipe")
     };
     let mut change = cx.change(&ident.id, group.field, &ident.label, kind, reason);
-    (change.base, change.ours) = (Some(before.show()), Some(own.show()));
     if untouched {
+        (change.base, change.ours) = (Some(before.show()), Some(own.show()));
         cx.changes.push(change);
         return Ok(None);
     }
+    (change.base, change.ours) = (Some(before.raw()), Some(own.raw()));
     change.choices = vec![Choice::Team, Choice::Spec, Choice::Edit];
     let kept = match cx.decide(&mut change)? {
         None => Some(own.clone()),
@@ -374,11 +392,12 @@ fn retired_by_team<E: Entry>(
         Some(_) => (Kind::Conflict, "Retiré par l'équipe, mais modifié par la spec"),
     };
     let mut change = cx.change(&ident.id, group.field, &ident.label, kind, reason);
-    (change.base, change.theirs) = (Some(before.show()), spec.map(Entry::show));
     let Some(spec) = spec.filter(|_| kind == Kind::Conflict) else {
+        (change.base, change.theirs) = (Some(before.show()), spec.map(Entry::show));
         cx.changes.push(change);
         return Ok(None);
     };
+    (change.base, change.theirs) = (Some(before.raw()), Some(spec.raw()));
     change.choices = vec![Choice::Team, Choice::Spec, Choice::Edit];
     let readded = match cx.decide(&mut change)? {
         None => None,

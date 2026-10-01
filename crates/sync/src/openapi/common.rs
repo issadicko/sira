@@ -144,14 +144,29 @@ pub fn template_path(path: &str) -> String {
     out
 }
 
-/// Clé d'opération : `operationId` s'il est non vide, sinon `MÉTHODE chemin`, rendue unique par ` #n`.
+/// Clé d'opération : `operationId` s'il est non vide, sinon `MÉTHODE chemin`. Un `operationId` porté par plusieurs
+/// opérations est suivi de `(MÉTHODE chemin)`, pour que sa clé ne dépende pas du rang de l'opération dans la spec.
+/// Une clé encore partagée (des variantes de la même opération) reçoit ` #n`.
 pub fn assign_keys(h: &Heap, requests: &mut [Request]) {
+    let place =
+        |request: &Request| format!("{} {}", request.method.to_uppercase(), template_path(&request.original_path));
+    let ids: Vec<Option<String>> = requests
+        .iter()
+        .map(|request| {
+            h.get(&request.op, "operationId").as_str().map(trim).filter(|id| !id.is_empty()).map(str::to_owned)
+        })
+        .collect();
+    let mut shared: HashMap<&str, usize> = HashMap::new();
+    for id in ids.iter().flatten() {
+        *shared.entry(id).or_default() += 1;
+    }
     let mut used = HashSet::new();
     let mut seen: HashMap<String, usize> = HashMap::new();
-    for request in requests {
-        let base = match h.get(&request.op, "operationId").as_str().map(trim) {
-            Some(id) if !id.is_empty() => id.to_owned(),
-            _ => format!("{} {}", request.method.to_uppercase(), template_path(&request.original_path)),
+    for (request, id) in requests.iter_mut().zip(&ids) {
+        let base = match id {
+            Some(id) if shared[id.as_str()] > 1 => format!("{id} ({})", place(request)),
+            Some(id) => id.clone(),
+            None => place(request),
         };
         let n = seen.entry(base.clone()).or_insert(0);
         *n += 1;

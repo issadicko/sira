@@ -642,7 +642,7 @@ fn ef_imp_01_creating_a_request_never_overwrites_and_refuses_bad_input() {
 fn ef_imp_01_pasted_curl_builds_the_request_bruno_builds() {
     for id in curl_ids() {
         let mut expected = RequestDoc::from_tree(&tree(&curl_fixture(&id, "paste.yml")));
-        if matches!(expected.body, Body::FormUrlEncoded { .. } | Body::MultipartForm { .. }) {
+        if matches!(expected.body, Body::FormUrlEncoded { .. } | Body::MultipartForm { .. } | Body::Other { .. }) {
             expected.body = RequestDoc::from_tree(&tree(&curl_fixture(&id, "new.yml"))).body;
         }
         let pasted =

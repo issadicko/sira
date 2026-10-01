@@ -143,10 +143,61 @@ fn ef_imp_02_operation_keys_use_operation_id_or_normalized_path() {
             "GET /users/{}/posts/{}",
             "GET /users/{}/posts/{} #2",
             "PUT /users/{}",
-            "listUsers",
-            "listUsers #2",
-            "listUsers #3",
+            "listUsers (GET /admin/users)",
+            "listUsers (GET /users)",
+            "listUsers (POST /users)",
         ]
+    );
+}
+
+fn keys_of(text: &str) -> Vec<String> {
+    let collection = convert(text, GroupBy::Tags).unwrap();
+    requests(&collection["items"]).iter().map(|r| r["operationKey"].as_str().unwrap().to_owned()).collect()
+}
+
+#[test]
+fn ef_imp_02_a_shared_operation_id_is_told_apart_by_method_and_path_not_by_rank() {
+    let both = "openapi: 3.0.0
+info: {title: D, version: 1.0.0}
+paths:
+  /a:
+    get: {operationId: dup, responses: {'200': {description: ok}}}
+  /b:
+    get: {operationId: dup, responses: {'200': {description: ok}}}
+";
+    let only_b = "openapi: 3.0.0
+info: {title: D, version: 1.0.0}
+paths:
+  /a:
+    get: {operationId: other, responses: {'200': {description: ok}}}
+  /b:
+    get: {operationId: dup, responses: {'200': {description: ok}}}
+  /c:
+    get: {operationId: dup, responses: {'200': {description: ok}}}
+";
+    assert_eq!(keys_of(both), ["dup (GET /a)", "dup (GET /b)"]);
+    let swapped = both.replace("/a:", "/tmp:").replace("/b:", "/a:").replace("/tmp:", "/b:");
+    let mut keys = keys_of(&swapped);
+    keys.sort();
+    assert_eq!(keys, ["dup (GET /a)", "dup (GET /b)"], "la clé ne dépend pas de l'ordre dans la spec");
+    assert_eq!(keys_of(only_b), ["other", "dup (GET /b)", "dup (GET /c)"]);
+
+    let variants = "openapi: 3.0.0
+info: {title: D, version: 1.0.0}
+paths:
+  /users/{id}:
+    get:
+      operationId: dup
+      x-bruno-variants:
+        - {operationId: dup, summary: variante}
+      responses: {'200': {description: ok}}
+  /users/{name}:
+    get: {operationId: dup, responses: {'200': {description: ok}}}
+";
+    assert_eq!(
+        keys_of(variants),
+        ["dup (GET /users/{})", "dup (GET /users/{}) #2", "dup (GET /users/{}) #3"],
+        "méthode et chemin normalisé identiques : ` #n` en dernier recours"
     );
 }
 

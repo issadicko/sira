@@ -351,13 +351,24 @@ pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<boo
 }
 
 /// Écrit via un fichier temporaire voisin, synchronisé sur le disque, puis renomme, sans jamais laisser un fichier
-/// à moitié écrit. Le nom temporaire ne dépend pas de celui du fichier, qui peut déjà occuper les 255 octets permis.
+/// à moitié écrit. Le fichier garde les permissions de celui qu'il remplace, et un lien symbolique est suivi : c'est
+/// sa cible qui est écrite, le lien reste en place (l'appelant a vérifié, avec [`resolve_path`], que la cible reste
+/// sous la collection). Le nom temporaire ne dépend pas de celui du fichier, qui peut déjà occuper les 255 octets permis.
 pub fn write_atomic(path: &Path, text: &str) -> Result<(), CoreError> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
+    let path = &if path.is_symlink() {
+        fs::canonicalize(path).map_err(|e| CoreError::io(path, e))?
+    } else {
+        path.to_path_buf()
+    };
+    let permissions = fs::metadata(path).map(|meta| meta.permissions()).ok();
     let dir = path.parent().unwrap_or(Path::new("."));
     let tmp = dir.join(format!(".xc-{}-{}.tmp", std::process::id(), NEXT.fetch_add(1, AtomicOrdering::Relaxed)));
     let staged = fs::File::create(&tmp).and_then(|mut file| {
         file.write_all(text.as_bytes())?;
+        if let Some(permissions) = permissions {
+            file.set_permissions(permissions)?;
+        }
         file.sync_all()
     });
     staged

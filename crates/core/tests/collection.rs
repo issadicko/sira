@@ -223,6 +223,36 @@ fn enf_comp_02_atomic_write_leaves_no_temporary_file_when_the_target_cannot_be_r
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
 }
 
+#[cfg(unix)]
+#[test]
+fn enf_comp_02_atomic_write_keeps_the_permissions_of_the_file_it_replaces() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("a.yml");
+    fs::write(&path, "avant").unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
+    write_atomic(&path, "après").unwrap();
+    assert_eq!(fs::read_to_string(&path).unwrap(), "après");
+    assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o640);
+    let fresh = dir.path().join("b.yml");
+    write_atomic(&fresh, "neuf").unwrap();
+    assert_eq!(fs::read_to_string(&fresh).unwrap(), "neuf");
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_atomic_write_through_a_symbolic_link_of_the_collection_writes_its_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write(root, "pets/real.yml", "avant");
+    std::os::unix::fs::symlink(root.join("pets/real.yml"), root.join("pets/alias.yml")).unwrap();
+    let path = resolve_path(root, "pets/alias.yml").unwrap();
+    write_atomic(&path, "après").unwrap();
+    assert!(fs::symlink_metadata(root.join("pets/alias.yml")).unwrap().file_type().is_symlink(), "le lien reste");
+    assert_eq!(fs::read_to_string(root.join("pets/real.yml")).unwrap(), "après");
+    assert_eq!(fs::read_dir(root.join("pets")).unwrap().count(), 2, "aucun fichier temporaire ne reste");
+}
+
 #[test]
 fn ef_imp_01_write_new_never_overwrites_an_existing_file() {
     let dir = tempfile::tempdir().unwrap();

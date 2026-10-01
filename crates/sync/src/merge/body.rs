@@ -3,7 +3,7 @@
 use xc_core::Body;
 
 use super::keyed::{self, form_key_value_ident, form_multipart_ident, Group};
-use super::{json, settle, Cx, Extra, Field, MergeError, Slot};
+use super::{json, settle, show_other, Cx, Extra, Field, MergeError, Slot};
 
 pub(super) fn merge(cx: &mut Cx, base: Option<&Body>, ours: &Body, theirs: &Body) -> Result<Body, MergeError> {
     match (ours, theirs) {
@@ -71,6 +71,6 @@ fn show(body: &Body) -> Option<String> {
         Body::Json { data } | Body::Text { data } | Body::Xml { data } => Some(data.clone()),
         Body::FormUrlEncoded { .. } => Some("form-urlencoded".into()),
         Body::MultipartForm { .. } => Some("multipart-form".into()),
-        Body::Other { label } => Some(label.clone()),
+        Body::Other { label, config } => Some(show_other(label, config)),
     }
 }
