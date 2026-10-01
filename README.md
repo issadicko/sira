@@ -2,7 +2,7 @@
 
 Client API compatible avec les collections Bruno (OpenCollection YAML) : un dossier, un fichier par requête, versionné avec Git, sans compte ni cloud. Moteur en Rust, fenêtre Tauri 2, interface Angular.
 
-État : **MVP complet** (α boucle requête, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies). Voir `docs/docs/roadmap.md`.
+État : **MVP complet** (α boucle requête, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies, δ gestion de collection). Voir `docs/docs/roadmap.md`.
 
 ## Structure
 
@@ -88,6 +88,13 @@ cd app && npm test
 
 C'est un raccourci pour `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test "src/**/*.spec.ts"`.
 
+## Créer et organiser une collection
+
+- **Ouvrir un dossier** (⌘O) vide ou non vide propose « Créer une collection ici » : seuls `opencollection.yml` et `.gitignore` sont écrits, identiques à ceux de Bruno. **Nouvelle collection…** (accueil, palette) crée le dossier sous un parent choisi.
+- **Arbre** : bouton `+` (à la racine), menu contextuel (clic droit, touche Menu, Maj+F10), renommage et création sur place, dupliquer, supprimer **vers la corbeille du système** après confirmation, « Déplacer vers… ».
+- **Glisser-déposer** avant, après ou dans un dossier ; ⌥↑ / ⌥↓ pour réordonner. Seule la ligne `info.seq` (ou `info.name`) des fichiers concernés change.
+- Un fichier n'est jamais écrasé ni écrit à travers un lien symbolique ; un renommage ou un déplacement met à jour `.oc-sync/openapi/source.yml` pour que la synchro suive la requête.
+
 ## Importer
 
 - **Coller un cURL** dans la barre d'URL : une commande qui commence par `curl` n'est pas collée telle quelle, elle est analysée comme Bruno le fait puis appliquée à la requête ouverte (URL, méthode, puis en-têtes, corps et authentification s'ils sont présents). L'onglet passe à « non enregistré ».
@@ -111,5 +118,10 @@ Dans le navigateur (`npm start`), ces actions sont limitées à un aperçu : l'a
 | Fermer l'onglet | ⌘W | Ctrl+W |
 | Barre latérale | ⌘B | Ctrl+B |
 | Empiler requête / réponse | ⌘\ | Ctrl+\ |
+| Arbre : naviguer, ouvrir ou replier un dossier | ↑ ↓ ← → Début Fin | idem |
+| Arbre : renommer | F2 | F2 |
+| Arbre : dupliquer | ⌘D | Ctrl+D |
+| Arbre : supprimer (corbeille) | ⌘⌫ | Suppr |
+| Arbre : réordonner | ⌥↑ / ⌥↓ | Alt+↑ / Alt+↓ |
 
 Dans la palette : ↑ et ↓ pour naviguer (en boucle), ↵ pour exécuter, Échap pour fermer ; le préfixe `>` ne garde que les commandes. La recherche est floue (lettres dans l'ordre, sans casse ni accents) sur le nom, l'URL et le chemin du fichier des requêtes, dont l'URL vient de l'arbre de la collection sans relire les fichiers.
