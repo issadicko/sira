@@ -1,0 +1,67 @@
+{
+  "url": "https://developer.example.org/fr/docs/Web/API?search=fetch",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Accept-Encoding",
+      "value": "gzip, deflate, br, zstd",
+      "enabled": true
+    },
+    {
+      "name": "User-Agent",
+      "value": "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
+      "enabled": true
+    },
+    {
+      "name": "Accept",
+      "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "enabled": true
+    },
+    {
+      "name": "Accept-Language",
+      "value": "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
+      "enabled": true
+    },
+    {
+      "name": "Connection",
+      "value": "keep-alive",
+      "enabled": true
+    },
+    {
+      "name": "Upgrade-Insecure-Requests",
+      "value": "1",
+      "enabled": true
+    },
+    {
+      "name": "Sec-Fetch-Dest",
+      "value": "document",
+      "enabled": true
+    },
+    {
+      "name": "Sec-Fetch-Mode",
+      "value": "navigate",
+      "enabled": true
+    },
+    {
+      "name": "Sec-Fetch-Site",
+      "value": "none",
+      "enabled": true
+    },
+    {
+      "name": "Priority",
+      "value": "u=0, i",
+      "enabled": true
+    }
+  ]
+}

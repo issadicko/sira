@@ -1,0 +1,36 @@
+{
+  "url": "https://api.example.com/ordered",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "1",
+        "value": "one",
+        "enabled": true
+      },
+      {
+        "name": "2",
+        "value": "two",
+        "enabled": true
+      },
+      {
+        "name": "10",
+        "value": "ten",
+        "enabled": true
+      },
+      {
+        "name": "z",
+        "value": "last",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

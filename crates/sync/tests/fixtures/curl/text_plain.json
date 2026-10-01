@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/notes/1",
+  "method": "put",
+  "body": {
+    "mode": "text",
+    "json": null,
+    "text": "Bonjour le monde",
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "text/plain; charset=utf-8",
+      "enabled": true
+    }
+  ]
+}

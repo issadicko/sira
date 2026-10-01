@@ -1,0 +1,53 @@
+{
+  "url": "https://auth.example.com/oauth/token",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "grant_type",
+        "value": "authorization_code",
+        "enabled": true
+      },
+      {
+        "name": "code",
+        "value": "Splx/lOBeZQQYbYS6WxSbIA",
+        "enabled": true
+      },
+      {
+        "name": "redirect_uri",
+        "value": "https://app.example.com/callback",
+        "enabled": true
+      },
+      {
+        "name": "client_id",
+        "value": "s6BhdRkqt3",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "accept",
+      "value": "application/json",
+      "enabled": true
+    },
+    {
+      "name": "content-type",
+      "value": "application/x-www-form-urlencoded",
+      "enabled": true
+    },
+    {
+      "name": "user-agent",
+      "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+      "enabled": true
+    }
+  ]
+}

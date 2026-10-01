@@ -1,0 +1,31 @@
+{
+  "url": "https://api.example.com/reviews",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "comment",
+        "value": "Très bien ",
+        "enabled": true
+      },
+      {
+        "name": " merci",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "name": "note",
+        "value": "5/5",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

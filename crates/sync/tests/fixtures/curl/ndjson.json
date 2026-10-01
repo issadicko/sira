@@ -1,0 +1,22 @@
+{
+  "url": "https://search.example.com/_bulk",
+  "method": "post",
+  "body": {
+    "mode": "text",
+    "json": null,
+    "text": "{\"index\":{}}\n{\"a\":1}\n",
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/x-ndjson",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "url": "https://api.example.com/v1/items",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "a",
+        "value": "1",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Accept",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

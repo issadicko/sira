@@ -1,0 +1,24 @@
+{
+  "url": "https://api.example.com/graphql",
+  "method": "post",
+  "body": {
+    "mode": "graphql",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": {
+      "query": "{ viewer { login } }"
+    },
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

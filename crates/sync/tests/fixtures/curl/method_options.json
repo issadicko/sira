@@ -1,0 +1,27 @@
+{
+  "url": "https://api.example.com/v1/users",
+  "method": "options",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Origin",
+      "value": "https://app.example.com",
+      "enabled": true
+    },
+    {
+      "name": "Access-Control-Request-Method",
+      "value": "PUT",
+      "enabled": true
+    }
+  ]
+}

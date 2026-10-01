@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/v1/status",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Accept",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

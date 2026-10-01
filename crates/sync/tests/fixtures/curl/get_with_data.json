@@ -1,0 +1,15 @@
+{
+  "url": "https://api.example.com/search?q=rust&page=2",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  }
+}

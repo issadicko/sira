@@ -1,0 +1,31 @@
+{
+  "url": "https://api.example.com/multi",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "a",
+        "value": "1",
+        "enabled": true
+      },
+      {
+        "name": "b",
+        "value": "2",
+        "enabled": true
+      },
+      {
+        "name": "c",
+        "value": "3",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

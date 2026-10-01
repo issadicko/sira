@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/users",
+  "method": "post",
+  "body": {
+    "mode": "xml",
+    "json": null,
+    "text": null,
+    "xml": "<user><name>Ada</name></user>",
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/xml",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/tasks/7",
+  "method": "patch",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"status\": \"done\"\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/merge-patch+json",
+      "enabled": true
+    }
+  ]
+}

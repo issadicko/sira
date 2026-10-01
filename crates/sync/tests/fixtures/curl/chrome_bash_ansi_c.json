@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/v1/notes",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"title\": \"L'été\",\n  \"body\":\"ligne 1\nligne 2\ttab\",\"emoji\":\"é\"}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "content-type",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

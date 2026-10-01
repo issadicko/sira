@@ -1,0 +1,21 @@
+{
+  "url": "https://api.example.com/messages",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "message@message.txt",
+        "value": "",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

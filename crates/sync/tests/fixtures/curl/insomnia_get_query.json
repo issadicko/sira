@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/v1/search?q=rust%20lang&limit=20",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Accept",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

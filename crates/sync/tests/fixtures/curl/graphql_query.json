@@ -1,0 +1,25 @@
+{
+  "url": "https://api.example.com/graphql",
+  "method": "post",
+  "body": {
+    "mode": "graphql",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": {
+      "query": "query Users($first: Int) { users(first: $first) { id name } }",
+      "variables": "{\n  \"first\": 10,\n  \"after\": null\n}"
+    },
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "content-type",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

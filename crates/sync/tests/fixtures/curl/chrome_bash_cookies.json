@@ -1,0 +1,37 @@
+{
+  "url": "https://shop.example.com/api/cart",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "accept",
+      "value": "*/*",
+      "enabled": true
+    },
+    {
+      "name": "Cookie",
+      "value": "session_id=8f14e45fceea167a5a36dedd4bea2543; _ga=GA1.1.1234567890.1700000000; consent=%7B%22ads%22%3Afalse%7D",
+      "enabled": true
+    },
+    {
+      "name": "referer",
+      "value": "https://shop.example.com/cart",
+      "enabled": true
+    },
+    {
+      "name": "user-agent",
+      "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+      "enabled": true
+    }
+  ]
+}

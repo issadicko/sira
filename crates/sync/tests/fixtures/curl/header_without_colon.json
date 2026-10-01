@@ -1,0 +1,21 @@
+{
+  "url": "https://api.example.com/odd",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "X-No-Value",
+      "enabled": true
+    }
+  ]
+}

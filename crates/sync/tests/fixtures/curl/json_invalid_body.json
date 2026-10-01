@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/broken",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"a\": 1,\n  ,\n  \"b\":\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json",
+      "enabled": true
+    }
+  ]
+}

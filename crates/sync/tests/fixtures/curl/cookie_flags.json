@@ -1,0 +1,22 @@
+{
+  "url": "https://api.example.com/cookies",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Cookie",
+      "value": "a=1; b=2; c=3",
+      "enabled": true
+    }
+  ]
+}

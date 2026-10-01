@@ -1,0 +1,21 @@
+{
+  "url": "https://www.example.com/check",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "x",
+        "value": "1",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "url": "https://api.example.com/decode",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "q",
+        "value": "café",
+        "enabled": true
+      },
+      {
+        "name": "bad",
+        "value": "%E0%A4%A",
+        "enabled": true
+      },
+      {
+        "name": "plus",
+        "value": "a b",
+        "enabled": true
+      },
+      {
+        "name": "pct",
+        "value": "100%",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

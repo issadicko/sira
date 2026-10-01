@@ -1,0 +1,21 @@
+{
+  "url": "https://api.example.com/raw",
+  "method": "post",
+  "body": {
+    "mode": "formUrlEncoded",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": [
+      {
+        "name": "just-a-body",
+        "value": "",
+        "enabled": true
+      }
+    ],
+    "graphql": null,
+    "file": null
+  }
+}

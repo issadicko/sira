@@ -1,0 +1,87 @@
+{
+  "url": "https://api.example.com/v1/orders?page=2&sort=-created_at",
+  "method": "get",
+  "body": {
+    "mode": "none",
+    "json": null,
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "accept",
+      "value": "application/json, text/plain, */*",
+      "enabled": true
+    },
+    {
+      "name": "accept-language",
+      "value": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+      "enabled": true
+    },
+    {
+      "name": "authorization",
+      "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+      "enabled": true
+    },
+    {
+      "name": "cache-control",
+      "value": "no-cache",
+      "enabled": true
+    },
+    {
+      "name": "origin",
+      "value": "https://app.example.com",
+      "enabled": true
+    },
+    {
+      "name": "priority",
+      "value": "u=1, i",
+      "enabled": true
+    },
+    {
+      "name": "referer",
+      "value": "https://app.example.com/",
+      "enabled": true
+    },
+    {
+      "name": "sec-ch-ua",
+      "value": "\"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"128\"",
+      "enabled": true
+    },
+    {
+      "name": "sec-ch-ua-mobile",
+      "value": "?0",
+      "enabled": true
+    },
+    {
+      "name": "sec-ch-ua-platform",
+      "value": "\"macOS\"",
+      "enabled": true
+    },
+    {
+      "name": "sec-fetch-dest",
+      "value": "empty",
+      "enabled": true
+    },
+    {
+      "name": "sec-fetch-mode",
+      "value": "cors",
+      "enabled": true
+    },
+    {
+      "name": "sec-fetch-site",
+      "value": "same-site",
+      "enabled": true
+    },
+    {
+      "name": "user-agent",
+      "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+      "enabled": true
+    }
+  ]
+}

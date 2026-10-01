@@ -1,0 +1,22 @@
+{
+  "url": "https://1.rome.api.flipkart.net/4/page/fetch",
+  "method": "post",
+  "body": {
+    "mode": "json",
+    "json": "{\n  \"pageUri\": \"/mobile-phones-store\"\n}",
+    "text": null,
+    "xml": null,
+    "sparql": null,
+    "multipartForm": null,
+    "formUrlEncoded": null,
+    "graphql": null,
+    "file": null
+  },
+  "headers": [
+    {
+      "name": "Content-Type",
+      "value": "application/json; charset=UTF-8",
+      "enabled": true
+    }
+  ]
+}
