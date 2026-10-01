@@ -2,4 +2,3 @@
 .workbench.solo { grid-template-columns: minmax(0, 1fr); padding: 0 6px; }
 .env-wrap { position: relative; }
 .env-menu { position: absolute; top: calc(100% + 6px); right: 0; }
-.warn-text { color: var(--warn); }

@@ -24,8 +24,14 @@ export interface HistoryEntry {
   at: string;
 }
 
+export interface Discard {
+  message: string;
+  action: string;
+  resolve: (accepted: boolean) => void;
+}
+
 export type View = 'collections' | 'env';
-export type Dialog = 'curl' | 'openapi';
+export type DialogKind = 'curl' | 'openapi';
 
 const RECENT_KEY = 'xc-recent';
 
@@ -67,16 +73,22 @@ export class Workspace {
   readonly theme = signal<'dark' | 'light'>(document.documentElement.dataset['theme'] === 'light' ? 'light' : 'dark');
   readonly toast = signal<string | null>(null);
   readonly toastError = signal(false);
-  readonly dialog = signal<Dialog | null>(null);
+  readonly dialog = signal<DialogKind | null>(null);
+  /** Perte de modifications à confirmer ; `null` quand aucune confirmation n'est en attente. */
+  readonly discard = signal<Discard | null>(null);
   readonly hover = signal<{ name: string; rect: DOMRect } | null>(null);
   /** Saisie de la palette de commandes ; `null` quand elle est fermée. */
   readonly palette = signal<string | null>(null);
 
   readonly active = computed(() => this.tabs().find((t) => t.path === this.activePath()) ?? null);
+  readonly modal = computed(() => !!this.dialog() || !!this.discard());
   readonly varMap = computed(() => new Map(this.vars().map((v) => [v.name, v])));
 
   private varsTimer?: ReturnType<typeof setTimeout>;
   private toastTimer?: ReturnType<typeof setTimeout>;
+  private envSeq = 0;
+  private varsSeq = 0;
+  private requested = '';
 
   isDirty(tab: Tab): boolean {
     return JSON.stringify(tab.doc) !== tab.saved;
@@ -100,19 +112,49 @@ export class Workspace {
     }
   }
 
-  async pickAndOpen() {
-    const root = await api.pickFolder();
-    if (root) await this.open(root);
+  /** Demande de confirmer la perte des modifications non enregistrées ; `answerDiscard` répond. */
+  private confirmDiscard(message: string, action: string): Promise<boolean> {
+    this.discard()?.resolve(false);
+    return new Promise((resolve) => this.discard.set({ message, action, resolve }));
   }
 
-  async open(root: string): Promise<boolean> {
+  answerDiscard(accepted: boolean) {
+    this.discard()?.resolve(accepted);
+    this.discard.set(null);
+  }
+
+  /** Vrai s'il n'y a aucun onglet modifié, ou si l'utilisateur accepte de les perdre en remplaçant la collection. */
+  async confirmReplace(): Promise<boolean> {
+    const count = this.tabs().filter((t) => this.isDirty(t)).length;
+    if (!count) return true;
+    const subject = count > 1 ? `${count} onglets contiennent` : 'Un onglet contient';
+    return this.confirmDiscard(
+      `${subject} des modifications non enregistrées. Ouvrir une autre collection ferme tous les onglets : elles seront perdues.`,
+      'Ouvrir sans enregistrer',
+    );
+  }
+
+  async pickAndOpen() {
+    if (!(await this.confirmReplace())) return;
+    const root = await api.pickFolder();
+    if (root) await this.open(root, true);
+  }
+
+  /** Ouvre une collection ; `confirmed` indique que la perte des onglets modifiés a déjà été acceptée. */
+  async open(root: string, confirmed = false): Promise<boolean> {
+    if (!confirmed && !(await this.confirmReplace())) return false;
     this.loading.set(true);
     this.error.set(null);
     try {
       const c = await api.openCollection(root);
+      for (const tab of this.tabs()) if (tab.sendingId) void api.cancel(tab.sendingId);
+      this.requested = '';
       this.collection.set(c);
       this.tabs.set([]);
       this.activePath.set(null);
+      this.history.set([]);
+      this.filter.set('');
+      this.vars.set([]);
       this.openFolders.set(new Set(c.items.filter((i) => i.kind === 'folder').map((i) => i.path)));
       this.env.set(c.defaultEnvironment && c.environments.includes(c.defaultEnvironment) ? c.defaultEnvironment : c.environments[0] ?? null);
       const recent = [root, ...this.recent().filter((r) => r !== root)].slice(0, 6);
@@ -133,13 +175,21 @@ export class Workspace {
   async reload() {
     const c = this.collection();
     if (!c) return;
-    this.collection.set(await api.openCollection(c.root));
+    try {
+      const fresh = await api.openCollection(c.root);
+      if (this.collection()?.root === c.root) this.collection.set(fresh);
+    } catch (e) {
+      this.notify(`Impossible de relire la collection : ${e}`, true);
+    }
   }
 
   async loadEnv() {
+    const seq = ++this.envSeq;
     const c = this.collection();
     const env = this.env();
-    this.envVars.set(c && env ? await api.readEnvironment(c.root, env).catch(() => []) : []);
+    const vars = c && env ? await api.readEnvironment(c.root, env).catch(() => []) : [];
+    if (seq !== this.envSeq) return;
+    this.envVars.set(vars);
     this.refreshVars();
   }
 
@@ -164,11 +214,14 @@ export class Workspace {
     const c = this.collection();
     if (!c) return;
     this.view.set('collections');
+    this.requested = path;
     if (!this.tabs().some((t) => t.path === path)) {
       try {
         const doc = await api.readRequest(c.root, path);
+        if (this.requested !== path) return;
         const tab: Tab = { path, doc, saved: JSON.stringify(doc), preview: !pin };
         this.tabs.update((tabs) => {
+          if (tabs.some((t) => t.path === path)) return tabs;
           const preview = tabs.findIndex((t) => t.preview && !this.isDirty(t));
           if (!pin && preview >= 0) return tabs.map((t, i) => (i === preview ? tab : t));
           return [...tabs, tab];
@@ -177,18 +230,22 @@ export class Workspace {
         this.notify(String(e), true);
         return;
       }
-    } else if (pin) {
-      this.patchTab(path, { preview: false });
     }
+    if (pin) this.patchTab(path, { preview: false });
     this.activePath.set(path);
     this.refreshVars();
   }
 
-  closeTab(path: string) {
+  async closeTab(path: string) {
+    const tab = this.tabs().find((t) => t.path === path);
+    if (!tab) return;
+    const lost = `Tes modifications de « ${tab.doc.name || tab.path} » seront perdues si tu fermes l'onglet.`;
+    if (this.isDirty(tab) && !(await this.confirmDiscard(lost, 'Fermer sans enregistrer'))) return;
     const tabs = this.tabs();
     const i = tabs.findIndex((t) => t.path === path);
-    const tab = tabs[i];
-    if (tab?.sendingId) void api.cancel(tab.sendingId);
+    if (i < 0) return;
+    const sendingId = tabs[i].sendingId;
+    if (sendingId) void api.cancel(sendingId);
     const rest = tabs.filter((t) => t.path !== path);
     this.tabs.set(rest);
     if (this.activePath() === path) this.activePath.set(rest[Math.min(i, rest.length - 1)]?.path ?? null);
@@ -273,10 +330,12 @@ export class Workspace {
     try {
       const result = await api.send(id, c.root, tab.path, tab.doc, this.env());
       this.patchTab(tab.path, { result, sendingId: undefined, sentAt: Date.now() });
-      this.history.update((h) => [
-        { path: tab.path, method: result.method, url: result.url, status: result.response.status, at: time() },
-        ...h,
-      ].slice(0, 30));
+      if (this.collection()?.root === c.root) {
+        this.history.update((h) => [
+          { path: tab.path, method: result.method, url: result.url, status: result.response.status, at: time() },
+          ...h,
+        ].slice(0, 30));
+      }
     } catch (e) {
       const elapsed = Math.round(performance.now() - started);
       const message = String(e);
@@ -295,11 +354,13 @@ export class Workspace {
 
   refreshVars() {
     clearTimeout(this.varsTimer);
+    const seq = ++this.varsSeq;
     this.varsTimer = setTimeout(async () => {
       const c = this.collection();
       const tab = this.active();
       if (!c || !tab) return;
-      this.vars.set(await api.variables(c.root, tab.path, tab.doc, this.env()).catch(() => []));
+      const vars = await api.variables(c.root, tab.path, tab.doc, this.env()).catch(() => []);
+      if (seq === this.varsSeq) this.vars.set(vars);
     }, 120);
   }
 }

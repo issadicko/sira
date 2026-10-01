@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
+import { COMMANDS } from '../core/commands';
 import { Workspace } from '../core/store';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
@@ -27,7 +28,7 @@ import { UrlBar } from './url-bar';
             (click)="ws.activate(t.path)"
             (dblclick)="ws.pin(t.path)"
             (keydown.enter)="ws.activate(t.path)"
-            (auxclick)="ws.closeTab(t.path)"
+            (auxclick)="$event.button === 1 && ws.closeTab(t.path)"
           >
             <span [class]="methodClass(t.doc.method)" style="width: auto">{{ shortMethod(t.doc.method) }}</span>
             <span class="tab-name">{{ t.doc.name || t.path }}</span>
@@ -46,7 +47,7 @@ import { UrlBar } from './url-bar';
         }
         <span class="crumbs-state" [class.dirty]="ws.isDirty(tab)">
           @if (ws.isDirty(tab)) {
-            Non enregistré <kbd class="kbd">{{ mod }}S</kbd>
+            Non enregistré <kbd class="kbd">{{ label('request.save') }}</kbd>
           } @else {
             <app-ic name="check" [size]="12" />Enregistré sur le disque
           }
@@ -68,10 +69,10 @@ import { UrlBar } from './url-bar';
           <button class="btn" (click)="ws.dialog.set('openapi')"><app-ic name="import" [size]="14" />Importer une spec OpenAPI…</button>
         </div>
         <div class="keys">
-          <span>Rechercher une requête</span><kbd class="kbd">{{ mod }}K</kbd>
-          <span>Envoyer</span><kbd class="kbd">{{ mod }}↵</kbd>
-          <span>Enregistrer</span><kbd class="kbd">{{ mod }}S</kbd>
-          <span>Masquer la barre latérale</span><kbd class="kbd">{{ mod }}B</kbd>
+          <span>Rechercher une requête</span><kbd class="kbd">{{ label('palette.search') }}</kbd>
+          <span>Envoyer</span><kbd class="kbd">{{ label('request.send') }}</kbd>
+          <span>Enregistrer</span><kbd class="kbd">{{ label('request.save') }}</kbd>
+          <span>Masquer la barre latérale</span><kbd class="kbd">{{ label('view.sidebar') }}</kbd>
         </div>
       </div>
     }
@@ -82,9 +83,9 @@ import { UrlBar } from './url-bar';
 })
 export class Editor {
   protected readonly ws = inject(Workspace);
+  private readonly commands = inject(COMMANDS);
   protected readonly methodClass = methodClass;
   protected readonly shortMethod = shortMethod;
-  protected readonly mod = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl+';
   protected readonly reqPct = signal(46);
   private readonly split = viewChild<ElementRef<HTMLElement>>('split');
 
@@ -95,6 +96,10 @@ export class Editor {
     const root = c.root.split(/[\\/]/).filter(Boolean).pop() ?? c.name;
     return [root, ...tab.path.split('/')];
   });
+
+  protected label(id: string) {
+    return this.commands.label(id);
+  }
 
   protected close(event: Event, path: string) {
     event.stopPropagation();

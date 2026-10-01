@@ -138,8 +138,8 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', text: 
   styles: `
     .res-body { display: flex; flex-direction: column; }
     .res-code { flex: 1; }
+    .res-code:focus-within { box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 0 4px var(--accent-soft); }
     .is-sending > .res-code { opacity: 0.35; transition: opacity 0.2s; }
-    .icon-btn:disabled { color: var(--faint); background: transparent; }
     .warn-banner { margin: 10px 12px 0; }
     .ok-ic { color: var(--good); display: grid; }
     .ko-ic { color: var(--bad); display: grid; }

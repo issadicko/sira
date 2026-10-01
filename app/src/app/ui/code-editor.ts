@@ -43,12 +43,19 @@ const PHRASES = {
   'Folded lines': 'Lignes repliées',
   'Unfolded lines': 'Lignes dépliées',
   'Control character': 'Caractère de contrôle',
+  'Go to line': 'Aller à la ligne',
+  go: 'Aller',
+  to: 'à',
+  'Selection deleted': 'Sélection supprimée',
+  'folded code': 'code replié',
+  unfold: 'Déplier',
+  'Fold line': 'Replier la ligne',
+  'Unfold line': 'Déplier la ligne',
 };
 
 const icon = (path: string) =>
   `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='${path}'/%3E%3C/svg%3E") center / 14px no-repeat`;
 const ICONS = { next: icon('m6 9 6 6 6-6'), prev: icon('m18 15-6-6-6 6'), close: icon('M18 6 6 18M6 6l12 12') };
-const STRONG_ACCENT = 'color-mix(in srgb, var(--accent) 32%, transparent)';
 
 const THEME = EditorView.theme({
   '&': { height: '100%', color: 'var(--ink)', backgroundColor: 'transparent' },
@@ -57,20 +64,20 @@ const THEME = EditorView.theme({
   '.cm-content': { padding: '6px 0 16px', caretColor: 'var(--accent)' },
   '.cm-line': { padding: '0 20px 0 2px' },
   '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--faint)', border: 'none' },
-  '.cm-lineNumbers .cm-gutterElement': { minWidth: '44px', padding: '0 0 0 8px', fontVariantNumeric: 'tabular-nums', opacity: '.8' },
+  '.cm-lineNumbers .cm-gutterElement': { minWidth: '44px', padding: '0 0 0 8px', fontVariantNumeric: 'tabular-nums' },
   '.cm-foldGutter .cm-gutterElement': { width: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  '.cm-fold-marker': { width: '16px', height: '18px', display: 'grid', placeItems: 'center', borderRadius: '3px', padding: '0', opacity: '0' },
+  '.cm-fold-marker': { width: '16px', height: '18px', display: 'grid', placeItems: 'center', borderRadius: '4px', padding: '0', opacity: '0' },
   '&:hover .cm-fold-marker, .cm-fold-marker.is-folded': { opacity: '1' },
   '.cm-fold-marker:hover': { color: 'var(--ink)', backgroundColor: 'var(--hover)' },
   '.cm-foldPlaceholder': { display: 'inline-block', margin: '0 2px', padding: '0 5px', border: 'none', borderRadius: '4px', backgroundColor: 'var(--raised)', color: 'var(--muted)' },
   '.cm-foldPlaceholder:hover': { color: 'var(--ink)' },
   '.cm-cursor, .cm-dropCursor': { borderLeft: '2px solid var(--accent)', marginLeft: '-1px' },
   '.cm-selectionBackground': { background: 'var(--accent-soft)' },
-  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': { background: STRONG_ACCENT },
-  '&.cm-focused .cm-matchingBracket': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent-line)', borderRadius: '2px' },
-  '&.cm-focused .cm-nonmatchingBracket': { backgroundColor: 'var(--bad-soft)', outline: '1px solid var(--bad-strong)', borderRadius: '2px' },
-  '.cm-searchMatch': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent-line)', borderRadius: '2px' },
-  '.cm-searchMatch-selected': { backgroundColor: STRONG_ACCENT },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': { background: 'var(--accent-line)' },
+  '&.cm-focused .cm-matchingBracket': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent-line)', borderRadius: '4px' },
+  '&.cm-focused .cm-nonmatchingBracket': { backgroundColor: 'var(--bad-soft)', outline: '1px solid var(--bad-strong)', borderRadius: '4px' },
+  '.cm-searchMatch': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent-line)', borderRadius: '4px' },
+  '.cm-searchMatch-selected': { backgroundColor: 'var(--accent-line)' },
   '.cm-specialChar': { color: 'var(--bad)' },
   '.cm-panels': { backgroundColor: 'var(--raised)', color: 'var(--ink)' },
   '.cm-panels-top': { borderBottom: '1px solid var(--line)' },
@@ -79,7 +86,7 @@ const THEME = EditorView.theme({
   '.cm-panel.cm-search [name=replace], .cm-panel.cm-search [name=replaceAll]': { order: '2' },
   '.cm-panel.cm-search br': { display: 'none' },
   '.cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label': { margin: '0' },
-  '.cm-textfield': { flex: '1 1 140px', maxWidth: '280px', height: '26px', padding: '0 8px', border: '1px solid var(--line)', borderRadius: '6px', backgroundColor: 'var(--sunken)', color: 'var(--ink)', font: '12px var(--font-mono)', outline: 'none' },
+  '.cm-textfield': { flex: '1 1 140px', maxWidth: '280px', height: '26px', padding: '0 8px', border: '1px solid var(--line)', borderRadius: '6px', backgroundColor: 'var(--sunken)', color: 'var(--ink)', font: '12px var(--font-mono)', fontVariantLigatures: 'none', outline: 'none' },
   '.cm-textfield:focus': { borderColor: 'var(--accent-line)', boxShadow: '0 0 0 3px var(--accent-soft)' },
   '.cm-button, .cm-panel.cm-search [name=close]': { height: '24px', padding: '0 8px', border: 'none', borderRadius: '6px', backgroundImage: 'none', backgroundColor: 'transparent', color: 'var(--muted)', font: '500 12px var(--font-ui)', cursor: 'pointer' },
   '.cm-button:hover, .cm-button:active, .cm-panel.cm-search [name=close]:hover': { backgroundImage: 'none', backgroundColor: 'var(--hover)', color: 'var(--ink)' },

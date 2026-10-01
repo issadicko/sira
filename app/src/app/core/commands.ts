@@ -12,7 +12,8 @@ export interface Command {
   run: () => unknown;
 }
 
-export type KeyLike = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>;
+export type KeyLike = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'> &
+  Partial<Pick<KeyboardEvent, 'repeat' | 'getModifierState'>>;
 
 export const isMac = typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac');
 
@@ -34,8 +35,13 @@ export function shortcutLabel(keys: string, mac = isMac): string {
     .join(mac ? '' : '+');
 }
 
-/** Vrai si la touche correspond au raccourci ; Maj et Alt comptent sauf pour un symbole (`\`, `/`…). */
+/**
+ * Vrai si la touche correspond au raccourci ; Maj et Alt comptent sauf pour un symbole (`\`, `/`…).
+ * Hors macOS, AltGr (Ctrl+Alt) sert à saisir des caractères : il ne déclenche jamais de raccourci.
+ */
 export function matchesShortcut(keys: string, event: KeyLike, mac = isMac): boolean {
+  const altGraph = !mac && (!!event.getModifierState?.('AltGraph') || (event.ctrlKey && event.altKey));
+  if (altGraph) return false;
   const parts = keys.split('+');
   const key = parts[parts.length - 1];
   const symbol = !/^([a-z0-9]|enter|esc)$/.test(key);
@@ -51,6 +57,12 @@ export class Commands {
   private readonly list = signal<Command[]>([]);
   readonly all = this.list.asReadonly();
 
+  private readonly onError: (error: unknown) => void;
+
+  constructor(onError: (error: unknown) => void = console.error) {
+    this.onError = onError;
+  }
+
   /** Ajoute ou remplace des commandes (par `id`) ; renvoie de quoi les retirer. */
   register(...commands: Command[]): () => void {
     const ids = new Set(commands.map((c) => c.id));
@@ -62,19 +74,27 @@ export class Commands {
     return command.when?.() ?? true;
   }
 
-  /** Exécute la commande active liée à la touche ; la touche n'est consommée que dans ce cas. */
+  /** Libellé du raccourci d'une commande, vide si elle n'en a pas. */
+  label(id: string): string {
+    const keys = this.list().find((c) => c.id === id)?.keys;
+    return keys ? shortcutLabel(keys) : '';
+  }
+
+  /** Lance la commande ; un échec, même synchrone, est transmis à `onError`. */
+  execute(command: Command) {
+    void new Promise((resolve) => resolve(command.run())).catch(this.onError);
+  }
+
+  /** Exécute la commande active liée à la touche ; la touche n'est consommée que dans ce cas, mais une répétition ne relance rien. */
   dispatch(event: KeyLike & Pick<Event, 'preventDefault'>, mac = isMac): boolean {
     const command = this.list().find(
       (c) => c.keys && matchesShortcut(c.keys, event, mac) && this.enabled(c),
     );
     if (!command) return false;
     event.preventDefault();
-    command.run();
+    if (!event.repeat) this.execute(command);
     return true;
   }
 }
 
-export const COMMANDS = new InjectionToken<Commands>('Commandes', {
-  providedIn: 'root',
-  factory: () => new Commands(),
-});
+export const COMMANDS = new InjectionToken<Commands>('Commandes');

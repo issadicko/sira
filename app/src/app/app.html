@@ -136,7 +136,7 @@
       <span class="sb-spacer"></span>
     }
     @if (ws.demo) {
-      <span class="sb-item warn-text">Mode démo navigateur</span>
+      <span class="sb-item">Mode démo navigateur</span>
     }
     <span class="sb-item">v0.1.0</span>
   </footer>
@@ -152,4 +152,5 @@
     <app-openapi-dialog />
   }
 }
+<app-discard-dialog />
 <div class="toast" [class.show]="!!ws.toast()" [class.error]="ws.toastError()" role="status" aria-live="polite"><app-ic [name]="ws.toastError() ? 'alert' : 'check-circle'" [size]="15" /><span>{{ ws.toast() }}</span></div>

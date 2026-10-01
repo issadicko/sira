@@ -5,6 +5,7 @@ import { isTauri } from './core/api';
 import { COMMANDS, isMac, shortcutLabel } from './core/commands';
 import { View, Workspace } from './core/store';
 import { CurlDialog } from './ui/curl-dialog';
+import { DiscardDialog } from './ui/discard-dialog';
 import { Editor } from './ui/editor';
 import { EnvView } from './ui/env-view';
 import { Icon } from './ui/icon';
@@ -18,7 +19,7 @@ import { Welcome } from './ui/welcome';
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover, Palette, CurlDialog, OpenApiDialog],
+  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover, Palette, CurlDialog, OpenApiDialog, DiscardDialog],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -83,6 +84,7 @@ export class App {
   }
 
   protected openPalette(query: string) {
+    if (this.ws.modal()) return;
     this.envMenu.set(false);
     this.ws.hover.set(null);
     this.ws.palette.set(query);
@@ -100,6 +102,11 @@ export class App {
 
   @HostListener('document:keydown', ['$event'])
   protected onKey(e: KeyboardEvent) {
+    if (this.ws.palette() !== null) {
+      if (e.key === 'Escape') this.ws.palette.set(null);
+      return;
+    }
+    if (this.ws.modal()) return;
     if (e.key === 'Escape' && this.envMenu()) this.envMenu.set(false);
     else if (e.key === 'Escape' && this.ws.hover()) this.ws.hover.set(null);
     else this.commands.dispatch(e);

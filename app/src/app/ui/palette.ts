@@ -16,6 +16,7 @@ import { COMMANDS, shortcutLabel } from '../core/commands';
 import { Segment, rank, segments } from '../core/fuzzy';
 import { TreeItem } from '../core/model';
 import { Workspace } from '../core/store';
+import { restoreFocus } from './focus';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
 
@@ -57,7 +58,7 @@ const envLabel = (env: string | null) => (env ? `Environnement : ${env}` : 'Aucu
   template: `
     <ng-template #hl let-segs>@for (s of segs; track $index) {@if (s.hit) {<mark>{{ s.text }}</mark>} @else {<ng-container>{{ s.text }}</ng-container>}}</ng-template>
     @if (open()) {
-      <div class="palette-wrap" (click)="dismiss($event)">
+      <div class="palette-wrap" (mousedown)="pressVeil($event)" (click)="dismiss($event)">
         <div class="palette" role="dialog" aria-modal="true" aria-label="Palette de commandes" (mousedown)="keepFocus($event)">
           <label class="pal-input">
             <app-ic name="search" [size]="16" />
@@ -137,6 +138,7 @@ export class Palette {
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private previous: HTMLElement | null = null;
+  private veilPressed = false;
 
   protected readonly methodClass = methodClass;
   protected readonly shortMethod = shortMethod;
@@ -165,8 +167,8 @@ export class Palette {
       if (this.open()) {
         this.previous = document.activeElement as HTMLElement | null;
         afterNextRender(() => this.focusInput(), { injector: this.injector });
-      } else {
-        this.previous?.focus();
+      } else if (this.previous) {
+        restoreFocus(this.previous);
         this.previous = null;
       }
     });
@@ -194,8 +196,13 @@ export class Palette {
     void entry.run();
   }
 
+  protected pressVeil(e: MouseEvent) {
+    this.veilPressed = e.target === e.currentTarget;
+  }
+
   protected dismiss(e: MouseEvent) {
-    if (e.target === e.currentTarget) this.ws.palette.set(null);
+    if (this.veilPressed && e.target === e.currentTarget) this.ws.palette.set(null);
+    this.veilPressed = false;
   }
 
   protected keepFocus(e: MouseEvent) {
@@ -245,7 +252,7 @@ export class Palette {
       label: segments(item.title, marks),
       sub: [],
       shortcut: item.keys && shortcutLabel(item.keys),
-      run: item.run,
+      run: () => this.commands.execute(item),
     }));
   }
 

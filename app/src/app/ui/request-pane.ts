@@ -51,7 +51,7 @@ const OUTSIDE_COLLECTION =
           </button>
         }
       </div>
-      <div class="pane-body">
+      <div class="pane-body" [class.fill]="section() === 'body'">
         @switch (section()) {
           @case ('params') {
             <section class="sec">
@@ -69,41 +69,43 @@ const OUTSIDE_COLLECTION =
             }
           }
           @case ('body') {
-            <div class="seg" role="group" aria-label="Type de corps">
-              @for (b of bodyTypes; track b.type) {
-                <button [attr.aria-pressed]="tab.doc.body.type === b.type" (click)="setBodyType(b.type)">{{ b.label }}</button>
-              }
-            </div>
             @if (tab.doc.body.type === 'other') {
-              <div class="banner" style="margin-top: 12px"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
-            } @else if (tab.doc.body.type === 'form-urlencoded') {
-              <section class="sec body-sec">
-                <div class="sec-head"><span class="sec-title">Champs du formulaire</span><span class="sec-meta">application/x-www-form-urlencoded</span></div>
-                <app-kv-table [rows]="formFields()" keyLabel="Nom" addLabel="Ajouter un champ" [descriptions]="true" (rowsChange)="setFormFields($event)" />
-              </section>
-              <div class="note"><app-ic name="variable" [size]="14" /><span>Les valeurs sont encodées à l'envoi ; les variables {{ '{{…}}' }} sont résolues avant.</span></div>
-            } @else if (tab.doc.body.type === 'multipart-form') {
-              <section class="sec body-sec">
-                <div class="sec-head"><span class="sec-title">Champs multipart</span><span class="sec-meta">multipart/form-data</span></div>
-                <app-multipart-table [fields]="multipartFields()" (fieldsChange)="setMultipartFields($event)" (pick)="pickFile($event)" />
-              </section>
-              <div class="note"><app-ic name="shield" [size]="14" /><span>Les fichiers sont lus dans la collection : chemins relatifs, sans « .. » ni chemin absolu.</span></div>
-            } @else if (tab.doc.body.type !== 'none') {
-              <div class="body-tools">
-                <span class="faint">Les variables {{ '{{…}}' }} sont résolues à l'envoi.</span>
-                @if (tab.doc.body.type === 'json') {
-                  <button class="btn ghost" style="height: 24px" (click)="formatBody()">Formater</button>
+              <div class="banner"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
+            } @else {
+              <div class="seg" role="group" aria-label="Type de corps">
+                @for (b of bodyTypes; track b.type) {
+                  <button [attr.aria-pressed]="tab.doc.body.type === b.type" (click)="setBodyType(b.type)">{{ b.label }}</button>
                 }
               </div>
-              @for (path of [tab.path]; track path) {
-                <app-code-editor class="body-editor" [value]="$any(tab.doc.body).data" [language]="$any(tab.doc.body).type" label="Corps de la requête" (valueChange)="setBodyData($event)" />
+              @if (tab.doc.body.type === 'form-urlencoded') {
+                <section class="sec body-sec">
+                  <div class="sec-head"><span class="sec-title">Champs du formulaire</span><span class="sec-meta">application/x-www-form-urlencoded</span></div>
+                  <app-kv-table [rows]="formFields()" keyLabel="Nom" addLabel="Ajouter un champ" [descriptions]="true" (rowsChange)="setFormFields($event)" />
+                </section>
+                <div class="note"><app-ic name="variable" [size]="14" /><span>Les valeurs sont encodées à l'envoi ; les variables {{ '{{…}}' }} sont résolues avant.</span></div>
+              } @else if (tab.doc.body.type === 'multipart-form') {
+                <section class="sec body-sec">
+                  <div class="sec-head"><span class="sec-title">Champs multipart</span><span class="sec-meta">multipart/form-data</span></div>
+                  <app-multipart-table [fields]="multipartFields()" (fieldsChange)="setMultipartFields($event)" (pick)="pickFile($event)" />
+                </section>
+                <div class="note"><app-ic name="shield" [size]="14" /><span>Les fichiers sont lus dans la collection : chemins relatifs, sans « .. » ni chemin absolu.</span></div>
+              } @else if (tab.doc.body.type !== 'none') {
+                <div class="body-tools">
+                  <span class="faint">Les variables {{ '{{…}}' }} sont résolues à l'envoi.</span>
+                  @if (tab.doc.body.type === 'json') {
+                    <button class="btn ghost" style="height: 24px" (click)="formatBody()">Formater</button>
+                  }
+                </div>
+                @for (path of [tab.path]; track path) {
+                  <app-code-editor class="body-editor" [value]="$any(tab.doc.body).data" [language]="$any(tab.doc.body).type" label="Corps de la requête" (valueChange)="setBodyData($event)" />
+                }
+              } @else {
+                <div class="empty" style="min-height: 200px">
+                  <span class="empty-ic"><app-ic name="file" [size]="18" /></span>
+                  <h2>Pas de corps</h2>
+                  <p>Choisis un type au-dessus pour en ajouter un.</p>
+                </div>
               }
-            } @else {
-              <div class="empty" style="min-height: 200px">
-                <span class="empty-ic"><app-ic name="file" [size]="18" /></span>
-                <h2>Pas de corps</h2>
-                <p>Choisis un type au-dessus pour en ajouter un.</p>
-              </div>
             }
           }
           @case ('headers') {
@@ -183,17 +185,19 @@ const OUTSIDE_COLLECTION =
             <div class="note"><app-ic name="shield" [size]="14" /><span>Les scripts sont conservés dans le fichier. Leur exécution (sandbox QuickJS, API bru / req / res) arrive en V1.</span></div>
           }
           @case ('docs') {
-            <textarea class="code-input docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
+            <textarea class="docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
           }
         }
       </div>
     }
   `,
   styles: `
-    .code-input { display: block; width: 100%; min-height: 260px; height: calc(100% - 64px); resize: none; margin-top: 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 12.5px/20px var(--font-mono); font-variant-ligatures: none; tab-size: 2; outline: 0; }
-    .code-input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
-    .code-input.docs { font-family: var(--font-ui); font-size: 13px; height: 100%; margin: 0; }
-    .body-editor { height: calc(100% - 64px); min-height: 260px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); }
+    .docs { display: block; width: 100%; height: 100%; min-height: 260px; resize: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 13px/20px var(--font-ui); font-variant-ligatures: none; tab-size: 2; outline: 0; }
+    .docs:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .pane-body.fill { display: flex; flex-direction: column; }
+    .pane-body.fill > .seg { align-self: flex-start; }
+    .pane-body.fill > .empty { flex: 1; height: auto; }
+    .body-editor { flex: 1; min-height: 260px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); }
     .body-editor:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .body-sec { margin: 14px 0 12px; }
     .body-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 12px; }

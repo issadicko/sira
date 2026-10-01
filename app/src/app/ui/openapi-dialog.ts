@@ -20,7 +20,7 @@ const GROUPINGS: { value: GroupBy; label: string; hint: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Dialog, Icon],
   template: `
-    <app-dialog heading="Importer une spec OpenAPI" (closed)="close()" (confirmed)="run()">
+    <app-dialog heading="Importer une spec OpenAPI" [busy]="importing()" (closed)="close()" (confirmed)="run()">
       @if (ws.demo) {
         <div class="note"><app-ic name="alert" [size]="14" /><span>Mode démo : l'aperçu est fictif et l'import n'écrit rien sur ton disque.</span></div>
       }
@@ -110,7 +110,7 @@ const GROUPINGS: { value: GroupBy; label: string; hint: string }[] = [
         <div class="banner err" role="alert"><app-ic name="alert" [size]="15" /><span>{{ e }}</span></div>
       }
       <div dialog-foot class="foot-actions">
-        <button class="btn ghost" (click)="close()">Annuler</button>
+        <button class="btn ghost" [disabled]="importing()" (click)="close()">Annuler</button>
         <button class="btn-primary" [class.is-sending]="importing()" [disabled]="!target() || importing()" (click)="run()">
           @if (importing()) {
             <span class="spinner"></span>Import en cours…
@@ -162,7 +162,11 @@ export class OpenApiDialog {
     return preview && parent ? joinPath(parent, preview.folderName) : null;
   });
 
+  private pending = 0;
+
   protected edit(source: string) {
+    this.pending++;
+    this.analysing.set(false);
     this.source.set(source);
     this.preview.set(null);
     this.sourceError.set(null);
@@ -188,16 +192,17 @@ export class OpenApiDialog {
   protected async analyse() {
     const source = this.source().trim();
     if (!source || this.analysing()) return;
+    const pending = ++this.pending;
     this.analysing.set(true);
     this.preview.set(null);
     this.sourceError.set(null);
     try {
       const preview = await api.previewOpenApi(source);
-      if (source === this.source().trim()) this.preview.set(preview);
+      if (pending === this.pending) this.preview.set(preview);
     } catch (e) {
-      this.sourceError.set(String(e));
+      if (pending === this.pending) this.sourceError.set(String(e));
     } finally {
-      this.analysing.set(false);
+      if (pending === this.pending) this.analysing.set(false);
     }
   }
 
@@ -207,8 +212,9 @@ export class OpenApiDialog {
     this.importing.set(true);
     this.importError.set(null);
     try {
+      if (!(await this.ws.confirmReplace())) return;
       const root = await api.importOpenApi(this.source().trim(), parent, this.groupBy());
-      if (!(await this.ws.open(root))) {
+      if (!(await this.ws.open(root, true))) {
         this.importError.set(`Collection créée dans ${root}, mais impossible de l'ouvrir : ${this.ws.error()}`);
         return;
       }

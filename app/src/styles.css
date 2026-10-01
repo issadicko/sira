@@ -235,6 +235,7 @@ input, textarea { caret-color: var(--accent); }
 }
 .icon-btn:hover { background: var(--hover); color: var(--ink); }
 .icon-btn[aria-pressed="true"] { background: var(--raised); color: var(--ink); }
+.icon-btn:disabled { color: var(--faint); background: transparent; }
 .icon-btn.sm { width: 24px; height: 24px; border-radius: 5px; }
 
 .workbench {
@@ -552,7 +553,7 @@ input, textarea { caret-color: var(--accent); }
 .split.vertical .split-handle { cursor: row-resize; background-size: 100% 1px; }
 .split.vertical .split-handle:hover, .split.vertical .split-handle.dragging { background-size: 100% 2px; }
 
-.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; container-type: inline-size; }
 
 .subtabs {
   height: 36px; flex-shrink: 0;
@@ -686,14 +687,9 @@ input, textarea { caret-color: var(--accent); }
 }
 .code.boxed { border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); padding: 8px 0; }
 .ln { display: grid; grid-template-columns: 44px 18px minmax(0, 1fr); min-height: 20px; }
-.ln-no { text-align: right; color: var(--faint); user-select: none; font-variant-numeric: tabular-nums; opacity: .8; }
+.ln-no { text-align: right; color: var(--faint); user-select: none; font-variant-numeric: tabular-nums; }
 .ln-g { display: grid; place-items: center; color: var(--faint); user-select: none; }
-.ln-g button { width: 16px; height: 18px; display: grid; place-items: center; color: var(--faint); opacity: 0; border-radius: 3px; }
-.code:hover .ln-g button, .ln-g button.folded { opacity: 1; }
-.ln-g button:hover { color: var(--ink); background: var(--hover); }
 .ln-t { white-space: pre; padding-right: 20px; }
-.code.wrap .ln-t { white-space: pre-wrap; word-break: break-all; }
-.fold-pill { display: inline-block; padding: 0 5px; margin: 0 2px; border-radius: 4px; background: var(--raised); color: var(--muted); cursor: pointer; }
 .t-key { color: var(--t-key); }
 .t-str { color: var(--t-str); }
 .t-num { color: var(--t-num); }
@@ -747,7 +743,7 @@ button.metric:hover { background: var(--hover); color: var(--ink); }
 .jp.has-error { border-color: var(--bad-strong); }
 
 .res-body { flex: 1; min-height: 0; overflow: auto; position: relative; }
-.res-body.is-sending > .code, .res-body.is-sending > .pane-body { opacity: .35; transition: opacity .2s; }
+.res-body.is-sending > .pane-body { opacity: .35; transition: opacity .2s; }
 .progress { position: absolute; left: 0; right: 0; top: 0; height: 2px; overflow: hidden; z-index: 2; }
 .progress::before {
   content: ""; position: absolute; top: 0; bottom: 0; width: 40%;
@@ -1140,7 +1136,6 @@ button.sb-item:hover { background: var(--hover); color: var(--ink); }
 .jp input { text-overflow: ellipsis; }
 .clip-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdesc { margin-left: auto; padding-left: 10px; min-width: 0; color: var(--faint); font: 12px var(--font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#reqPane, #resPane { container-type: inline-size; }
 @container (max-width: 560px) {
   .res-meta .metric.size { display: none; }
   .subtab { padding: 0 6px; }

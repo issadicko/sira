@@ -3,13 +3,24 @@ import { test } from 'node:test';
 
 import { type Command, Commands, matchesShortcut, shortcutLabel } from './commands.ts';
 
-function press(key: string, mods: { meta?: boolean; ctrl?: boolean; shift?: boolean; alt?: boolean } = {}) {
+interface Mods {
+  meta?: boolean;
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+  altGraph?: boolean;
+  repeat?: boolean;
+}
+
+function press(key: string, mods: Mods = {}) {
   return {
     key,
     metaKey: !!mods.meta,
     ctrlKey: !!mods.ctrl,
     shiftKey: !!mods.shift,
     altKey: !!mods.alt,
+    repeat: !!mods.repeat,
+    getModifierState: (name: string) => name === 'AltGraph' && !!mods.altGraph,
     prevented: false,
     preventDefault() {
       this.prevented = true;
@@ -42,6 +53,26 @@ test('ef_ux_01_raccourci_correspond_a_la_touche_et_aux_modificateurs', () => {
   assert.ok(matchesShortcut('mod+enter', press('Enter', { ctrl: true }), false));
   assert.ok(matchesShortcut('esc', press('Escape'), true));
   assert.ok(matchesShortcut('mod+\\', press('\\', { meta: true, alt: true, shift: true }), true));
+});
+
+test('ef_ux_01_altgr_hors_macos_ne_declenche_jamais_un_raccourci_mod', () => {
+  assert.ok(matchesShortcut('mod+\\', press('\\', { ctrl: true }), false));
+  assert.ok(!matchesShortcut('mod+\\', press('\\', { ctrl: true, alt: true }), false));
+  assert.ok(!matchesShortcut('mod+\\', press('\\', { ctrl: true, altGraph: true }), false));
+  assert.ok(!matchesShortcut('mod+\\', press('\\', { altGraph: true }), false));
+  assert.ok(!matchesShortcut('mod+k', press('k', { ctrl: true, alt: true }), false));
+  assert.ok(!matchesShortcut('mod+enter', press('Enter', { ctrl: true, altGraph: true }), false));
+  assert.ok(matchesShortcut('mod+\\', press('\\', { meta: true, alt: true, shift: true }), true));
+});
+
+test('ef_ux_01_altgr_saisi_sous_windows_laisse_passer_la_touche', () => {
+  const commands = new Commands();
+  const layout = command('layout', { keys: 'mod+\\' });
+  commands.register(layout);
+  const typed = press('\\', { ctrl: true, alt: true });
+  assert.equal(commands.dispatch(typed, false), false);
+  assert.equal(layout.runs, 0);
+  assert.equal(typed.prevented, false);
 });
 
 test('ef_ux_01_registre_execute_la_commande_active_liee_a_la_touche', () => {
@@ -80,4 +111,42 @@ test('ef_ux_01_registre_ajoute_en_une_ligne_remplace_par_id_et_retire', () => {
   );
   assert.equal(commands.enabled(command('c', { when: () => false })), false);
   assert.equal(commands.enabled(command('d')), true);
+});
+
+test('ef_ux_01_touche_maintenue_ne_relance_pas_la_commande', () => {
+  const commands = new Commands();
+  const close = command('close', { keys: 'mod+w' });
+  commands.register(close);
+
+  assert.equal(commands.dispatch(press('w', { meta: true }), true), true);
+  const held = press('w', { meta: true, repeat: true });
+  assert.equal(commands.dispatch(held, true), true);
+  assert.equal(commands.dispatch(press('w', { meta: true, repeat: true }), true), true);
+  assert.equal(close.runs, 1);
+  assert.equal(held.prevented, true);
+});
+
+test('ef_ux_01_echec_de_commande_est_signale_sans_planter_le_clavier', async () => {
+  const errors: unknown[] = [];
+  const commands = new Commands((e) => errors.push(e));
+  commands.register(
+    command('async', { keys: 'mod+r', run: () => Promise.reject('lecture impossible') }),
+    command('sync', { keys: 'mod+t', run: () => { throw new Error('boum'); } }),
+  );
+
+  assert.equal(commands.dispatch(press('r', { meta: true }), true), true);
+  assert.equal(commands.dispatch(press('t', { meta: true }), true), true);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(errors.length, 2);
+  assert.ok(errors.includes('lecture impossible'));
+  assert.ok(errors.some((e) => e instanceof Error && e.message === 'boum'));
+});
+
+test('ef_ux_01_libelle_du_raccourci_vient_du_registre', () => {
+  const commands = new Commands();
+  commands.register(command('request.save', { keys: 'mod+s' }), command('tree.reload'));
+  assert.equal(commands.label('request.save'), shortcutLabel('mod+s'));
+  assert.equal(commands.label('tree.reload'), '');
+  assert.equal(commands.label('inconnue'), '');
 });

@@ -55,6 +55,13 @@ test('ef_req_02_le_texte_passe_dun_type_texte_a_lautre_et_sefface_pour_les_formu
   assert.deepEqual(switchBody(json, 'none'), { type: 'none' });
 });
 
+test('ef_req_02_un_corps_non_editable_nest_jamais_remplace', () => {
+  const graphql: Body = { type: 'other', label: 'GraphQL' };
+  for (const type of ['none', 'json', 'text', 'xml', 'form-urlencoded', 'multipart-form'] as const) {
+    assert.equal(switchBody(graphql, type), graphql);
+  }
+});
+
 test('ef_req_02_ajoute_un_fichier_au_champ_choisi', () => {
   const fields = multipart.type === 'multipart-form' ? multipart.fields : [];
   const result = withFile(fields, 1, 'pieces/photo.jpg');

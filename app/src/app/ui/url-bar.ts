@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
+import { COMMANDS } from '../core/commands';
 import { isCurlCommand } from '../core/curl';
 import { Workspace } from '../core/store';
 import { segments } from '../core/url';
@@ -59,9 +60,9 @@ import { METHODS } from './method';
       </div>
       <button class="btn-primary lg" [class.is-sending]="!!tab.sendingId" (click)="ws.send()" [attr.aria-label]="tab.sendingId ? 'Annuler la requête' : 'Envoyer la requête'">
         @if (tab.sendingId) {
-          <span class="spinner"></span>Annuler <kbd class="kbd">Échap</kbd>
+          <span class="spinner"></span>Annuler <kbd class="kbd">{{ label('request.cancel') }}</kbd>
         } @else {
-          <app-ic name="send" [size]="15" />Envoyer <kbd class="kbd">{{ mod }}↵</kbd>
+          <app-ic name="send" [size]="15" />Envoyer <kbd class="kbd">{{ label('request.send') }}</kbd>
         }
       </button>
     }
@@ -74,7 +75,7 @@ import { METHODS } from './method';
     .url-input::placeholder { color: var(--faint); }
     .url-input::selection { background: var(--accent-line); color: transparent; }
     .url-mirror { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; white-space: pre; pointer-events: none; color: var(--ink); }
-    .url-mirror .var { pointer-events: auto; height: auto; padding: 0; margin: 0; border-radius: 3px; box-shadow: 0 0 0 2px var(--accent-soft); }
+    .url-mirror .var { pointer-events: auto; height: auto; padding: 0; margin: 0; border-radius: 4px; box-shadow: 0 0 0 2px var(--accent-soft); }
     .url-mirror .var.bad { box-shadow: 0 0 0 2px var(--bad-soft); }
     .method-wrap { position: relative; height: 100%; display: flex; align-items: center; border-right: 1px solid var(--line); }
     .method-wrap app-ic, .method-wrap svg { position: absolute; right: 9px; pointer-events: none; opacity: .7; }
@@ -85,12 +86,16 @@ import { METHODS } from './method';
 })
 export class UrlBar {
   protected readonly ws = inject(Workspace);
+  private readonly commands = inject(COMMANDS);
   protected readonly methods = METHODS;
-  protected readonly mod = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl+';
   protected readonly scroll = signal(0);
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
 
   protected readonly parts = computed(() => segments(this.ws.active()?.doc.url ?? ''));
+
+  protected label(id: string) {
+    return this.commands.label(id);
+  }
 
   protected isUnresolved(name: string) {
     if (name.startsWith('$') || name.startsWith('process.env.')) return false;
@@ -108,10 +113,15 @@ export class UrlBar {
     if (this.ws.active()?.doc.requestType !== 'http' || !isCurlCommand(text)) return;
     event.preventDefault();
     const input = event.target as HTMLInputElement;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? input.value.length;
     void this.ws.pasteCurl(text).then((applied) => {
-      if (!applied) return;
+      if (!applied) {
+        input.setRangeText(text.replace(/\r?\n/g, ' '), start, end, 'end');
+        input.dispatchEvent(new Event('input'));
+      }
       setTimeout(() => {
-        input.setSelectionRange(input.value.length, input.value.length);
+        if (applied) input.setSelectionRange(input.value.length, input.value.length);
         this.syncScroll();
       });
     });

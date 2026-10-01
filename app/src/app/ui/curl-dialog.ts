@@ -20,7 +20,7 @@ const PLACEHOLDER = `curl -X POST https://api.exemple.test/v1/transactions \\
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Dialog, Icon],
   template: `
-    <app-dialog heading="Nouvelle requête depuis cURL" (closed)="close()" (confirmed)="create()">
+    <app-dialog heading="Nouvelle requête depuis cURL" [busy]="busy()" (closed)="close()" (confirmed)="create()">
       <section class="fld">
         <label class="sec-head" for="curl-command"><span class="sec-title">Commande cURL</span><span class="sec-meta">depuis un terminal, une doc ou « Copier en cURL »</span></label>
         <textarea
@@ -70,7 +70,7 @@ const PLACEHOLDER = `curl -X POST https://api.exemple.test/v1/transactions \\
         <div class="banner err" role="alert"><app-ic name="alert" [size]="15" /><span>{{ e }}</span></div>
       }
       <div dialog-foot class="foot-actions">
-        <button class="btn ghost" (click)="close()">Annuler</button>
+        <button class="btn ghost" [disabled]="busy()" (click)="close()">Annuler</button>
         <button class="btn-primary" [class.is-sending]="busy()" [disabled]="!ready() || busy()" (click)="create()">
           @if (busy()) {
             <span class="spinner"></span>Création…
@@ -119,7 +119,7 @@ export class CurlDialog {
   }
 
   protected indent(depth: number) {
-    return '  '.repeat(depth);
+    return '\u00a0\u00a0'.repeat(depth);
   }
 
   protected edit(text: string) {

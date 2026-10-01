@@ -24,13 +24,13 @@ import { Icon } from './icon';
               <option value="file" [selected]="f.kind === 'file'">Fichier</option>
             </select>
           </span>
-          <span class="kv-cell m-cell value" [class.files]="f.kind === 'file'">
+          <span class="kv-cell m-cell value">
             @if (f.kind === 'text') {
               <input type="text" spellcheck="false" [value]="f.value" (input)="setText(i, $any($event.target).value)" [attr.aria-label]="'Valeur de ' + f.name" />
             } @else {
               @for (path of f.value; track path) {
-                <span class="file-chip" [class.bad]="!inside(path)" [title]="inside(path) ? path : 'Hors de la collection : le moteur refusera ce chemin'">
-                  <app-ic name="file" [size]="12" /><span class="clip-text">{{ path }}</span>
+                <span class="file-chip" [class.bad]="!inside(path)" [attr.aria-invalid]="inside(path) ? null : 'true'" [title]="inside(path) ? path : 'Hors de la collection : le moteur refusera ce chemin'">
+                  <app-ic [name]="inside(path) ? 'file' : 'alert'" [size]="12" /><span class="clip-text">{{ path }}</span>
                   <button (click)="removeFile(i, path)" [attr.aria-label]="'Retirer ' + path"><app-ic name="x" [size]="11" /></button>
                 </span>
               } @empty {
@@ -60,7 +60,7 @@ import { Icon } from './icon';
     .kv-row:hover .row-x, .row-x:focus-visible { opacity: 1; }
     .file-chip { display: inline-flex; align-items: center; gap: 4px; height: 21px; min-width: 0; max-width: 100%; padding: 0 3px 0 6px; border-radius: 4px; background: var(--raised); font: 12px var(--font-mono); }
     .file-chip .ic { color: var(--muted); }
-    .file-chip button { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 3px; color: var(--muted); }
+    .file-chip button { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 4px; color: var(--muted); }
     .file-chip button:hover { background: var(--hover); color: var(--ink); }
     .file-chip.bad { background: var(--bad-soft); color: var(--bad); }
     .file-chip.bad .ic { color: var(--bad); }
