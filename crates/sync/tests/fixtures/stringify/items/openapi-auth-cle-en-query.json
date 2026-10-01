@@ -1,0 +1,101 @@
+{
+  "name": "Clé en query",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/query-key",
+    "method": "GET",
+    "auth": {
+      "mode": "apikey",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": {
+        "key": "api_key",
+        "value": "{{apiKey}}",
+        "placement": "queryparams"
+      },
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "q",
+        "value": "chaise",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "api_key",
+        "value": "{{apiKey}}",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "gZgzV3ekVDID2wfXxETrx",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/query-key",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "q",
+            "value": "chaise",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "api_key",
+            "value": "{{apiKey}}",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 4
+}

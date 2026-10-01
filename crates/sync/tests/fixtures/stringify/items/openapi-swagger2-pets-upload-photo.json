@@ -1,0 +1,115 @@
+{
+  "name": "Upload photo",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "pets"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/pets/:petId/photo",
+    "method": "POST",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "petId",
+        "value": "",
+        "description": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "multipartForm",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": [
+        {
+          "type": "file",
+          "name": "file",
+          "value": [],
+          "description": "",
+          "enabled": true
+        },
+        {
+          "type": "text",
+          "name": "caption",
+          "value": "",
+          "description": "",
+          "enabled": true
+        }
+      ]
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "PofBbCiPOALIwa1FKPnfQ",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/pets/:petId/photo",
+        "method": "POST",
+        "headers": [],
+        "params": [
+          {
+            "name": "petId",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "multipartForm",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "file",
+              "value": [],
+              "description": "",
+              "enabled": true
+            },
+            {
+              "type": "text",
+              "name": "caption",
+              "value": "",
+              "description": "",
+              "enabled": true
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 3
+}

@@ -1,0 +1,75 @@
+{
+  "type": "http-request",
+  "name": "Auth oauth2-authorization-code",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "oauth2",
+      "oauth2": {
+        "grantType": "authorization_code",
+        "authorizationUrl": "https://auth.test/authorize",
+        "accessTokenUrl": "https://auth.test/token",
+        "refreshTokenUrl": "https://auth.test/refresh",
+        "callbackUrl": "https://app.test/cb",
+        "clientId": "{{clientId}}",
+        "clientSecret": "{{clientSecret}}",
+        "credentialsPlacement": "basic_auth_header",
+        "scope": "read write",
+        "state": "xyz",
+        "pkce": true,
+        "credentialsId": "credentials",
+        "tokenPlacement": "header",
+        "tokenHeaderPrefix": "Bearer",
+        "tokenSource": "id_token",
+        "autoFetchToken": true,
+        "autoRefreshToken": false,
+        "additionalParameters": {
+          "authorization": [
+            {
+              "name": "audience",
+              "value": "api",
+              "sendIn": "queryparams",
+              "enabled": true
+            },
+            {
+              "name": " prompt ",
+              "value": "",
+              "sendIn": "Headers"
+            }
+          ],
+          "token": [
+            {
+              "name": "resource",
+              "value": "r",
+              "sendIn": "body"
+            },
+            {
+              "name": "ignored",
+              "value": "x",
+              "sendIn": "cookie"
+            },
+            {
+              "name": "",
+              "value": "x",
+              "sendIn": "body"
+            }
+          ],
+          "refresh": [
+            {
+              "name": "k",
+              "value": "v",
+              "sendIn": "headers"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

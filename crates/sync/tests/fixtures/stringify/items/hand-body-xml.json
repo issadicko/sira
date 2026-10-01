@@ -1,0 +1,15 @@
+{
+  "type": "http-request",
+  "name": "Body xml",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "xml",
+      "xml": "  <a>\n    <b/>\n  </a>\n\n"
+    }
+  }
+}

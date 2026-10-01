@@ -1,0 +1,12 @@
+{
+  "type": "http-request",
+  "name": "Nombres JSON",
+  "seq": 4.0,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test",
+    "headers": [{ "name": "X-Int", "value": 10, "enabled": true }, { "name": "X-Float", "value": 1.0, "enabled": true }, { "name": "X-Big", "value": 1e21, "enabled": true }, { "name": "X-Small", "value": 1.5e-7, "enabled": true }, { "name": "X-Zero", "value": 0, "enabled": true }],
+    "vars": { "req": [{ "name": "n", "value": 2.50, "enabled": true }, { "name": "o", "value": { "z": 1, "10": 2, "2": 3 }, "enabled": true }] }
+  },
+  "settings": { "timeout": 30000.0, "maxRedirects": 3.0 }
+}

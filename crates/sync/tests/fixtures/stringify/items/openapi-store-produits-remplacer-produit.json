@@ -1,0 +1,85 @@
+{
+  "name": "Remplacer: produit",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "produits"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/produits/:produitId",
+    "method": "PUT",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "produitId",
+        "value": "",
+        "description": "Identifiant du produit",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "xml",
+      "json": null,
+      "text": null,
+      "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>\n  <id></id>\n  <nom></nom>\n  <prix></prix>\n  <tags></tags>\n  <actif></actif>\n</root>",
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "WW9k4gVzwEnKlvsEb0wHK",
+      "name": "204 Response",
+      "description": "Remplacé",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits/:produitId",
+        "method": "PUT",
+        "headers": [],
+        "params": [
+          {
+            "name": "produitId",
+            "value": "",
+            "description": "Identifiant du produit",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "xml",
+          "json": null,
+          "text": null,
+          "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>\n  <id></id>\n  <nom></nom>\n  <prix></prix>\n  <tags></tags>\n  <actif></actif>\n</root>",
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 204,
+        "statusText": "No Content",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 4
+}

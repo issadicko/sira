@@ -1,0 +1,6 @@
+info:
+  name: posts
+  type: folder
+
+request:
+  auth: inherit

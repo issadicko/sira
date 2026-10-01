@@ -1,0 +1,16 @@
+{
+  "type": "http-request",
+  "name": "Bords",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "xml",
+      "xml": "a\n  "
+    },
+    "docs": "ligne\n \n"
+  }
+}

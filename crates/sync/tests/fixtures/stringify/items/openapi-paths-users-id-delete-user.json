@@ -1,0 +1,83 @@
+{
+  "name": "Delete user",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/users/:id",
+    "method": "DELETE",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "id",
+        "value": "",
+        "description": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "mbdpQenivcbAp539hwFSn",
+      "name": "204 Response",
+      "description": "Deleted",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/users/:id",
+        "method": "DELETE",
+        "headers": [],
+        "params": [
+          {
+            "name": "id",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 204,
+        "statusText": "No Content",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 2
+}

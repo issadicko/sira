@@ -1,0 +1,36 @@
+info:
+  name: Body multipart
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.x.test/r
+  body:
+    type: multipart-form
+    data:
+      - name: caption
+        type: text
+        value: Bonjour
+      - name: photo
+        type: file
+        value:
+          - /tmp/a.png
+          - b c.jpg
+        contentType: image/png
+      - name: empty
+        type: file
+        value: []
+        description: aucun fichier
+        disabled: true
+      - name: meta
+        type: text
+        value: '{"a":1}'
+        contentType: application/json
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

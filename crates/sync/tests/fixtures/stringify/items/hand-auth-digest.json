@@ -1,0 +1,21 @@
+{
+  "type": "http-request",
+  "name": "Auth digest",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "digest",
+      "digest": {
+        "username": "u",
+        "password": ""
+      }
+    }
+  }
+}

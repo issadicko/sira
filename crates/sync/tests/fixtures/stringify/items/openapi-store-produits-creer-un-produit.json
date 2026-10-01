@@ -1,0 +1,113 @@
+{
+  "name": "Créer un produit",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "produits"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/produits",
+    "method": "POST",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"id\": 7,\n  \"nom\": \"Banc\",\n  \"prix\": 49\n}",
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": "if (res.status === 201) {\n  bru.setVar('lireProduit_produitId', res.body.id);\n}"
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "7cBDHIuFBilO8y9vCYGIm",
+      "name": "201 Response (simple)",
+      "description": "Créé",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"id\": 7,\n  \"nom\": \"Banc\",\n  \"prix\": 49\n}",
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 201,
+        "statusText": "Created",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "{\n  \"id\": 42,\n  \"nom\": \"Chaise: chêne\",\n  \"prix\": 19.9,\n  \"tags\": [],\n  \"actif\": false\n}"
+        }
+      }
+    },
+    {
+      "itemUid": "7cBDHIuFBilO8y9vCYGIm",
+      "name": "400 Response (simple)",
+      "description": "Requête invalide",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"id\": 7,\n  \"nom\": \"Banc\",\n  \"prix\": 49\n}",
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 400,
+        "statusText": "Bad Request",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "{\n  \"code\": 400,\n  \"message\": \"nom requis\"\n}"
+        }
+      }
+    }
+  ],
+  "seq": 2
+}

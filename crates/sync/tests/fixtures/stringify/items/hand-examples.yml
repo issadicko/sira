@@ -1,0 +1,67 @@
+info:
+  name: Exemples
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/produits"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+examples:
+  - name: Créé
+    description: Réponse nominale
+    request:
+      url: "{{baseUrl}}/produits"
+      method: POST
+      headers:
+        - name: Content-Type
+          value: application/json
+      params:
+        - name: dry
+          value: "true"
+          type: query
+          disabled: true
+      body:
+        type: json
+        data: '{"nom":"Banc"}'
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "200": "ok",
+            "id": 7,
+            "nom": "Banc",
+            "prix": 49,
+            "tags": [],
+            "meta": {}
+          }
+  - name: Untitled Example
+    request:
+      url: ""
+      method: GET
+    response:
+      body:
+        type: text
+        data: |
+          Erreur: interne
+  - name: Sans corps
+    response:
+      status: 404
+      body:
+        type: json
+        data: "null"
+  - name: Corps sans type
+    response: {}

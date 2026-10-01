@@ -1,0 +1,120 @@
+{
+  "name": "List pets",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "pets"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/pets",
+    "method": "GET",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "limit",
+        "value": "20",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "status",
+        "value": "available",
+        "description": "",
+        "enabled": false,
+        "type": "query"
+      },
+      {
+        "name": "status",
+        "value": "sold",
+        "description": "",
+        "enabled": false,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "boSrZfLIiUXb1SihMeNYJ",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/pets",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "limit",
+            "value": "20",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "status",
+            "value": "available",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          },
+          {
+            "name": "status",
+            "value": "sold",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "[\n  {\n    \"id\": 1,\n    \"name\": \"Rex\"\n  }\n]"
+        }
+      }
+    }
+  ],
+  "seq": 1
+}

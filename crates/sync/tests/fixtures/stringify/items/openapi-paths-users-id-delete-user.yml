@@ -1,0 +1,37 @@
+info:
+  name: Delete user
+  type: http
+  seq: 2
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/users/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: Deleted
+    request:
+      url: "{{baseUrl}}/users/:id"
+      method: DELETE
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""

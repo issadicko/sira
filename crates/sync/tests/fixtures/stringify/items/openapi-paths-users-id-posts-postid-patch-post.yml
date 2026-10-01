@@ -1,0 +1,57 @@
+info:
+  name: Patch post
+  type: http
+  seq: 1
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/users/:id/posts/:postId"
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: postId
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "titre": "Bonjour\nle monde",
+        "brouillon": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/users/:id/posts/:postId"
+      method: PATCH
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: postId
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "titre": "Bonjour\nle monde",
+            "brouillon": false
+          }
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

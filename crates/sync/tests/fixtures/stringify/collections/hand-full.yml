@@ -1,0 +1,120 @@
+opencollection: 1.0.0
+
+info:
+  name: Collection complète
+  version: "3"
+config:
+  protobuf:
+    protoFiles:
+      - type: file
+        path: protos/a.proto
+      - type: file
+    importPaths:
+      - path: protos
+      - path: vendor
+        disabled: true
+  proxy:
+    inherit: false
+    config:
+      protocol: https
+      hostname: proxy.test
+      port: 3128
+      auth:
+        username: p
+        password: ""
+        disabled: true
+      bypassProxy: localhost,127.0.0.1
+    disabled: true
+  clientCertificates:
+    - domain: "*.x.test"
+      type: pem
+      certificateFilePath: certs/c.pem
+      privateKeyFilePath: certs/k.pem
+      passphrase: pw
+    - domain: y.test
+      type: pkcs12
+      pkcs12FilePath: certs/y.p12
+      disabled: true
+
+request:
+  headers:
+    - name: X-Folder
+      value: oui
+    - name: X-Off
+      value: non
+      disabled: true
+  auth:
+    type: oauth2
+    flow: client_credentials
+    accessTokenUrl: "{{oauth_token_url}}"
+    credentials:
+      clientId: id
+      clientSecret: secret
+      placement: body
+    scope: admin
+    additionalParameters:
+      accessTokenRequest:
+        - name: tenant
+          placement: query
+          value: t1
+    tokenConfig:
+      placement: {}
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+  variables:
+    - name: folderVar
+      value: v
+    - name: n
+      value:
+        type: number
+        data: "3"
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.out
+        method: jsonq
+      variable:
+        name: out
+        scope: runtime
+  scripts:
+    - type: before-request
+      code: console.log("dossier");
+    - type: tests
+      code: test("dossier", () => {});
+
+docs:
+  content: |
+    # Collection
+
+    Documentation **globale**.
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+      - dist build
+    presets:
+      request:
+        type: http
+        url: https://api.x.test
+      defaultEnvironment: dev
+    scripts:
+      additionalContextRoots:
+        - ../lib
+        - ./shared
+      flow: sequential
+    openapi:
+      - sourceUrl: https://api.x.test/openapi.json
+        groupBy: tags
+        lastSyncDate: 2026-09-30T10:00:00.000Z
+        specHash: abc123
+        autoCheck: false
+        autoCheckInterval: 10
+      - sourceUrl: ./spec.yaml
+        autoCheck: true
+        autoCheckInterval: 5

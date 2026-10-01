@@ -1,0 +1,31 @@
+info:
+  name: cURL multipart
+  type: http
+  seq: 4
+
+http:
+  method: post
+  url: https://api.x.test/upload
+  headers:
+    - name: Content-Type
+      value: multipart/form-data
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value: /tmp/photo.png
+      - name: caption
+        type: text
+        value: Bonjour le monde
+      - name: meta
+        type: text
+        value: '{"a":1};type=application/json'
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

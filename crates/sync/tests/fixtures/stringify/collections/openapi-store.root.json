@@ -1,0 +1,20 @@
+{
+  "request": {
+    "auth": {
+      "mode": "apikey",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": {
+        "key": "X-Api-Key",
+        "value": "{{apiKey}}",
+        "placement": "header"
+      },
+      "oauth2": null
+    }
+  },
+  "meta": {
+    "name": "Boutique Démo"
+  },
+  "docs": "# Boutique\n\nAPI de démonstration : commandes, produits & clients.\nVoir aussi #docs et `README`.\n"
+}

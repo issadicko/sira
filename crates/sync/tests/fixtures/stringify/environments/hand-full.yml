@@ -1,0 +1,49 @@
+name: Production
+extends: base
+color: "#ff6b00"
+variables:
+  - name: baseUrl
+    value: https://api.x.test
+  - secret: true
+    name: token
+  - secret: true
+    name: port
+    type: number
+    disabled: true
+    description: null
+  - name: ratio
+    value:
+      type: number
+      data: "0.5"
+    description: "Ratio: 50 %"
+  - name: debug
+    value:
+      type: boolean
+      data: "true"
+  - name: obj
+    value:
+      type: object
+      data: |-
+        {
+          "a": [
+            1,
+            2
+          ],
+          "b": {
+            "c": "d"
+          }
+        }
+    disabled: true
+  - name: ""
+    value: ""
+  - name: multi
+    value: |
+      l1
+      l2
+externalSecrets:
+  type: vault
+  variables:
+    - name: db
+      path: secret/db
+      key: password
+    - {}

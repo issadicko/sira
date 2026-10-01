@@ -1,0 +1,22 @@
+info:
+  name: Auth awsv4
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://api.x.test/r
+  auth:
+    type: awsv4
+    accessKeyId: AKIA
+    secretAccessKey: "{{secret}}"
+    sessionToken: ""
+    service: execute-api
+    region: eu-west-3
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

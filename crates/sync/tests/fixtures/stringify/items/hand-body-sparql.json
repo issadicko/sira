@@ -1,0 +1,15 @@
+{
+  "type": "http-request",
+  "name": "Body sparql",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "sparql",
+      "sparql": "SELECT ?s WHERE { ?s ?p ?o }"
+    }
+  }
+}

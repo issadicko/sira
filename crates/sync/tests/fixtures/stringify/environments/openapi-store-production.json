@@ -1,0 +1,12 @@
+{
+  "name": "Production",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "https://api.boutique.test/v2",
+      "type": "text",
+      "enabled": true,
+      "secret": false
+    }
+  ]
+}

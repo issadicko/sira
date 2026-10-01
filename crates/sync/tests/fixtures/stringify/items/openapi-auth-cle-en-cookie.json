@@ -1,0 +1,85 @@
+{
+  "name": "Clé en cookie",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/cookie-key",
+    "method": "GET",
+    "auth": {
+      "mode": "apikey",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": {
+        "key": "session",
+        "value": "{{apiKey}}",
+        "placement": "header"
+      },
+      "oauth2": null
+    },
+    "headers": [
+      {
+        "name": "session",
+        "value": "{{apiKey}}",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "ho7OC7rORud8Pa6NgPLqn",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/cookie-key",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "session",
+            "value": "{{apiKey}}",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 5
+}

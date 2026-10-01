@@ -1,0 +1,38 @@
+info:
+  name: Nombres JSON
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: https://api.x.test
+  headers:
+    - name: X-Int
+      value: 10
+    - name: X-Float
+      value: 1
+    - name: X-Big
+      value: 1e+21
+    - name: X-Small
+      value: 1.5e-7
+    - name: X-Zero
+      value: ""
+
+runtime:
+  variables:
+    - name: n
+      value: "2.5"
+    - name: o
+      value: |-
+        {
+          "2": 3,
+          "10": 2,
+          "z": 1
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 30000
+  followRedirects: true
+  maxRedirects: 3
+  forwardAuthorizationHeader: true

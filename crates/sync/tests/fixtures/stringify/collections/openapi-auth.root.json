@@ -1,0 +1,31 @@
+{
+  "request": {
+    "auth": {
+      "mode": "oauth2",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": {
+        "grantType": "authorization_code",
+        "authorizationUrl": "https://auth.test/authorize",
+        "accessTokenUrl": "https://auth.test/token",
+        "refreshTokenUrl": "https://auth.test/refresh",
+        "callbackUrl": "{{oauth_callback_url}}",
+        "clientId": "{{oauth_client_id}}",
+        "clientSecret": "{{oauth_client_secret}}",
+        "scope": "read:all write:all",
+        "state": "{{oauth_state}}",
+        "credentialsPlacement": "header",
+        "tokenPlacement": "header",
+        "tokenHeaderPrefix": "Bearer",
+        "autoFetchToken": false,
+        "autoRefreshToken": true
+      }
+    }
+  },
+  "meta": {
+    "name": "Auth Zoo"
+  },
+  "docs": ""
+}

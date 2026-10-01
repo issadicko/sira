@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "name": "Sans auth",
+    "seq": 2.5
+  },
+  "request": {
+    "auth": {
+      "mode": "none"
+    }
+  },
+  "docs": "  "
+}

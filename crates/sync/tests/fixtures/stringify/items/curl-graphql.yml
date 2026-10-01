@@ -1,0 +1,25 @@
+info:
+  name: cURL graphql
+  type: graphql
+  seq: 7
+
+graphql:
+  method: post
+  url: https://api.x.test/graphql
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    query: "query Me($id: ID!) { user(id: $id) { id name } }"
+    variables: |-
+      {
+        "id": "42"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

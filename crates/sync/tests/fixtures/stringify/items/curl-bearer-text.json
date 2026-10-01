@@ -1,0 +1,45 @@
+{
+  "type": "http-request",
+  "name": "cURL bearer-text",
+  "seq": 6,
+  "request": {
+    "method": "patch",
+    "url": "https://api.x.test/note",
+    "headers": [
+      {
+        "name": "Authorization",
+        "value": "Bearer abc.def",
+        "enabled": true
+      },
+      {
+        "name": "Content-Type",
+        "value": "text/plain",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "text",
+      "json": null,
+      "text": "ligne 1\nligne 2",
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

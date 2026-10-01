@@ -1,0 +1,23 @@
+info:
+  name: Body json
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.x.test/r
+  body:
+    type: json
+    data: |-
+      {
+        "id": 1,
+        "nom": "Chaise: chêne",
+        "tags": []
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

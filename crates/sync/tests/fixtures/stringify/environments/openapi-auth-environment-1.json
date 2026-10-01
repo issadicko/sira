@@ -1,0 +1,12 @@
+{
+  "name": "Environment 1",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "text",
+      "enabled": true,
+      "secret": false
+    }
+  ]
+}

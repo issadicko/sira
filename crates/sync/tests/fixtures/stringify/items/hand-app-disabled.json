@@ -1,0 +1,18 @@
+{
+  "type": "http-request",
+  "name": "App désactivée",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    }
+  },
+  "app": {
+    "enabled": false,
+    "code": ""
+  }
+}

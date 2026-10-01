@@ -1,0 +1,69 @@
+{
+  "name": "Bearer",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/bearer",
+    "method": "GET",
+    "auth": {
+      "mode": "bearer",
+      "basic": null,
+      "bearer": {
+        "token": "{{token}}"
+      },
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "ZbXsaOZ2011kNcTw7kWZF",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/bearer",
+        "method": "GET",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 2
+}

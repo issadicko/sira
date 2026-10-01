@@ -1,0 +1,11 @@
+opencollection: 1.0.0
+
+info:
+  name: Synchro
+bundled: false
+extensions:
+  bruno:
+    openapi:
+      - sourceUrl: https://x.test/s.json
+        autoCheck: true
+        autoCheckInterval: 5

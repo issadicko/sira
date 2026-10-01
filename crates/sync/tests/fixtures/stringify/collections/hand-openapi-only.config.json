@@ -1,0 +1,24 @@
+{
+  "name": "Synchro",
+  "version": "",
+  "presets": {
+    "requestType": "",
+    "requestUrl": ""
+  },
+  "scripts": {
+    "flow": "parallel"
+  },
+  "openapi": [
+    {
+      "sourceUrl": "https://x.test/s.json",
+      "autoCheck": true,
+      "autoCheckInterval": 0
+    }
+  ],
+  "proxy": {
+    "enabled": true
+  },
+  "clientCertificates": {
+    "certs": []
+  }
+}

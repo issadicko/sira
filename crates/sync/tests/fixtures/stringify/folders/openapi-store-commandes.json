@@ -1,0 +1,16 @@
+{
+  "request": {
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    }
+  },
+  "meta": {
+    "name": "commandes"
+  },
+  "docs": "Gestion des commandes: création, suivi"
+}

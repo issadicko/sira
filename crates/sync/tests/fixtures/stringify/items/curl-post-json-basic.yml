@@ -1,0 +1,37 @@
+info:
+  name: cURL post-json-basic
+  type: http
+  seq: 2
+
+http:
+  method: post
+  url: https://api.x.test/u?a=1
+  headers:
+    - name: Content-Type
+      value: application/json
+  params:
+    - name: a
+      value: "1"
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "a": 1,
+        "b": [
+          true,
+          null
+        ],
+        "c": "d: e"
+      }
+  auth:
+    type: basic
+    username: alice
+    password: s3cret
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,67 @@
+{
+  "type": "http-request",
+  "name": "cURL get-headers",
+  "seq": 1,
+  "request": {
+    "method": "get",
+    "url": "https://api.x.test/search?q=chaise%20bois&page=2&flag",
+    "headers": [
+      {
+        "name": "Accept",
+        "value": "application/json",
+        "enabled": true
+      },
+      {
+        "name": "X-Trace",
+        "value": "{{traceId}}",
+        "enabled": true
+      }
+    ],
+    "params": [
+      {
+        "name": "q",
+        "value": "chaise%20bois",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "page",
+        "value": "2",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "flag",
+        "value": "",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

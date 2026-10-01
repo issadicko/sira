@@ -1,0 +1,79 @@
+{
+  "type": "graphql-request",
+  "name": "GraphQL complet",
+  "seq": 2,
+  "request": {
+    "method": "POST",
+    "url": "{{baseUrl}}/graphql",
+    "headers": [
+      {
+        "name": "X-Op",
+        "value": "Me",
+        "enabled": true
+      }
+    ],
+    "params": [
+      {
+        "name": "cache",
+        "value": "no",
+        "enabled": true,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "graphql",
+      "graphql": {
+        "query": "query Me {\n  me { id name }\n}",
+        "variables": "{\n  \"id\": 1\n}"
+      }
+    },
+    "auth": {
+      "mode": "bearer",
+      "bearer": {
+        "token": "{{token}}"
+      }
+    },
+    "vars": {
+      "req": [
+        {
+          "name": "v",
+          "value": "1",
+          "enabled": true
+        }
+      ],
+      "res": [
+        {
+          "name": "id",
+          "value": "res.body.data.me.id",
+          "local": true
+        }
+      ]
+    },
+    "script": {
+      "res": "bru.setVar(\"x\", 1);"
+    },
+    "assertions": [
+      {
+        "name": "res.status",
+        "value": "eq 200",
+        "enabled": true
+      }
+    ],
+    "docs": "Requête GraphQL"
+  },
+  "settings": {
+    "encodeUrl": false,
+    "timeout": 100,
+    "omitHeaders": [
+      "X-A"
+    ]
+  },
+  "examples": [
+    {
+      "name": "ignoré"
+    }
+  ],
+  "app": {
+    "enabled": true
+  }
+}

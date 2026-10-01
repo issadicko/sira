@@ -1,0 +1,19 @@
+{
+  "type": "http-request",
+  "name": "Nombres",
+  "seq": 2.5,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    }
+  },
+  "settings": {
+    "timeout": 1500,
+    "maxRedirects": -1,
+    "forwardAuthorizationHeader": "oui"
+  }
+}

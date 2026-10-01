@@ -1,0 +1,12 @@
+info:
+  name: produits
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Catalogue des produits.
+    Deux lignes.
+  type: text/markdown

@@ -1,0 +1,95 @@
+{
+  "name": "Collection complète",
+  "version": 3,
+  "type": "collection",
+  "opencollection": "1.0.0",
+  "ignore": [
+    "node_modules",
+    ".git",
+    "dist build"
+  ],
+  "presets": {
+    "requestType": "http",
+    "requestUrl": "https://api.x.test",
+    "defaultEnvironment": "dev"
+  },
+  "scripts": {
+    "additionalContextRoots": [
+      "../lib",
+      "./shared"
+    ],
+    "flow": "sequential"
+  },
+  "openapi": [
+    {
+      "sourceUrl": "https://api.x.test/openapi.json",
+      "groupBy": "tags",
+      "lastSyncDate": "2026-09-30T10:00:00.000Z",
+      "specHash": "abc123",
+      "autoCheck": false,
+      "autoCheckInterval": 10
+    },
+    {
+      "sourceUrl": ""
+    },
+    {
+      "sourceUrl": "./spec.yaml",
+      "groupBy": "other"
+    }
+  ],
+  "protobuf": {
+    "protoFiles": [
+      {
+        "path": "protos/a.proto"
+      },
+      {}
+    ],
+    "importPaths": [
+      {
+        "path": "protos",
+        "enabled": true
+      },
+      {
+        "path": "vendor",
+        "enabled": false
+      }
+    ]
+  },
+  "proxy": {
+    "inherit": false,
+    "disabled": true,
+    "config": {
+      "protocol": "https",
+      "hostname": "proxy.test",
+      "port": 3128,
+      "auth": {
+        "username": "p",
+        "password": "",
+        "disabled": true
+      },
+      "bypassProxy": "localhost,127.0.0.1"
+    }
+  },
+  "clientCertificates": {
+    "certs": [
+      {
+        "type": "cert",
+        "domain": "*.x.test",
+        "certFilePath": "certs/c.pem",
+        "keyFilePath": "certs/k.pem",
+        "passphrase": "pw"
+      },
+      {
+        "type": "pfx",
+        "domain": "y.test",
+        "pfxFilePath": "certs/y.p12",
+        "passphrase": "",
+        "disabled": true
+      },
+      {
+        "type": "jks",
+        "domain": "z"
+      }
+    ]
+  }
+}

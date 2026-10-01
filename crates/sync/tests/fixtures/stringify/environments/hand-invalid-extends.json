@@ -1,0 +1,14 @@
+{
+  "name": "Test",
+  "extends": [
+    "ok",
+    "CON"
+  ],
+  "variables": [
+    {
+      "name": "x",
+      "value": "{{y}}",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "type": "http-request",
+  "name": "Body multipart",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "multipartForm",
+      "multipartForm": [
+        {
+          "type": "text",
+          "name": "caption",
+          "value": "Bonjour",
+          "enabled": true,
+          "contentType": ""
+        },
+        {
+          "type": "file",
+          "name": "photo",
+          "value": [
+            "/tmp/a.png",
+            "b c.jpg"
+          ],
+          "enabled": true,
+          "contentType": "image/png"
+        },
+        {
+          "type": "file",
+          "name": "empty",
+          "value": [],
+          "enabled": false,
+          "contentType": null,
+          "description": "aucun fichier"
+        },
+        {
+          "type": "text",
+          "name": "meta",
+          "value": "{\"a\":1}",
+          "enabled": true,
+          "contentType": "application/json"
+        }
+      ]
+    }
+  }
+}

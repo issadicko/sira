@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "name": "Hérite",
+    "seq": "3"
+  },
+  "request": {
+    "auth": {
+      "mode": "inherit"
+    },
+    "headers": []
+  }
+}

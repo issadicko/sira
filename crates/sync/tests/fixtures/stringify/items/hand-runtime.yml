@@ -1,0 +1,161 @@
+info:
+  name: Runtime complet
+  type: http
+  seq: 3
+  tags:
+    - smoke
+    - users
+  description: Crée un utilisateur
+
+http:
+  method: POST
+  url: "{{baseUrl}}/users/:id?verbose=true"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{token}}
+      description: ancien jeton
+      disabled: true
+    - name: X-Empty
+      value: ""
+  params:
+    - name: verbose
+      value: "true"
+      type: query
+    - name: debug
+      value: "1"
+      type: query
+      disabled: true
+    - name: id
+      value: "42"
+      type: path
+      description: Identifiant
+  body:
+    type: json
+    data: |-
+      {
+        "id": 1,
+        "nom": "Chaise: chêne",
+        "tags": []
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  variables:
+    - name: plain
+      value: texte
+    - name: count
+      value:
+        type: number
+        data: "42"
+    - name: flag
+      value:
+        type: boolean
+        data: "false"
+      description: désactivée
+      disabled: true
+    - name: obj
+      value:
+        type: object
+        data: |-
+          {
+            "2": [
+              1.5,
+              "x"
+            ],
+            "b": 1,
+            "a": null
+          }
+    - name: empty
+      value: ""
+    - name: str-typed
+      value: x
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("t", Date.now());
+
+          console.log("pré-requête");
+    - type: after-response
+      code: bru.setVar("status", res.status);
+    - type: tests
+      code: |-
+        test("statut", function () {
+          expect(res.status).to.equal(200);
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body
+      operator: isJson
+    - expression: res.body.items
+      operator: isNotEmpty
+    - expression: res.headers.content-type
+      operator: contains
+      value: application/json
+      description: type
+    - expression: res.body.total
+      operator: gt
+      value: " 10"
+    - expression: res.body.name
+      operator: eq
+      value: Bob
+    - expression: res.body.count
+      operator: eq
+      value: 3
+    - expression: res.responseTime
+      operator: between
+      value: 1 500
+      disabled: true
+    - expression: res.body.flag
+      operator: eq
+      value: ""
+    - expression: res.body.x
+      operator: matches
+      value: "^a: b$"
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.id
+        method: jsonq
+      variable:
+        name: userId
+        scope: runtime
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.headers["x-token"]
+        method: jsonq
+      variable:
+        name: token
+        scope: request
+      description: jeton
+      disabled: true
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: "7"
+        method: jsonq
+      variable:
+        name: ""
+        scope: runtime
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+docs: |
+  # Créer un utilisateur
+
+  Utilise `POST`.
+
+  - point 1
+  - point 2: détail

@@ -1,0 +1,186 @@
+{
+  "type": "http-request",
+  "name": "Runtime complet",
+  "seq": 3,
+  "request": {
+    "method": "POST",
+    "url": "{{baseUrl}}/users/:id?verbose=true",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "enabled": true
+      },
+      {
+        "name": "Authorization",
+        "value": "Bearer {{token}}",
+        "enabled": false,
+        "description": "ancien jeton"
+      },
+      {
+        "name": "X-Empty",
+        "value": "",
+        "enabled": true
+      }
+    ],
+    "params": [
+      {
+        "name": "verbose",
+        "value": "true",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "debug",
+        "value": "1",
+        "enabled": false,
+        "type": "query"
+      },
+      {
+        "name": "id",
+        "value": "42",
+        "enabled": true,
+        "type": "path",
+        "description": "Identifiant"
+      }
+    ],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"id\": 1,\n  \"nom\": \"Chaise: chêne\",\n  \"tags\": []\n}"
+    },
+    "auth": {
+      "mode": "bearer",
+      "bearer": {
+        "token": "{{token}}"
+      }
+    },
+    "vars": {
+      "req": [
+        {
+          "name": "plain",
+          "value": "texte",
+          "enabled": true,
+          "local": false
+        },
+        {
+          "name": "count",
+          "value": 42,
+          "enabled": true,
+          "dataType": "number"
+        },
+        {
+          "name": "flag",
+          "value": false,
+          "enabled": false,
+          "dataType": "boolean",
+          "description": "désactivée"
+        },
+        {
+          "name": "obj",
+          "value": {
+            "2": [
+              1.5,
+              "x"
+            ],
+            "b": 1,
+            "a": null
+          },
+          "enabled": true,
+          "dataType": "object"
+        },
+        {
+          "name": "empty",
+          "value": null,
+          "enabled": true
+        },
+        {
+          "name": "str-typed",
+          "value": "x",
+          "dataType": "string"
+        }
+      ],
+      "res": [
+        {
+          "name": "userId",
+          "value": "res.body.id",
+          "enabled": true,
+          "local": false
+        },
+        {
+          "name": "token",
+          "value": "res.headers[\"x-token\"]",
+          "enabled": false,
+          "local": true,
+          "description": "jeton"
+        },
+        {
+          "name": "",
+          "value": 7
+        }
+      ]
+    },
+    "assertions": [
+      {
+        "name": "res.status",
+        "value": "eq 200",
+        "enabled": true
+      },
+      {
+        "name": "res.body",
+        "value": "isJson",
+        "enabled": true
+      },
+      {
+        "name": "res.body.items",
+        "value": "isNotEmpty trailing words",
+        "enabled": true
+      },
+      {
+        "name": "res.headers.content-type",
+        "value": "contains application/json",
+        "enabled": true,
+        "description": "type"
+      },
+      {
+        "name": "res.body.total",
+        "value": "  gt  10 ",
+        "enabled": true
+      },
+      {
+        "name": "res.body.name",
+        "value": "Bob",
+        "enabled": true
+      },
+      {
+        "name": "res.body.count",
+        "value": 3,
+        "enabled": true
+      },
+      {
+        "name": "res.responseTime",
+        "value": "between 1 500",
+        "enabled": false
+      },
+      {
+        "name": "res.body.flag",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "name": "res.body.x",
+        "value": "matches ^a: b$"
+      }
+    ],
+    "script": {
+      "req": "\n  bru.setVar(\"t\", Date.now());\n\n  console.log(\"pré-requête\");  \n",
+      "res": "bru.setVar(\"status\", res.status);"
+    },
+    "tests": "test(\"statut\", function () {\n  expect(res.status).to.equal(200);\n});\n",
+    "docs": "# Créer un utilisateur\n\nUtilise `POST`.\n\n- point 1\n- point 2: détail\n"
+  },
+  "tags": [
+    "smoke",
+    "users"
+  ],
+  "description": "Crée un utilisateur"
+}

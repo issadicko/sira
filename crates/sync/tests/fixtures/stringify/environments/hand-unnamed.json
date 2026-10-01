@@ -1,0 +1,7 @@
+{
+  "extends": "-bad",
+  "variables": null,
+  "externalSecrets": {
+    "type": "aws"
+  }
+}

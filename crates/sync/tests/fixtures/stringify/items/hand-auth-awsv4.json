@@ -1,0 +1,25 @@
+{
+  "type": "http-request",
+  "name": "Auth awsv4",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "awsv4",
+      "awsv4": {
+        "accessKeyId": "AKIA",
+        "secretAccessKey": "{{secret}}",
+        "sessionToken": "",
+        "service": "execute-api",
+        "region": "eu-west-3",
+        "profileName": null
+      }
+    }
+  }
+}

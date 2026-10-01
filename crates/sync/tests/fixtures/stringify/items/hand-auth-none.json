@@ -1,0 +1,17 @@
+{
+  "type": "http-request",
+  "name": "Auth none",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "none"
+    }
+  }
+}

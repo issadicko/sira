@@ -1,0 +1,129 @@
+{
+  "name": "Téléverser une image",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "produits"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/produits/:produitId/image",
+    "method": "POST",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "produitId",
+        "value": "",
+        "description": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "multipartForm",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": [
+        {
+          "type": "file",
+          "name": "fichier",
+          "value": [],
+          "description": "",
+          "enabled": true
+        },
+        {
+          "type": "text",
+          "name": "legende",
+          "value": "Vue de face",
+          "description": "",
+          "enabled": true
+        },
+        {
+          "type": "text",
+          "name": "ordre",
+          "value": "1",
+          "description": "",
+          "enabled": true
+        }
+      ]
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "SnoCowB4Ye8h91duYxaAi",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits/:produitId/image",
+        "method": "POST",
+        "headers": [],
+        "params": [
+          {
+            "name": "produitId",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "multipartForm",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "fichier",
+              "value": [],
+              "description": "",
+              "enabled": true
+            },
+            {
+              "type": "text",
+              "name": "legende",
+              "value": "Vue de face",
+              "description": "",
+              "enabled": true
+            },
+            {
+              "type": "text",
+              "name": "ordre",
+              "value": "1",
+              "description": "",
+              "enabled": true
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 5
+}

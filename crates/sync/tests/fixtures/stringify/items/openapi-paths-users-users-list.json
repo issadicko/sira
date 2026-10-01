@@ -1,0 +1,111 @@
+{
+  "name": "Users: list",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/users",
+    "method": "GET",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "limit",
+        "value": "10",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "include",
+        "value": "posts",
+        "description": "",
+        "enabled": false,
+        "type": "query"
+      },
+      {
+        "name": "include",
+        "value": "likes",
+        "description": "",
+        "enabled": false,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "7o8yhOxc1GuoF12QgidAV",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/users",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "limit",
+            "value": "10",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "include",
+            "value": "posts",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          },
+          {
+            "name": "include",
+            "value": "likes",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [],
+        "body": {
+          "type": "text",
+          "content": ""
+        }
+      }
+    }
+  ],
+  "seq": 1
+}

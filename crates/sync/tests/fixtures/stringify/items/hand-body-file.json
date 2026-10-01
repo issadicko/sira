@@ -1,0 +1,32 @@
+{
+  "type": "http-request",
+  "name": "Body file",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "file",
+      "file": [
+        {
+          "filePath": "/data/upload.bin",
+          "contentType": "application/octet-stream",
+          "selected": true
+        },
+        {
+          "filePath": "other.json",
+          "contentType": "",
+          "selected": false,
+          "description": "secours"
+        },
+        {
+          "filePath": null,
+          "contentType": null,
+          "selected": null
+        }
+      ]
+    }
+  }
+}

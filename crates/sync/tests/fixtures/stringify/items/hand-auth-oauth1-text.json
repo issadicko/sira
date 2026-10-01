@@ -1,0 +1,24 @@
+{
+  "type": "http-request",
+  "name": "Auth oauth1-text",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "auth": {
+      "mode": "oauth1",
+      "oauth1": {
+        "consumerKey": "ck",
+        "signatureMethod": "HMAC-SHA1",
+        "privateKey": "-----BEGIN KEY-----\nabc\n-----END KEY-----",
+        "placement": "query",
+        "includeBodyHash": false
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "type": "graphql-request",
+  "name": "",
+  "request": {
+    "method": "",
+    "url": "",
+    "body": {
+      "mode": "graphql",
+      "graphql": {
+        "query": "  ",
+        "variables": ""
+      }
+    }
+  }
+}

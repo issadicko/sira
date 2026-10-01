@@ -1,0 +1,68 @@
+{
+  "request": {
+    "headers": [
+      {
+        "name": "X-Folder",
+        "value": "oui",
+        "enabled": true
+      },
+      {
+        "name": "X-Off",
+        "value": "non",
+        "enabled": false
+      }
+    ],
+    "auth": {
+      "mode": "oauth2",
+      "oauth2": {
+        "grantType": "client_credentials",
+        "accessTokenUrl": "{{oauth_token_url}}",
+        "refreshTokenUrl": "",
+        "clientId": "id",
+        "clientSecret": "secret",
+        "credentialsPlacement": "body",
+        "scope": "admin",
+        "tokenPlacement": "header",
+        "autoFetchToken": false,
+        "autoRefreshToken": true,
+        "additionalParameters": {
+          "token": [
+            {
+              "name": "tenant",
+              "value": "t1",
+              "sendIn": "queryparams"
+            }
+          ]
+        }
+      }
+    },
+    "vars": {
+      "req": [
+        {
+          "name": "folderVar",
+          "value": "v",
+          "enabled": true
+        },
+        {
+          "name": "n",
+          "value": 3,
+          "dataType": "number",
+          "enabled": true
+        }
+      ],
+      "res": [
+        {
+          "name": "out",
+          "value": "res.body.out",
+          "local": false
+        }
+      ]
+    },
+    "script": {
+      "req": "console.log(\"dossier\");",
+      "res": ""
+    },
+    "tests": "test(\"dossier\", () => {});"
+  },
+  "docs": "# Collection\n\nDocumentation **globale**.\n"
+}

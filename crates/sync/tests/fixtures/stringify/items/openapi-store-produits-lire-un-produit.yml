@@ -1,0 +1,51 @@
+info:
+  name: Lire un produit
+  type: http
+  seq: 3
+  tags:
+    - produits
+
+http:
+  method: GET
+  url: "{{baseUrl}}/produits/:produitId"
+  params:
+    - name: produitId
+      value: ""
+      type: path
+      description: Identifiant du produit
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/produits/:produitId"
+      method: GET
+      params:
+        - name: produitId
+          value: ""
+          type: path
+          description: Identifiant du produit
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": 42,
+            "nom": "Chaise: chêne",
+            "prix": 19.9,
+            "tags": [],
+            "actif": false
+          }

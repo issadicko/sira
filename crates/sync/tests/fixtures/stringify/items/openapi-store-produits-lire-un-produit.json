@@ -1,0 +1,92 @@
+{
+  "name": "Lire un produit",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "produits"
+  ],
+  "request": {
+    "docs": "",
+    "url": "{{baseUrl}}/produits/:produitId",
+    "method": "GET",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [],
+    "params": [
+      {
+        "name": "produitId",
+        "value": "",
+        "description": "Identifiant du produit",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "gv2uP5n1XmcJXEITD6fDS",
+      "name": "200 Response",
+      "description": "OK",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits/:produitId",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "produitId",
+            "value": "",
+            "description": "Identifiant du produit",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "{\n  \"id\": 42,\n  \"nom\": \"Chaise: chêne\",\n  \"prix\": 19.9,\n  \"tags\": [],\n  \"actif\": false\n}"
+        }
+      }
+    }
+  ],
+  "seq": 3
+}

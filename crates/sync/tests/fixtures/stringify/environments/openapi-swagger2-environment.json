@@ -1,0 +1,12 @@
+{
+  "name": "Environment",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "https://petstore.legacy.test/v1",
+      "type": "text",
+      "enabled": true,
+      "secret": false
+    }
+  ]
+}

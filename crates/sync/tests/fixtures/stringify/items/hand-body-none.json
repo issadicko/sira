@@ -1,0 +1,15 @@
+{
+  "type": "http-request",
+  "name": "Body none",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none",
+      "json": "{\"ignored\":true}"
+    }
+  }
+}

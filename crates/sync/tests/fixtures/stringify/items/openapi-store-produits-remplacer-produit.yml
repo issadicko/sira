@@ -1,0 +1,63 @@
+info:
+  name: "Remplacer: produit"
+  type: http
+  seq: 4
+  tags:
+    - produits
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/produits/:produitId"
+  params:
+    - name: produitId
+      value: ""
+      type: path
+      description: Identifiant du produit
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <root>
+        <id></id>
+        <nom></nom>
+        <prix></prix>
+        <tags></tags>
+        <actif></actif>
+      </root>
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: Remplacé
+    request:
+      url: "{{baseUrl}}/produits/:produitId"
+      method: PUT
+      params:
+        - name: produitId
+          value: ""
+          type: path
+          description: Identifiant du produit
+      body:
+        type: xml
+        data: |-
+          <?xml version="1.0" encoding="UTF-8"?>
+          <root>
+            <id></id>
+            <nom></nom>
+            <prix></prix>
+            <tags></tags>
+            <actif></actif>
+          </root>
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""

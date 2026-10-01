@@ -1,0 +1,63 @@
+info:
+  name: Téléverser une image
+  type: http
+  seq: 5
+  tags:
+    - produits
+
+http:
+  method: POST
+  url: "{{baseUrl}}/produits/:produitId/image"
+  params:
+    - name: produitId
+      value: ""
+      type: path
+  body:
+    type: multipart-form
+    data:
+      - name: fichier
+        type: file
+        value: []
+      - name: legende
+        type: text
+        value: Vue de face
+      - name: ordre
+        type: text
+        value: "1"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/produits/:produitId/image"
+      method: POST
+      params:
+        - name: produitId
+          value: ""
+          type: path
+      body:
+        type: multipart-form
+        data:
+          - name: fichier
+            type: file
+            value: []
+          - name: legende
+            type: text
+            value: Vue de face
+          - name: ordre
+            type: text
+            value: "1"
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

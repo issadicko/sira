@@ -1,0 +1,52 @@
+{
+  "type": "http-request",
+  "name": "cURL post-json-basic",
+  "seq": 2,
+  "request": {
+    "method": "post",
+    "url": "https://api.x.test/u?a=1",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "enabled": true
+      }
+    ],
+    "params": [
+      {
+        "name": "a",
+        "value": "1",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"a\": 1,\n  \"b\": [\n    true,\n    null\n  ],\n  \"c\": \"d: e\"\n}",
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "basic",
+      "basic": {
+        "username": "alice",
+        "password": "s3cret"
+      }
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

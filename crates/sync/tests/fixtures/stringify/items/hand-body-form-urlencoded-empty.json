@@ -1,0 +1,15 @@
+{
+  "type": "http-request",
+  "name": "Body form-urlencoded-empty",
+  "seq": 1,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "formUrlEncoded",
+      "formUrlEncoded": []
+    }
+  }
+}

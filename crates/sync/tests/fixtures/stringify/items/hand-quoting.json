@@ -1,0 +1,206 @@
+{
+  "type": "http-request",
+  "name": "L'été: \"tests\"",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/a?b=1&c={{c}}#frag",
+    "headers": [
+      {
+        "name": "X-Empty",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "name": "X-Bool",
+        "value": "true",
+        "enabled": true
+      },
+      {
+        "name": "X-Null",
+        "value": "null",
+        "enabled": true
+      },
+      {
+        "name": "X-Num",
+        "value": "123",
+        "enabled": true
+      },
+      {
+        "name": "X-Float",
+        "value": "1e3",
+        "enabled": true
+      },
+      {
+        "name": "X-Hex",
+        "value": "0x1F",
+        "enabled": true
+      },
+      {
+        "name": "X-Hash",
+        "value": "#tag",
+        "enabled": true
+      },
+      {
+        "name": "X-Inline-Hash",
+        "value": "a #b",
+        "enabled": true
+      },
+      {
+        "name": "X-Colon",
+        "value": "a: b",
+        "enabled": true
+      },
+      {
+        "name": "X-Colon-End",
+        "value": "fin:",
+        "enabled": true
+      },
+      {
+        "name": "X-Var",
+        "value": "{{var}}",
+        "enabled": true
+      },
+      {
+        "name": "X-Json",
+        "value": "{\"a\":1}",
+        "enabled": true
+      },
+      {
+        "name": "X-Both",
+        "value": "l'a \"b\"",
+        "enabled": true
+      },
+      {
+        "name": "X-Lead",
+        "value": " lead",
+        "enabled": true
+      },
+      {
+        "name": "X-Trail",
+        "value": "trail ",
+        "enabled": true
+      },
+      {
+        "name": "X-Tab",
+        "value": "a\tb",
+        "enabled": true
+      },
+      {
+        "name": "X-Ctrl",
+        "value": "bell\u0007esc\u001b",
+        "enabled": true
+      },
+      {
+        "name": "X-Dash",
+        "value": "- x",
+        "enabled": true
+      },
+      {
+        "name": "X-Dashes",
+        "value": "---",
+        "enabled": true
+      },
+      {
+        "name": "X-Q",
+        "value": "? x",
+        "enabled": true
+      },
+      {
+        "name": "X-At",
+        "value": "@x",
+        "enabled": true
+      },
+      {
+        "name": "X-Tick",
+        "value": "`x`",
+        "enabled": true
+      },
+      {
+        "name": "X-Pct",
+        "value": "%x",
+        "enabled": true
+      },
+      {
+        "name": "X-Star",
+        "value": "*ref",
+        "enabled": true
+      },
+      {
+        "name": "X-Amp",
+        "value": "&anc",
+        "enabled": true
+      },
+      {
+        "name": "X-Bang",
+        "value": "!tag",
+        "enabled": true
+      },
+      {
+        "name": "X-Pipe",
+        "value": "|x",
+        "enabled": true
+      },
+      {
+        "name": "X-Gt",
+        "value": ">x",
+        "enabled": true
+      },
+      {
+        "name": "X-Utf",
+        "value": "Ouédraogo é 😀",
+        "enabled": true
+      },
+      {
+        "name": "X-Nbsp",
+        "value": " x",
+        "enabled": true
+      },
+      {
+        "name": "X-Tilde",
+        "value": "~",
+        "enabled": true
+      },
+      {
+        "name": "X-Comma",
+        "value": "a,b",
+        "enabled": true
+      },
+      {
+        "name": "X-Brackets",
+        "value": "[x]",
+        "enabled": true
+      },
+      {
+        "name": "X-Version",
+        "value": "1.0.0",
+        "enabled": true
+      },
+      {
+        "name": "X-Yes",
+        "value": "yes",
+        "enabled": true
+      },
+      {
+        "name": "X-Crlf-Long",
+        "value": "première ligne du texte\r\nseconde ligne du texte assez longue",
+        "enabled": true
+      },
+      {
+        "name": "X-Crlf-Short",
+        "value": "a\r\nb",
+        "enabled": true
+      },
+      {
+        "name": "X-Space-Nl",
+        "value": "a \nb\r",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "none"
+    }
+  },
+  "description": "  "
+}

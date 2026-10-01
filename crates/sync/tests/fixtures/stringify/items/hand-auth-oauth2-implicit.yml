@@ -1,0 +1,33 @@
+info:
+  name: Auth oauth2-implicit
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://api.x.test/r
+  auth:
+    type: oauth2
+    flow: implicit
+    authorizationUrl: https://auth.test/authorize
+    callbackUrl: https://app.test/cb
+    credentials:
+      clientId: cli
+    scope: profile
+    state: s
+    additionalParameters:
+      authorizationRequest:
+        - name: nonce
+          placement: query
+          value: n
+    tokenConfig:
+      placement:
+        header: ""
+      source: access_token
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,294 @@
+{
+  "name": "Lister les produits",
+  "type": "http-request",
+  "settings": {
+    "forwardAuthorizationHeader": false
+  },
+  "tags": [
+    "produits"
+  ],
+  "request": {
+    "docs": "Retourne la liste paginée.\n\n- `page` commence à 1\n- `taille` ≤ 100\n",
+    "url": "{{baseUrl}}/produits",
+    "method": "GET",
+    "auth": {
+      "mode": "inherit",
+      "basic": null,
+      "bearer": null,
+      "digest": null,
+      "apikey": null,
+      "oauth2": null
+    },
+    "headers": [
+      {
+        "name": "X-Request-Id",
+        "value": "{{$uuid}}",
+        "description": "Identifiant de corrélation",
+        "enabled": true
+      }
+    ],
+    "params": [
+      {
+        "name": "page",
+        "value": "1",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "tri",
+        "value": "nom",
+        "description": "",
+        "enabled": false,
+        "type": "query"
+      },
+      {
+        "name": "tri",
+        "value": "prix",
+        "description": "",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "tri",
+        "value": "date",
+        "description": "",
+        "enabled": false,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "formUrlEncoded": [],
+      "multipartForm": []
+    },
+    "script": {
+      "res": null
+    }
+  },
+  "examples": [
+    {
+      "itemUid": "z8hGWAXJAoSXQoYpXQfax",
+      "name": "Aucun produit",
+      "description": "",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "X-Request-Id",
+            "value": "{{$uuid}}",
+            "description": "Identifiant de corrélation",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "page",
+            "value": "1",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "nom",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "prix",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "date",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "[]"
+        }
+      }
+    },
+    {
+      "itemUid": "z8hGWAXJAoSXQoYpXQfax",
+      "name": "Deux produits",
+      "description": "",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "X-Request-Id",
+            "value": "{{$uuid}}",
+            "description": "Identifiant de corrélation",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "page",
+            "value": "1",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "nom",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "prix",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "date",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "json",
+          "content": "[\n  {\n    \"id\": 1,\n    \"nom\": \"Table\",\n    \"prix\": 120.5,\n    \"tags\": [\n      \"bois\"\n    ]\n  },\n  {\n    \"id\": 2,\n    \"nom\": \"Lampe #2\",\n    \"prix\": 15,\n    \"tags\": []\n  }\n]"
+        }
+      }
+    },
+    {
+      "itemUid": "z8hGWAXJAoSXQoYpXQfax",
+      "name": "500 Response",
+      "description": "Erreur interne",
+      "type": "http-request",
+      "request": {
+        "url": "{{baseUrl}}/produits",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "X-Request-Id",
+            "value": "{{$uuid}}",
+            "description": "Identifiant de corrélation",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "page",
+            "value": "1",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "nom",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "prix",
+            "description": "",
+            "enabled": true,
+            "type": "query"
+          },
+          {
+            "name": "tri",
+            "value": "date",
+            "description": "",
+            "enabled": false,
+            "type": "query"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "sparql": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        }
+      },
+      "response": {
+        "status": 500,
+        "statusText": "Internal Server Error",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "text/plain",
+            "description": "",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "type": "text",
+          "content": "Erreur: base indisponible\nRéessayer plus tard"
+        }
+      }
+    }
+  ],
+  "seq": 1
+}

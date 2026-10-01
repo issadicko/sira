@@ -1,0 +1,18 @@
+info:
+  name: Body sparql
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://api.x.test/r
+  body:
+    type: sparql
+    data: SELECT ?s WHERE { ?s ?p ?o }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

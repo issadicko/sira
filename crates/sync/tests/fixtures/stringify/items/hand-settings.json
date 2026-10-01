@@ -1,0 +1,27 @@
+{
+  "type": "http-request",
+  "name": "Réglages",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "timeout": "inherit",
+    "followRedirects": false,
+    "maxRedirects": 2.9,
+    "forwardAuthorizationHeader": false,
+    "omitHeaders": [
+      " User-Agent ",
+      "",
+      5,
+      "Accept"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+info:
+  name: cURL put-xml
+  type: http
+  seq: 5
+
+http:
+  method: put
+  url: https://api.x.test/doc
+  headers:
+    - name: Content-Type
+      value: application/xml
+  body:
+    type: xml
+    data: |-
+      <doc>
+        <a>1</a>
+      </doc>
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

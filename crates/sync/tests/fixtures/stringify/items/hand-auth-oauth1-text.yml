@@ -1,0 +1,27 @@
+info:
+  name: Auth oauth1-text
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://api.x.test/r
+  auth:
+    type: oauth1
+    consumerKey: ck
+    signatureMethod: HMAC-SHA1
+    privateKey:
+      type: text
+      value: |-
+        -----BEGIN KEY-----
+        abc
+        -----END KEY-----
+    placement: query
+    includeBodyHash: false
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

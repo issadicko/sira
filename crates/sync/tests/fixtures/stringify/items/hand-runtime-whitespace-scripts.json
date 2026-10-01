@@ -1,0 +1,25 @@
+{
+  "type": "http-request",
+  "name": "Scripts vides",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "https://api.x.test/r",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none"
+    },
+    "script": {
+      "req": "   ",
+      "res": "\n"
+    },
+    "tests": " ",
+    "docs": "   ",
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": []
+  }
+}
