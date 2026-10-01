@@ -4,24 +4,32 @@
 
 Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé par une gate mesurable. Les dates supposent **deux développeurs à temps plein** (hypothèse non confirmée, voir § 9). Avec une seule personne, multiplier les durées par 1,8 environ.
 
-## 0. Avancement au 1er octobre 2026
+## 0. Avancement au 1er octobre 2026 (MVP-β livré)
 
 | Élément | État | Où |
 | --- | --- | --- |
 | Maquette v2 (IDE, sombre d'abord) et `DESIGN.md` | Fait | `docs/design/maquette-v2/`, `DESIGN.md` |
-| 0.1 Workspace Cargo (`core`, `engine`, `cli`, `app`) | Fait ; `sync` et `script` seront créés à leur lot (YAGNI) | `Cargo.toml` |
+| 0.1 Workspace Cargo (`core`, `engine`, `sync`, `cli`, `app`) | Fait ; `script` sera créé à son lot (YAGNI) | `Cargo.toml` |
 | 0.2 CI build / fmt / clippy / tests sur 3 OS | Écrite, à activer sur le dépôt distant | `.github/workflows/ci.yml` |
 | 0.3 Crate YAML | Décidé : parseur `yaml-rust2` + émetteur maison calqué sur celui de Bruno | `crates/core/src/yaml.rs` |
 | 0.4 – 0.6 Modèle, format, variables | Fait (requête HTTP, dossiers, collection, environnements, `.env`, variables dynamiques) | `crates/core` |
 | 0.7 Moteur HTTP avec timings et annulation | Fait (HTTP/1.1, TLS rustls + certificats du système) | `crates/engine` |
 | 0.8 CLI `run` | Fait, plus `check` (aller-retour) et assertions déclaratives | `crates/cli` |
-| 0.9 Corpus de 20 collections Bruno | À faire ; 11 fixtures générées par le sérialiseur de Bruno passent à l'octet près | `crates/core/tests/fixtures` |
+| 0.9 Corpus de 20 collections Bruno | À faire ; l'oracle `tools/oracle` (vrai code de Bruno, épinglé) produit déjà les fixtures de `core` et `sync` | `crates/*/tests/fixtures`, `tools/oracle` |
 | 0.10 Bench de perf en CI | À faire | — |
 | 0.11 Signature des binaires | À faire | — |
 | MVP-α α.1 – α.8 | Fait, sauf glisser-déposer et coup d'œil éditable des environnements | `app/` |
 | MVP-α α.9 Rechargement à chaud (`notify`) | À faire (bouton « Relire le dossier » en attendant) | — |
+| MVP-β β.1 Collage cURL et « Nouvelle requête depuis cURL… » | Fait ; analyse identique à Bruno (fixtures de son code et 113 000 commandes aléatoires) | `crates/sync/src/curl`, `app/src/app/ui/url-bar.ts` |
+| MVP-β β.2 Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL), tags ou chemins | Fait ; collection identique à l'octet à celle de Bruno (35 specs × 2 regroupements, 34 arbres d'import) | `crates/sync/src/openapi`, `crates/sync/src/import`, `xc import` |
+| MVP-β β.3 Instantané `.oc-sync/openapi/` | Fait : `source.yml` (source, regroupement, opérations) et `base/<clé>.yml`, écrits en dernier | `crates/sync/src/import` |
+| MVP-β β.4 Palette ⌘K | Fait : requêtes, commandes (registre partagé avec les raccourcis), environnements | `app/src/app/ui/palette.ts` |
+| MVP-β β.5 CodeMirror 6 | Fait ; réponse JSON de 10 Mo affichée en 140 ms (Chrome, mode démo), formatage en Rust | `app/src/app/ui/code-editor.ts`, `crates/core/src/pretty.rs` |
+| Corps form-urlencoded et multipart (EF-REQ-02) | Fait : lecture, écriture, envoi et édition | `crates/core`, `app/src/app/ui/multipart-table.ts` |
 
-Écarts assumés du MVP-α : secrets d'environnement non saisissables (trousseau en V1, `{{process.env.X}}` fonctionne déjà), scripts conservés mais non exécutés, corps `form-urlencoded` / `multipart` / `file` conservés mais non éditables, HTTP/2 non négocié, redirections non suivies.
+Écarts assumés du MVP-α : secrets d'environnement non saisissables (trousseau en V1, `{{process.env.X}}` fonctionne déjà), scripts conservés mais non exécutés, corps `file` (binaire) et `sparql` conservés mais non envoyés, HTTP/2 non négocié, redirections non suivies à l'envoi.
+
+Écarts volontaires avec Bruno au MVP-β (principe « non destructif ») : à l'import, deux requêtes dont les noms de fichier se confondent reçoivent un suffixe au lieu de s'écraser ; « Nouvelle requête depuis cURL » refuse d'écraser un fichier existant ; le collage cURL recopie aussi les champs de formulaire (Bruno ne change que le mode) ; `.oc-sync` est ajouté à la liste `ignore` de `opencollection.yml`. Les mesures de ENF-PERF-04 restent à refaire dans la WebView de Tauri (coût IPC compris).
 
 ## 1. Vue d'ensemble
 
@@ -177,5 +185,5 @@ Assistant IA optionnel avec clé de l'utilisateur (EF-AI-01), mock server, monit
 | Crate YAML (`serde_yaml` archivé) | Aller-retour sans diff impossible si le sérialiseur reformate | Bench au Lot 0 ; repli : écrivain YAML maison pour le sous-ensemble OpenCollection | Lot 0 |
 | Timings bas niveau avec HTTP/2 | Timeline incomplète en HTTP/2 | HTTP/1.1 au MVP, HTTP/2 via ALPN en V1 | V1 |
 | WebKitGTK plus lent sous Linux | UI moins fluide | Traitements lourds en Rust, listes virtualisées, mesures aussi sous Linux | MVP |
-| Fusion OpenAPI déjà présente chez Bruno ? | Différenciant affaibli | Vérifier la doc Bruno avant toute communication | MVP-γ |
+| Fusion OpenAPI déjà présente chez Bruno ? | Différenciant affaibli | Vérifié (étude `etude-synchro-openapi-bruno.md`) : Bruno a une synchro OpenAPI en bêta, désactivée par défaut, à deux diffs et par endpoint entier, base hors dépôt, ajouts de l'équipe et opérations retirées supprimés. Communiquer sur la fusion à 3 voies champ par champ, la base versionnée et le non-destructif. Trois choix à valider avant γ (voir l'étude) | MVP-γ |
 | Nom du produit | Binaire, bundle id, domaine | Décision avant la première release signée | Gate 2 |

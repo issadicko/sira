@@ -1,6 +1,6 @@
 # Handoff — Client API desktop offline-first (parité Bruno)
 
-Tu reprends un projet cadré dont le Lot 0 et le MVP-α sont amorcés (voir « Avancement » dans `docs/roadmap.md`). Ton rôle est d'implémenter le produit décrit dans `docs/cahier-des-charges.md`, en suivant l'interface de `design/`.
+Tu reprends un projet cadré dont le Lot 0, le MVP-α et le MVP-β sont livrés ; le MVP-γ (synchro OpenAPI à 3 voies) est le prochain lot (voir « Avancement » dans `docs/roadmap.md` et `docs/etude-synchro-openapi-bruno.md`). Ton rôle est d'implémenter le produit décrit dans `docs/cahier-des-charges.md`, en suivant l'interface de `design/`.
 
 ## À lire, dans cet ordre
 
