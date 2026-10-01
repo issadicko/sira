@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Synchronisation OpenAPI</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{text-decoration:none}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: {{t.bg}}; color: {{t.ink}}; font-family: 'Figtree', system-ui, sans-serif; font-size: 13px; overflow: hidden">
+
+<header style="height: 60px; flex-shrink: 0; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: {{t.panel}}; border-bottom: 1px solid {{t.line}}">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid {{t.line}}; background: {{t.raised}}; color: {{t.ink}}; font-weight: 600">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>
+Espace de travail
+</a>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: -0.02em">Synchronisation OpenAPI</h1>
+<span style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; background: {{t.sunken}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}}">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg>
+./spec/openapi.yml
+</span>
+<div style="flex-grow: 1"></div>
+<span style="font-size: 12px; color: {{t.muted}}">Rien n'est écrit sur le disque avant ta validation</span>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 18px 20px 0">
+<div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 34px; font-weight: 700; color: {{t.accent}}">3</span>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 700">Nouvelles</span><span style="font-size: 12px; color: {{t.muted}}">ajoutées dans leur dossier</span></div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 34px; font-weight: 700; color: {{t.good}}">5</span>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 700">Mises à jour</span><span style="font-size: 12px; color: {{t.muted}}">fusion automatique</span></div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 34px; font-weight: 700; color: {{t.muted}}">1</span>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 700">Dépréciée</span><span style="font-size: 12px; color: {{t.muted}}">conservée, jamais supprimée</span></div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: {{t.warnSoft}}; border: 2px solid {{t.warn}}">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 34px; font-weight: 700; color: {{t.warn}}">{{remaining}}</span>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 700">Conflits à arbitrer</span><span style="font-size: 12px; color: {{t.ink}}">modifiés des deux côtés</span></div>
+</div>
+</div>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 16px; padding: 16px 20px">
+
+<section style="width: 420px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}; box-sizing: border-box">
+<span style="padding: 4px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: {{t.warn}}">Conflits</span>
+<sc-for list="{{conflicts}}" as="c" hint-placeholder-count="2">
+<button type="button" onClick="{{c.select}}" style="{{c.rowStyle}}">
+<span style="display: flex; align-items: center; gap: 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{c.methodColor}}">{{c.method}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; flex-grow: 1">{{c.path}}</span>
+<span style="{{c.badgeStyle}}">{{c.badge}}</span>
+</span>
+<span style="padding-left: 52px; font-size: 12px; color: {{t.muted}}">{{c.field}}</span>
+</button>
+</sc-for>
+
+<span style="padding: 12px 6px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: {{t.muted}}">Fusion automatique</span>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.good}}">GET</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; flex-grow: 1">/transactions</span>
+<span style="font-size: 11.5px; color: {{t.good}}; font-weight: 600">spec appliquée</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.accent}}">POST</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; flex-grow: 1">/transactions</span>
+<span style="font-size: 11.5px; color: {{t.muted}}; font-weight: 600">équipe gardée</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.accent}}">POST</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; flex-grow: 1">/remboursements</span>
+<span style="font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: {{t.accentSoft}}; color: {{t.accent}}; font-weight: 700">nouvelle</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; color: {{t.muted}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.bad}}">DEL</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; flex-grow: 1; text-decoration: line-through">/transactions/{id}</span>
+<span style="font-size: 11.5px; font-weight: 600">dépréciée</span>
+</div>
+<button type="button" style="height: 36px; margin-top: 4px; border: none; border-radius: 10px; background: transparent; color: {{t.accent}}; font-weight: 600; text-align: left; padding: 0 10px">Voir les 5 autres changements</button>
+</section>
+
+<section style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid {{t.line}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 7px; background: {{t.sunken}}; color: {{sel.methodColor}}">{{sel.method}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500">{{sel.path}}</span>
+<span style="color: {{t.muted}}">·</span>
+<span style="color: {{t.muted}}">{{sel.field}}</span>
+</div>
+
+<div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 10px; height: 10px; border-radius: 3px; background: {{t.accent}}"></span>
+<span style="font-weight: 700">Collection (équipe)</span>
+<span style="font-size: 12px; color: {{t.muted}}">modifiée à la main</span>
+</div>
+<div style="flex-grow: 1; padding: 12px 0; border-radius: 14px; background: {{t.code}}; border: 1px solid {{t.line}}; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 26px; white-space: pre">
+<sc-for list="{{sel.ours}}" as="ln" hint-placeholder-count="4">
+<div style="{{ln.style}}">{{ln.text}}</div>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 10px; height: 10px; border-radius: 3px; background: {{t.good}}"></span>
+<span style="font-weight: 700">Nouvelle spec</span>
+<span style="font-size: 12px; color: {{t.muted}}">openapi.yml</span>
+</div>
+<div style="flex-grow: 1; padding: 12px 0; border-radius: 14px; background: {{t.code}}; border: 1px solid {{t.line}}; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 26px; white-space: pre">
+<sc-for list="{{sel.theirs}}" as="ln" hint-placeholder-count="4">
+<div style="{{ln.style}}">{{ln.text}}</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-top: 1px solid {{t.line}}">
+<span style="font-weight: 700">Quelle version garder ?</span>
+<div style="display: flex; gap: 10px">
+<sc-for list="{{sel.options}}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{o.pick}}" aria-pressed="{{o.pressed}}" style="{{o.style}}">
+<span style="{{o.dotStyle}}"></span>
+{{o.label}}
+</button>
+</sc-for>
+</div>
+<span style="font-size: 12px; color: {{t.muted}}">Tant que tu n'as pas choisi, la version de l'équipe reste en place.</span>
+</div>
+</section>
+</div>
+
+<footer style="height: 72px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: {{t.panel}}; border-top: 1px solid {{t.line}}">
+<span style="width: 28px; height: 28px; border-radius: 9px; background: {{status.soft}}; display: flex; align-items: center; justify-content: center">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{status.color}}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{status.icon}}"></path></svg>
+</span>
+<span style="font-weight: 600">{{status.text}}</span>
+<div style="flex-grow: 1"></div>
+<a href="Main.dc.html" style="height: 44px; line-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid {{t.line}}; color: {{t.ink}}; font-weight: 600">Annuler</a>
+<button type="button" disabled="{{blocked}}" style="{{applyStyle}}">Appliquer 9 changements</button>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  tokens(dark) {
+    if (dark) {
+      return { bg: '#111113', panel: '#18181C', raised: '#1F1F24', sunken: '#0E0E10', line: '#2C2C33', ink: '#EEECE6', muted: '#A6A298', accent: '#9486FF', accentSoft: '#25214A', accentInk: '#100E22', good: '#5BD08A', goodSoft: '#15301F', warn: '#F5A524', warnSoft: '#33240C', bad: '#F2766B', badSoft: '#3A1917', code: '#141417' };
+    }
+    return { bg: '#F4F2EC', panel: '#FFFFFF', raised: '#FBFAF7', sunken: '#F1EEE7', line: '#E3DFD4', ink: '#1C1B18', muted: '#5F5B52', accent: '#5A48E0', accentSoft: '#EEEBFD', accentInk: '#FFFFFF', good: '#1C7A4B', goodSoft: '#E2F3E9', warn: '#A6520A', warnSoft: '#FCEFDD', bad: '#B8342A', badSoft: '#FBE7E5', code: '#FBFAF6' };
+  }
+  lines(t, rows) {
+    return rows.map(([kind, text]) => {
+      const base = 'padding: 0 16px; ';
+      if (kind === 'add') return { text: '+ ' + text, style: base + 'background: ' + t.goodSoft + '; color: ' + t.good };
+      if (kind === 'del') return { text: '- ' + text, style: base + 'background: ' + t.badSoft + '; color: ' + t.bad };
+      return { text: '  ' + text, style: base };
+    });
+  }
+  renderVals() {
+    const dark = this.props.dark ?? false;
+    const t = this.tokens(dark);
+    const choices = this.state.choices ?? {};
+    const selectedId = this.state.selected ?? 'c1';
+    const data = [
+      { id: 'c1', method: 'PATCH', color: t.warn, path: '/transactions/{id}/annuler', field: 'body · exemple',
+        ours: [['same', '{'], ['del', '  "motif": "Erreur de saisie",'], ['same', '  "canal": "USSD"'], ['same', '}']],
+        theirs: [['same', '{'], ['add', '  "motif": "ERREUR_SAISIE",'], ['same', '  "canal": "USSD",'], ['add', '  "notifier": true'], ['same', '}']] },
+      { id: 'c2', method: 'GET', color: t.good, path: '/transactions/{id}', field: 'headers · X-Canal',
+        ours: [['del', 'X-Canal: {{canal}}'], ['same', 'Accept: application/json']],
+        theirs: [['add', 'X-Canal: MOBILE'], ['same', 'Accept: application/json'], ['add', 'X-Version: 2']] }
+    ];
+    const labels = { ours: "Garder l'équipe", theirs: 'Prendre la spec', edit: 'Éditer à la main' };
+    const conflicts = data.map((c) => {
+      const active = c.id === selectedId;
+      const done = Boolean(choices[c.id]);
+      return {
+        method: c.method, path: c.path, field: c.field, methodColor: c.color,
+        badge: done ? labels[choices[c.id]] : 'à arbitrer',
+        badgeStyle: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: ' + (done ? t.goodSoft : t.warnSoft) + '; color: ' + (done ? t.good : t.warn),
+        rowStyle: 'display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 12px; text-align: left; border: ' + (active ? '2px solid ' + t.accent : '2px solid transparent') + '; background: ' + (active ? t.accentSoft : 'transparent'),
+        select: () => this.setState({ selected: c.id })
+      };
+    });
+    const cur = data.find((c) => c.id === selectedId);
+    const picked = choices[cur.id];
+    const options = ['ours', 'theirs', 'edit'].map((key) => {
+      const on = picked === key;
+      return {
+        label: labels[key], pressed: on ? 'true' : 'false',
+        style: 'display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px; border-radius: 12px; font-weight: 600; border: ' + (on ? '2px solid ' + t.accent : '1px solid ' + t.line) + '; background: ' + (on ? t.accentSoft : t.raised) + '; color: ' + (on ? t.accent : t.ink),
+        dotStyle: 'width: 14px; height: 14px; border-radius: 50%; box-sizing: border-box; border: ' + (on ? '4px solid ' + t.accent : '2px solid ' + t.muted),
+        pick: () => this.setState({ choices: Object.assign({}, choices, { [cur.id]: key }) })
+      };
+    });
+    const remaining = data.filter((c) => !choices[c.id]).length;
+    const blocked = remaining > 0;
+    return {
+      t: t,
+      conflicts: conflicts,
+      remaining: remaining,
+      blocked: blocked,
+      sel: { method: cur.method, path: cur.path, field: cur.field, methodColor: cur.color, ours: this.lines(t, cur.ours), theirs: this.lines(t, cur.theirs), options: options },
+      status: blocked
+        ? { text: remaining + (remaining > 1 ? ' conflits à arbitrer avant d\u2019appliquer' : ' conflit à arbitrer avant d\u2019appliquer'), color: t.warn, soft: t.warnSoft, icon: 'M12 8v5M12 17h.01' }
+        : { text: 'Tout est arbitré, prêt à appliquer', color: t.good, soft: t.goodSoft, icon: 'M5 12l5 5L20 7' },
+      applyStyle: 'height: 44px; padding: 0 22px; border: none; border-radius: 12px; font-weight: 700; font-size: 14px; background: ' + (blocked ? t.sunken : t.accent) + '; color: ' + (blocked ? t.muted : t.accentInk) + '; cursor: ' + (blocked ? 'not-allowed' : 'pointer')
+    };
+  }
+}
+</script>
+</body>
+</html>

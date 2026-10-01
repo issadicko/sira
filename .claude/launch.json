@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "maquette-v2",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4317",
+        "--directory",
+        "docs/design/maquette-v2"
+      ],
+      "port": 4317
+    },
+    {
+      "name": "app-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "start",
+        "--",
+        "--port",
+        "4200"
+      ],
+      "port": 4200
+    }
+  ]
+}

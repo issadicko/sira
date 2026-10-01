@@ -1,0 +1,261 @@
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::Serialize;
+
+use crate::collection::{read_environment, read_tree, resolve_path, COLLECTION_FILE, FOLDER_FILE};
+use crate::request::{key_values, RequestDoc};
+use crate::yaml::Map;
+use crate::CoreError;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Rung {
+    pub level: String,
+    pub source: String,
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariableInfo {
+    pub name: String,
+    pub value: Option<String>,
+    pub level: Option<String>,
+    pub secret: bool,
+    pub rungs: Vec<Rung>,
+}
+
+struct Layer {
+    level: String,
+    source: String,
+    vars: Vec<(String, String)>,
+}
+
+/// Fichiers parents d'une requête : la collection et ses dossiers, du plus extérieur au plus proche.
+pub struct Context {
+    pub collection: Map,
+    pub folders: Vec<(String, Map)>,
+    pub dotenv: HashMap<String, String>,
+}
+
+impl Context {
+    pub fn load(root: &Path, request_path: &str) -> Result<Self, CoreError> {
+        let collection = read_tree(&root.join(COLLECTION_FILE))?;
+        let mut folders = Vec::new();
+        let mut dir = String::new();
+        let parts: Vec<&str> = request_path.split('/').collect();
+        for part in &parts[..parts.len().saturating_sub(1)] {
+            dir = if dir.is_empty() { (*part).to_owned() } else { format!("{dir}/{part}") };
+            let meta = resolve_path(root, &format!("{dir}/{FOLDER_FILE}"))?;
+            let tree = if meta.is_file() { read_tree(&meta)? } else { Map::default() };
+            folders.push((dir.clone(), tree));
+        }
+        Ok(Self { collection, folders, dotenv: read_dotenv(&root.join(".env")) })
+    }
+
+    pub fn request_section(map: &Map) -> Option<&Map> {
+        map.map("request")
+    }
+}
+
+fn read_dotenv(path: &Path) -> HashMap<String, String> {
+    let Ok(text) = fs::read_to_string(path) else { return HashMap::new() };
+    text.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                return None;
+            }
+            let (k, v) = line.trim_start_matches("export ").split_once('=')?;
+            let v = v.trim();
+            let v = v.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(v);
+            Some((k.trim().to_owned(), v.to_owned()))
+        })
+        .collect()
+}
+
+/// Pile de portées dans l'ordre de Bruno : runtime > requête > dossier > environnement > collection.
+pub struct Scope {
+    layers: Vec<Layer>,
+    secrets: Vec<String>,
+    dotenv: HashMap<String, String>,
+}
+
+fn enabled_pairs(vars: Vec<crate::request::KeyValue>) -> Vec<(String, String)> {
+    vars.into_iter().filter(|v| v.enabled).map(|v| (v.name, v.value)).collect()
+}
+
+impl Scope {
+    pub fn build(
+        root: &Path,
+        ctx: &Context,
+        request_path: &str,
+        doc: &RequestDoc,
+        env: Option<&str>,
+        runtime: &HashMap<String, String>,
+    ) -> Result<Self, CoreError> {
+        let mut layers = vec![
+            Layer { level: "Runtime".into(), source: "bru.setVar()".into(), vars: sorted(runtime) },
+            Layer { level: "Requête".into(), source: request_path.into(), vars: enabled_pairs(doc.variables.clone()) },
+        ];
+        for (dir, tree) in ctx.folders.iter().rev() {
+            let name = tree.map("info").and_then(|i| i.str("name")).unwrap_or(dir).to_owned();
+            let vars = Context::request_section(tree)
+                .map(|r| enabled_pairs(key_values(r.seq("variables"))))
+                .unwrap_or_default();
+            layers.push(Layer { level: format!("Dossier {name}"), source: format!("{dir}/{FOLDER_FILE}"), vars });
+        }
+        let mut secrets = Vec::new();
+        if let Some(env) = env {
+            let vars = read_environment(root, env)?;
+            secrets = vars.iter().filter(|v| v.secret).map(|v| v.name.clone()).collect();
+            layers.push(Layer {
+                level: format!("Environnement {env}"),
+                source: format!("environments/{env}.yml"),
+                vars: vars.into_iter().filter(|v| v.enabled).filter_map(|v| Some((v.name, v.value?))).collect(),
+            });
+        }
+        let collection_vars = Context::request_section(&ctx.collection)
+            .map(|r| enabled_pairs(key_values(r.seq("variables"))))
+            .unwrap_or_default();
+        layers.push(Layer { level: "Collection".into(), source: COLLECTION_FILE.into(), vars: collection_vars });
+        Ok(Self { layers, secrets, dotenv: ctx.dotenv.clone() })
+    }
+
+    pub fn lookup(&self, name: &str) -> Option<&str> {
+        self.layers.iter().find_map(|l| l.vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str()))
+    }
+
+    pub fn infos(&self) -> Vec<VariableInfo> {
+        let mut names: Vec<&str> = Vec::new();
+        for layer in &self.layers {
+            for (k, _) in &layer.vars {
+                if !names.contains(&k.as_str()) {
+                    names.push(k);
+                }
+            }
+        }
+        for s in &self.secrets {
+            if !names.contains(&s.as_str()) {
+                names.push(s);
+            }
+        }
+        names.sort_unstable();
+        names.into_iter().map(|n| self.info(n)).collect()
+    }
+
+    pub fn info(&self, name: &str) -> VariableInfo {
+        let rungs: Vec<Rung> = self
+            .layers
+            .iter()
+            .map(|l| Rung {
+                level: l.level.clone(),
+                source: l.source.clone(),
+                value: l.vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()),
+            })
+            .collect();
+        let winner = rungs.iter().find(|r| r.value.is_some());
+        VariableInfo {
+            name: name.to_owned(),
+            value: winner.and_then(|r| r.value.clone()),
+            level: winner.map(|r| r.level.clone()),
+            secret: self.secrets.iter().any(|s| s == name),
+            rungs,
+        }
+    }
+
+    /// Remplace les `{{var}}`. Les noms introuvables restent tels quels et sont listés.
+    pub fn interpolate(&self, input: &str, unresolved: &mut Vec<String>) -> String {
+        self.interpolate_depth(input, unresolved, 0)
+    }
+
+    fn interpolate_depth(&self, input: &str, unresolved: &mut Vec<String>, depth: u8) -> String {
+        let mut out = String::with_capacity(input.len());
+        let mut rest = input;
+        while let Some(start) = rest.find("{{") {
+            out.push_str(&rest[..start]);
+            let after = &rest[start + 2..];
+            let Some(end) = after.find("}}") else {
+                out.push_str(&rest[start..]);
+                return out;
+            };
+            let name = after[..end].trim();
+            match self.value_of(name) {
+                Some(v) if depth < 4 => out.push_str(&self.interpolate_depth(&v, unresolved, depth + 1)),
+                Some(v) => out.push_str(&v),
+                None => {
+                    if !unresolved.iter().any(|u| u == name) {
+                        unresolved.push(name.to_owned());
+                    }
+                    out.push_str(&rest[start..start + 2 + end + 2]);
+                }
+            }
+            rest = &after[end + 2..];
+        }
+        out.push_str(rest);
+        out
+    }
+
+    fn value_of(&self, name: &str) -> Option<String> {
+        if let Some(key) = name.strip_prefix("process.env.") {
+            return self.dotenv.get(key).cloned().or_else(|| std::env::var(key).ok());
+        }
+        if let Some(dynamic) = name.strip_prefix('$') {
+            return dynamic_value(dynamic);
+        }
+        self.lookup(name).map(str::to_owned)
+    }
+}
+
+fn sorted(map: &HashMap<String, String>) -> Vec<(String, String)> {
+    let mut v: Vec<_> = map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    v.sort();
+    v
+}
+
+fn dynamic_value(name: &str) -> Option<String> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    match name {
+        "guid" | "randomUUID" => Some(uuid::Uuid::new_v4().to_string()),
+        "timestamp" => Some(now.as_secs().to_string()),
+        "isoTimestamp" => Some(iso8601(now.as_millis())),
+        "randomInt" => Some((uuid::Uuid::new_v4().as_u128() % 1000).to_string()),
+        _ => None,
+    }
+}
+
+fn iso8601(millis: u128) -> String {
+    let secs = (millis / 1000) as i64;
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{:03}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60,
+        millis % 1000
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::iso8601;
+
+    #[test]
+    fn iso_timestamp_is_utc() {
+        assert_eq!(iso8601(1_790_816_588_196), "2026-10-01T01:03:08.196Z");
+        assert_eq!(iso8601(0), "1970-01-01T00:00:00.000Z");
+    }
+}

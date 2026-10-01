@@ -1,0 +1,692 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T01:19:24+00:00",
+  "title": "Design System: [NOM] · Client API desktop",
+  "extensions": {
+    "colorMeta": {
+      "frame": {
+        "role": "neutral",
+        "displayName": "Cadre nuit",
+        "canonical": "oklch(15.6% 0.006 285.6)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "island": {
+        "role": "neutral",
+        "displayName": "Îlot graphite",
+        "canonical": "oklch(19.8% 0.008 285.6)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "pop": {
+        "role": "neutral",
+        "displayName": "Flottant",
+        "canonical": "oklch(22.5% 0.012 285.4)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Relevé",
+        "canonical": "oklch(23.3% 0.011 285.5)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Survol",
+        "canonical": "oklch(25.1% 0.013 285.4)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Creusé",
+        "canonical": "oklch(17.4% 0.006 285.7)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Filet",
+        "canonical": "oklch(26.7% 0.013 285.5)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Filet appuyé",
+        "canonical": "oklch(32.9% 0.016 285.5)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Encre",
+        "canonical": "oklch(93.2% 0.005 286.3)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Atténué",
+        "canonical": "oklch(72.2% 0.013 286.1)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Pâle",
+        "canonical": "oklch(62.7% 0.015 286.0)",
+        "tonalRamp": [
+          "#0c0c0f",
+          "#101013",
+          "#151519",
+          "#1d1d23",
+          "#34343d",
+          "#878791",
+          "#a4a4ad",
+          "#e8e8ec"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Violet signature",
+        "canonical": "oklch(68.7% 0.173 286.2)",
+        "tonalRamp": [
+          "#0f003a",
+          "#280072",
+          "#412497",
+          "#5e49bd",
+          "#7d6de3",
+          "#9e91ff",
+          "#c1b6ff",
+          "#e7e3ff"
+        ]
+      },
+      "accent-hi": {
+        "role": "primary",
+        "displayName": "Violet survol",
+        "canonical": "oklch(76.4% 0.127 287.6)",
+        "tonalRamp": [
+          "#100039",
+          "#260f5e",
+          "#413280",
+          "#5f53a5",
+          "#7f74ca",
+          "#a197f0",
+          "#c4bcff",
+          "#e9e2ff"
+        ]
+      },
+      "accent-light": {
+        "role": "primary",
+        "displayName": "Violet signature (clair)",
+        "canonical": "oklch(51.7% 0.220 280.8)",
+        "tonalRamp": [
+          "#0c003b",
+          "#27008a",
+          "#3b0cb0",
+          "#5440d8",
+          "#7166ff",
+          "#918cff",
+          "#b3b2ff",
+          "#dfe6ff"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Ambre de conflit",
+        "canonical": "oklch(78.2% 0.158 72.3)",
+        "tonalRamp": [
+          "#250000",
+          "#4f0200",
+          "#712a00",
+          "#954c00",
+          "#ba6e00",
+          "#e09200",
+          "#ffb63e",
+          "#ffe291"
+        ]
+      },
+      "bad": {
+        "role": "secondary",
+        "displayName": "Rouge d'alerte",
+        "canonical": "oklch(70.8% 0.155 26.9)",
+        "tonalRamp": [
+          "#2d0000",
+          "#5b0000",
+          "#810009",
+          "#a7322d",
+          "#cf564d",
+          "#f77a6f",
+          "#ff9f92",
+          "#ffcfc3"
+        ]
+      },
+      "good": {
+        "role": "secondary",
+        "displayName": "Vert de réussite",
+        "canonical": "oklch(77.2% 0.147 154.6)",
+        "tonalRamp": [
+          "#001600",
+          "#003600",
+          "#005618",
+          "#007838",
+          "#139b59",
+          "#49bf7a",
+          "#71e59e",
+          "#acffcb"
+        ]
+      },
+      "info": {
+        "role": "secondary",
+        "displayName": "Bleu d'information",
+        "canonical": "oklch(75.8% 0.129 249.6)",
+        "tonalRamp": [
+          "#00013a",
+          "#002260",
+          "#004283",
+          "#1264a7",
+          "#3c86cc",
+          "#60aaf2",
+          "#85cfff",
+          "#aff5ff"
+        ]
+      },
+      "m-get": {
+        "role": "tertiary",
+        "displayName": "Méthode GET",
+        "canonical": "oklch(77.2% 0.147 154.6)",
+        "tonalRamp": [
+          "#001600",
+          "#003600",
+          "#005618",
+          "#007838",
+          "#139b59",
+          "#49bf7a",
+          "#71e59e",
+          "#acffcb"
+        ]
+      },
+      "m-post": {
+        "role": "tertiary",
+        "displayName": "Méthode POST",
+        "canonical": "oklch(76.0% 0.130 287.9)",
+        "tonalRamp": [
+          "#100039",
+          "#270d5f",
+          "#413182",
+          "#5f52a6",
+          "#7f74cb",
+          "#a197f2",
+          "#c5bbff",
+          "#eae2ff"
+        ]
+      },
+      "m-put": {
+        "role": "tertiary",
+        "displayName": "Méthode PUT",
+        "canonical": "oklch(75.8% 0.129 249.6)",
+        "tonalRamp": [
+          "#00013a",
+          "#002260",
+          "#004283",
+          "#1264a7",
+          "#3c86cc",
+          "#60aaf2",
+          "#85cfff",
+          "#aff5ff"
+        ]
+      },
+      "m-patch": {
+        "role": "tertiary",
+        "displayName": "Méthode PATCH",
+        "canonical": "oklch(79.0% 0.118 182.6)",
+        "tonalRamp": [
+          "#001610",
+          "#00342a",
+          "#005447",
+          "#007667",
+          "#009988",
+          "#31bdab",
+          "#60e2d0",
+          "#8afff5"
+        ]
+      },
+      "m-delete": {
+        "role": "tertiary",
+        "displayName": "Méthode DELETE",
+        "canonical": "oklch(70.8% 0.155 26.9)",
+        "tonalRamp": [
+          "#2d0000",
+          "#5b0000",
+          "#810009",
+          "#a7322d",
+          "#cf564d",
+          "#f77a6f",
+          "#ff9f92",
+          "#ffcfc3"
+        ]
+      },
+      "t-key": {
+        "role": "tertiary",
+        "displayName": "Syntaxe clé",
+        "canonical": "oklch(79.4% 0.111 288.8)",
+        "tonalRamp": [
+          "#0f0035",
+          "#261456",
+          "#423578",
+          "#60559c",
+          "#8076c1",
+          "#a399e6",
+          "#c6bdff",
+          "#ebe3ff"
+        ]
+      },
+      "t-str": {
+        "role": "tertiary",
+        "displayName": "Syntaxe chaîne",
+        "canonical": "oklch(81.1% 0.118 155.1)",
+        "tonalRamp": [
+          "#001600",
+          "#003305",
+          "#005324",
+          "#0c7442",
+          "#3c9763",
+          "#62bb84",
+          "#87e0a8",
+          "#acffcc"
+        ]
+      },
+      "t-num": {
+        "role": "tertiary",
+        "displayName": "Syntaxe nombre",
+        "canonical": "oklch(83.2% 0.098 82.0)",
+        "tonalRamp": [
+          "#1e0200",
+          "#3c1d00",
+          "#5b3b00",
+          "#7d5b09",
+          "#a07c36",
+          "#c49f5a",
+          "#e9c37d",
+          "#ffe9a2"
+        ]
+      },
+      "t-kw": {
+        "role": "tertiary",
+        "displayName": "Syntaxe mot-clé",
+        "canonical": "oklch(75.8% 0.129 249.6)",
+        "tonalRamp": [
+          "#00013a",
+          "#002260",
+          "#004283",
+          "#1264a7",
+          "#3c86cc",
+          "#60aaf2",
+          "#85cfff",
+          "#aff5ff"
+        ]
+      },
+      "t-com": {
+        "role": "tertiary",
+        "displayName": "Syntaxe commentaire",
+        "canonical": "oklch(59.0% 0.015 285.9)",
+        "tonalRamp": [
+          "#0a0a11",
+          "#24242c",
+          "#41414a",
+          "#60606a",
+          "#81818b",
+          "#a4a4ae",
+          "#c8c8d3",
+          "#ededf9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Corps",
+        "purpose": "Tout le texte d'interface, 13px Inter."
+      },
+      "title": {
+        "displayName": "Titre de vue",
+        "purpose": "Titres de vue et de documentation."
+      },
+      "headline": {
+        "displayName": "Titre d'îlot",
+        "purpose": "Têtes d'îlot, sections, groupes."
+      },
+      "label": {
+        "displayName": "Libellé",
+        "purpose": "Barre d'état, en-têtes de tableau, groupes, compteurs ; casse normale."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Éditeurs, réponses, diffs ; sans ligatures."
+      },
+      "url": {
+        "displayName": "URL",
+        "purpose": "Barre d'URL."
+      },
+      "method": {
+        "displayName": "Méthode",
+        "purpose": "Méthodes HTTP dans l'arbre, l'historique, les opérations."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-dark",
+        "value": "0 12px 28px -10px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.35)",
+        "purpose": "Palette, menus, popovers, toast (sombre)."
+      },
+      {
+        "name": "floating-light",
+        "value": "0 12px 28px -10px rgba(24,24,36,.16), 0 1px 3px rgba(24,24,36,.08)",
+        "purpose": "Mêmes surfaces en thème clair."
+      },
+      {
+        "name": "segment-pressed",
+        "value": "0 1px 2px rgba(0,0,0,.18), inset 0 0 0 1px var(--line)",
+        "purpose": "Bouton actif d'un contrôle segmenté."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px var(--accent-soft)",
+        "purpose": "Halo de champ focalisé, avec bordure accent-line."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid var(--accent-line); outline-offset: 1px",
+        "purpose": "Focus clavier global."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Entrées de surfaces flottantes, progression, flash."
+      },
+      {
+        "name": "state-fast",
+        "value": "100-120ms",
+        "purpose": "Survols, couleurs, bordures."
+      },
+      {
+        "name": "state",
+        "value": "150-200ms",
+        "purpose": "Opacités, popovers, toast, guide d'indentation."
+      },
+      {
+        "name": "pop-in",
+        "value": "opacity 0 -> 1, translateY(-6px) scale(.985) -> none, 140-160ms ease",
+        "purpose": "Palette et menus."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "durées ramenées à .01ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "window-md",
+        "value": "1180px"
+      },
+      {
+        "name": "window-sm",
+        "value": "1100px"
+      },
+      {
+        "name": "pane-620",
+        "value": "620px (container)"
+      },
+      {
+        "name": "pane-560",
+        "value": "560px (container)"
+      },
+      {
+        "name": "pane-480",
+        "value": "480px (container)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bouton primaire (Envoyer)",
+      "kind": "button",
+      "refersTo": "button-send",
+      "description": "Action principale, à droite de la barre d'URL ; raccourci en kbd translucide.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.54 21.69a.5.5 0 0 0 .94-.03l6.5-19a.5.5 0 0 0-.64-.64l-19 6.5a.5.5 0 0 0-.03.94l7.93 3.18a2 2 0 0 1 1.11 1.11z\"/><path d=\"m21.85 2.15-10.94 10.94\"/></svg>Envoyer<span class=\"ds-kbd\">⌘↵</span></button>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-btn-primary{height:36px;min-width:128px;padding:0 12px 0 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;border:1px solid transparent;background:var(--accent);color:var(--on-accent);font:600 13px var(--font-ui);cursor:pointer;transition:background .12s;}.ds-btn-primary:hover{background:var(--accent-hi);}.ds-btn-primary:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}.ds-kbd{font:500 10.5px/1 var(--font-mono);padding:3px 5px;border:1px solid currentColor;border-radius:4px;opacity:.72;}"
+    },
+    {
+      "name": "Bouton secondaire et fantôme",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Actions secondaires 28px ; le fantôme pour les actions d'îlot.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn\">Annuler</button><button class=\"ds-btn ds-ghost\">Garder l'équipe</button></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-row{display:flex;gap:6px;padding:12px;background:var(--island);}.ds-btn{height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--line-strong);background:var(--raised);color:var(--ink);font:500 13px var(--font-ui);cursor:pointer;transition:background .12s,color .12s;}.ds-btn:hover{background:var(--hover);}.ds-ghost{border-color:transparent;background:transparent;color:var(--muted);}.ds-ghost:hover{background:var(--hover);color:var(--ink);}.ds-btn:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}"
+    },
+    {
+      "name": "Barre d'URL avec pastilles de variable",
+      "kind": "input",
+      "refersTo": "url-field",
+      "description": "Méthode colorée, URL en mono sans ligatures, variables {{…}} en pastilles par portée.",
+      "html": "<div class=\"ds-url\"><span class=\"ds-method\">PATCH</span><span class=\"ds-text\"><span class=\"ds-var\">{{baseUrl}}</span>/transactions/<span class=\"ds-var ds-env\">{{txId}}</span>/annuler?t=<span class=\"ds-var ds-dyn\">{{$timestamp}}</span>&amp;k=<span class=\"ds-var ds-bad\">{{apiKey}}</span></span></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-url{height:36px;display:flex;align-items:center;border:1px solid var(--line-strong);border-radius:8px;background:var(--sunken);transition:border-color .12s,box-shadow .12s;}.ds-url:hover{border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft);}.ds-method{height:100%;display:flex;align-items:center;padding:0 10px 0 12px;border-right:1px solid var(--line);font:600 12px var(--font-mono);color:var(--m-patch);}.ds-text{padding:0 12px;font:13px var(--font-mono);font-feature-settings:'calt' 0,'liga' 0;white-space:nowrap;overflow:hidden;}.ds-var{display:inline-flex;align-items:center;height:21px;padding:0 5px;margin:0 1px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-weight:500;cursor:help;transition:background .12s;}.ds-var:hover{background:var(--accent-line);color:var(--ink);}.ds-dyn{background:var(--info-soft);color:var(--info);}.ds-env{background:var(--good-soft);color:var(--good);}.ds-bad{background:var(--bad-soft);color:var(--bad);text-decoration:underline wavy var(--bad-strong);text-underline-offset:4px;}"
+    },
+    {
+      "name": "Onglets d'éditeur",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Onglet sélectionné relevé, aperçu en italique, point de modification à la place de la croix.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab ds-sel\"><span class=\"ds-m\" style=\"color:var(--m-patch)\">PATCH</span>Annuler une transaction<span class=\"ds-x\">×</span></button><button class=\"ds-tab ds-prev\"><span class=\"ds-m\" style=\"color:var(--m-get)\">GET</span>Lister les clients</button><button class=\"ds-tab\"><span class=\"ds-m\" style=\"color:var(--m-post)\">POST</span>Créer un remboursement<span class=\"ds-dirty\"></span></button></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-tabs{height:38px;display:flex;align-items:center;gap:2px;padding:0 6px;background:var(--island);border-bottom:1px solid var(--line);}.ds-tab{height:28px;display:inline-flex;align-items:center;gap:7px;padding:0 8px 0 10px;border:0;border-radius:6px;background:none;color:var(--muted);font:13px var(--font-ui);cursor:pointer;transition:background .1s,color .1s;}.ds-tab:hover{background:var(--hover);color:var(--ink);}.ds-sel{background:var(--raised);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);}.ds-prev{font-style:italic;}.ds-m{font:600 10px/1 var(--font-mono);}.ds-x{color:var(--faint);}.ds-dirty{width:7px;height:7px;border-radius:50%;background:var(--ink);}:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}"
+    },
+    {
+      "name": "Ligne d'arbre de collection",
+      "kind": "nav",
+      "refersTo": "tree-row",
+      "description": "Lignes de 26px, méthode colorée en mono, ligne active sur accent-soft, dépréciée barrée.",
+      "html": "<div class=\"ds-tree\"><button class=\"ds-row\"><span class=\"ds-m\" style=\"color:var(--m-get)\">GET</span><span class=\"ds-n\">Lister les transactions</span></button><button class=\"ds-row ds-act\"><span class=\"ds-m\" style=\"color:var(--m-patch)\">PATCH</span><span class=\"ds-n\">Annuler une transaction</span></button><button class=\"ds-row ds-dep\"><span class=\"ds-m\" style=\"color:var(--bad)\">DEL</span><span class=\"ds-n\">Ancienne annulation</span><span class=\"ds-tag\">dépréciée</span></button></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-tree{width:264px;padding:6px 0;background:var(--island);}.ds-row{width:calc(100% - 12px);height:26px;margin:0 6px;display:flex;align-items:center;gap:6px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--ink);font:13px var(--font-ui);cursor:pointer;white-space:nowrap;transition:background .1s;}.ds-row:hover{background:var(--hover);}.ds-act{background:var(--accent-soft);}.ds-act .ds-n{font-weight:500;}.ds-m{font:600 10px/1 var(--font-mono);width:34px;text-align:left;}.ds-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left;}.ds-dep .ds-n{text-decoration:line-through;color:var(--muted);}.ds-tag{font:500 10.5px/17px var(--font-ui);height:17px;padding:0 6px;border-radius:4px;background:var(--raised);color:var(--muted);}:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}"
+    },
+    {
+      "name": "Tags et puces d'état",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Tags 17px par rôle ; pastille de spec ambre réservée aux conflits.",
+      "html": "<div class=\"ds-wrap\"><span class=\"ds-tag\">texte</span><span class=\"ds-tag ds-spec\">spec</span><span class=\"ds-tag ds-good\">actif</span><span class=\"ds-tag ds-bad\">production</span><button class=\"ds-specchip\">Spec OpenAPI : 2 conflits</button></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-wrap{display:flex;gap:8px;align-items:center;padding:12px;background:var(--island);}.ds-tag{font:500 10.5px/17px var(--font-ui);height:17px;padding:0 6px;border-radius:4px;background:var(--raised);color:var(--muted);}.ds-spec{background:var(--info-soft);color:var(--info);}.ds-good{background:var(--good-soft);color:var(--good);}.ds-bad{background:var(--bad-soft);color:var(--bad);}.ds-specchip{height:26px;padding:0 10px;border:0;border-radius:13px;background:var(--warn-soft);color:var(--warn);font:500 13px var(--font-ui);cursor:pointer;transition:filter .12s;}.ds-specchip:hover{filter:brightness(1.12);}:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}"
+    },
+    {
+      "name": "Échelle de précédence",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature : portées de variable du plus au moins prioritaire, gagnant en violet, masquées barrées.",
+      "html": "<div class=\"ds-ladder\"><div class=\"ds-rung ds-empty\"><i></i><span>Runtime</span></div><div class=\"ds-rung ds-win\"><i></i><span>Environnement dev<code>environments/dev.yml</code></span><b>https://api.dev.local/v1</b></div><div class=\"ds-rung ds-sh\"><i></i><span>Collection<code>opencollection.yml</code></span><b>https://api.paiements.test/v1</b></div></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-ladder{position:relative;display:flex;flex-direction:column;gap:2px;width:300px;padding:10px;background:var(--island);font-size:12.5px;}.ds-ladder::before{content:'';position:absolute;left:24px;top:24px;bottom:24px;width:1px;background:var(--line-strong);}.ds-rung{position:relative;display:grid;grid-template-columns:14px minmax(0,1fr);gap:2px 10px;padding:6px 8px;border-radius:7px;transition:background .15s;}.ds-rung i{grid-row:span 2;width:9px;height:9px;margin:4px 0 0 2px;border-radius:50%;background:var(--island);box-shadow:inset 0 0 0 1.5px var(--line-strong);z-index:1;}.ds-rung span{display:flex;gap:6px;}.ds-rung code{margin-left:auto;color:var(--faint);font:11px var(--font-mono);}.ds-rung b{grid-column:2;font:400 12px var(--font-mono);color:var(--faint);}.ds-win{background:var(--accent-soft);}.ds-win i{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}.ds-win b{color:var(--ink);}.ds-sh b{color:var(--muted);text-decoration:line-through;}.ds-empty span{color:var(--faint);}.ds-empty i{width:5px;height:5px;margin:6px 0 0 4px;box-shadow:none;background:var(--line-strong);grid-row:auto;}"
+    },
+    {
+      "name": "Lentille d'arbitrage de fusion",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature : choix au-dessus d'un conflit du Résultat ; ligne non arbitrée sur ambre avec gouttière.",
+      "html": "<div class=\"ds-res\"><div class=\"ds-lens\"><button aria-pressed=\"false\">Garder l'équipe</button><i>·</i><button aria-pressed=\"false\">Prendre la spec</button><i>·</i><button aria-pressed=\"false\">Combiner les deux</button><i>·</i><button aria-pressed=\"false\">Éditer à la main</button></div><div class=\"ds-ln\"><span>12</span><span class=\"ds-g\"></span><span>  \"motif\": \"Erreur de saisie\",</span></div></div>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-res{background:var(--island);padding:6px 0;font:12.5px/20px var(--font-mono);font-feature-settings:'calt' 0,'liga' 0;}.ds-lens{height:26px;display:flex;align-items:center;gap:2px;padding-left:62px;font-size:11.5px;color:var(--faint);}.ds-lens i{font-style:normal;}.ds-lens button{border:0;background:none;color:var(--muted);font:inherit;padding:2px 6px;border-radius:4px;cursor:pointer;}.ds-lens button:hover{color:var(--accent);background:var(--hover);}.ds-lens button[aria-pressed=true]{color:var(--accent);background:var(--accent-soft);}.ds-ln{display:grid;grid-template-columns:44px 18px 1fr;background:var(--warn-soft);white-space:pre;}.ds-ln span:first-child{text-align:right;color:var(--faint);}.ds-g{display:grid;place-items:center;}.ds-g::before{content:'';width:3px;height:100%;border-radius:2px;background:var(--warn);}:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}"
+    },
+    {
+      "name": "Barre d'état",
+      "kind": "nav",
+      "refersTo": "status-bar-item",
+      "description": "Sur le cadre, 11.5px muted ; items cliquables, ambre pour les conflits.",
+      "html": "<footer class=\"ds-sb\"><button class=\"ds-it\">main ↑1</button><button class=\"ds-it\">3 modifications</button><button class=\"ds-it ds-warn\">Spec v2.4.0 : 2 conflits</button><span style=\"flex:1\"></span><button class=\"ds-it\">dev</button><span class=\"ds-it\">OpenCollection YAML</span></footer>",
+      "css": ":host{--frame:#0c0c0f;--island:#151519;--island-line:#1f1f25;--pop:#1b1b21;--raised:#1d1d23;--hover:#212128;--sunken:#101013;--line:#25252c;--line-strong:#34343d;--ink:#e8e8ec;--muted:#a4a4ad;--faint:#878791;--accent:#9486ff;--accent-hi:#aea5ff;--accent-soft:rgba(148,134,255,.15);--accent-line:rgba(148,134,255,.5);--on-accent:#0f0d22;--good:#5bd08a;--good-soft:rgba(91,208,138,.13);--warn:#f5a524;--warn-soft:rgba(245,165,36,.12);--bad:#f2766b;--bad-soft:rgba(242,118,107,.13);--bad-strong:rgba(242,118,107,.3);--info:#6cb6ff;--info-soft:rgba(108,182,255,.12);--m-get:#5bd08a;--m-post:#ada3ff;--m-patch:#4fd3c1;--font-ui:Inter,system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;font:13px/1.45 var(--font-ui);color:var(--ink);} .ds-sb{height:26px;display:flex;align-items:center;gap:2px;padding:0 10px 0 12px;background:var(--frame);font-size:11.5px;color:var(--muted);white-space:nowrap;}.ds-it{height:20px;display:inline-flex;align-items:center;padding:0 6px;border:0;border-radius:4px;background:none;color:inherit;font:inherit;transition:background .1s,color .1s;}button.ds-it{cursor:pointer;}button.ds-it:hover{background:var(--hover);color:var(--ink);}.ds-warn{color:var(--warn);}:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "L'atelier en îlots",
+    "overview": "Un IDE d'API, pas un SaaS. Un cadre sombre presque noir porte des îlots arrondis séparés de 6 px (à la Fleet) ; à l'intérieur, la donnée occupe tout : URL en chasse fixe, JSON sur toute la hauteur, diffs, fichiers YAML. Le chrome (barre de titre, barre d'activité, barre d'état) est fonctionnel, discret et toujours présent, comme dans VS Code. La densité est celle d'un éditeur de code : lignes de 26 px, contrôles de 28 px, texte de 13 px.\n\nLa couleur est un langage d'état, jamais de la décoration. Le violet dit « sélection et action », l'ambre dit « conflit à trancher », le rouge dit « erreur ou production », le vert dit « succès ou valeur d'environnement », le bleu dit « dynamique ou issu de la spec ». Chaque méthode HTTP porte sa propre teinte. Le thème sombre est le thème de référence ; le thème clair est dérivé au même niveau d'exigence, avec les mêmes rôles.\n\nLe mouvement ne sert qu'à signaler un changement d'état (120 à 200 ms, ease-out), et disparaît sous `prefers-reduced-motion`.",
+    "keyCharacteristics": [
+      "Cadre + îlots : profondeur par la valeur tonale, pas par l'ombre.",
+      "Deux familles : Inter pour l'interface, JetBrains Mono pour tout ce qui est donnée (URL, méthodes, chemins, code, valeurs).",
+      "Couleur sémantique stricte, accent violet unique.",
+      "Densité IDE, clavier d'abord, raccourcis visibles en `kbd`.",
+      "Le fichier édité est toujours nommé (fil d'Ariane en mono sous les onglets)."
+    ],
+    "rules": [
+      {
+        "name": "The Amber Is Conflict Rule",
+        "body": "L'ambre ne signifie qu'une chose : un conflit de spec qui attend un arbitrage. Jamais pour un avertissement générique, jamais pour décorer.",
+        "section": "colors"
+      },
+      {
+        "name": "The Violet Means Act Rule",
+        "body": "Le violet marque ce qui est sélectionné ou ce qu'on peut déclencher. Une surface en accent plein est rare : le bouton primaire, le badge d'activité, la marque.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Prod Rule",
+        "body": "L'environnement de production est rouge partout où il apparaît (bouton d'environnement teinté bad-soft avec bordure bad-strong, point rouge, tag « production »), pour qu'on ne l'envoie jamais par mégarde.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Inks Rule",
+        "body": "Le texte n'a que trois niveaux : ink, muted, faint. Pas d'opacité arbitraire sur du texte, sauf l'état désactivé d'une ligne kv (.45).",
+        "section": "colors"
+      },
+      {
+        "name": "The Data Is Mono Rule",
+        "body": "URL, méthode, chemin, nom de fichier, valeur de variable, code et durée sont en JetBrains Mono ; libellés, boutons et phrases sont en Inter. Le mélange dans une même ligne est normal (« Résultat » en Inter, chemin du fichier en mono).",
+        "section": "typography"
+      },
+      {
+        "name": "The No Ligature Rule",
+        "body": "Toute surface mono désactive les ligatures. Un client API montre exactement ce qui part sur le fil.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numbers Rule",
+        "body": "Compteurs, durées, numéros de ligne et badges utilisent `tabular-nums`.",
+        "section": "typography"
+      },
+      {
+        "name": "The Visible Frame Rule",
+        "body": "Les îlots ne se touchent jamais : 6px de cadre les sépare toujours, et seul le cadre porte la barre de titre et la barre d'état.",
+        "section": "layout"
+      },
+      {
+        "name": "The File Is Named Rule",
+        "body": "Tout éditeur affiche le chemin du fichier sur disque dans le fil d'Ariane mono, avec son état (enregistré / modifié).",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Islands Rule",
+        "body": "Les îlots n'ont jamais d'ombre. Seul ce qui flotte (palette, menu, popover, toast) en porte une, et c'est toujours la même.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** poser chaque surface de travail dans un îlot island à rayon 10px, séparé des autres par 6px de cadre.",
+      "**Do** écrire URL, méthodes, chemins, fichiers, valeurs et code en JetBrains Mono sans ligatures.",
+      "**Do** réserver l'ambre aux conflits de spec, le violet à la sélection et à l'action, le rouge aux erreurs et à la production.",
+      "**Do** donner à chaque méthode HTTP sa teinte (m-get, m-post, m-put, m-patch, m-delete) en mono 600.",
+      "**Do** limiter le mouvement aux changements d'état : 100 à 200 ms, courbe `cubic-bezier(.16, 1, .3, 1)` pour ce qui entre ; tout est neutralisé sous `prefers-reduced-motion`.",
+      "**Do** garder le texte faint sur island, sunken ou pop, où il dépasse 4.5:1 (5.1:1 sur island sombre, 4.9:1 sur blanc).",
+      "**Do** retirer l'information secondaire quand un volet rétrécit (requêtes de conteneur 620 / 560 / 480px), sans réordonner.",
+      "**Do** dériver le thème clair rôle pour rôle depuis le sombre : mêmes noms de tokens, mêmes usages."
+    ],
+    "donts": [
+      "**Don't** reprendre l'arrangement v1 : fond crème, carte flottante, gros en-tête, tuiles de KPI.",
+      "**Don't** ombrer un îlot, un tableau ou un bouton ; l'ombre est réservée à la palette, aux menus, aux popovers et au toast.",
+      "**Don't** utiliser l'ambre pour un simple avertissement, ni le violet pour un état d'erreur ou de succès.",
+      "**Don't** trancher un conflit en silence : un conflit non arbitré reste visible en ambre jusqu'au choix.",
+      "**Don't** masquer une requête dépréciée : barrée, badge, toujours dans l'arbre.",
+      "**Don't** utiliser d'emoji ni de caractère décoratif comme icône ; les icônes sont des SVG au trait.",
+      "**Don't** poser du texte faint sur le cadre ou sur raised / hover en thème clair (3.9 à 4.5:1).",
+      "**Don't** écrire de libellé en capitales espacées ; les libellés restent en casse normale."
+    ]
+  }
+}

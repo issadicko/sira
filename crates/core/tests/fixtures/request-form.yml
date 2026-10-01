@@ -1,0 +1,23 @@
+info:
+  name: Form
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: https://x.test
+  body:
+    type: form-urlencoded
+    data:
+      - name: a
+        value: "1"
+      - name: b
+        value: "x: y"
+        disabled: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,6 @@
+name: public
+variables:
+  - name: httpbin
+    value: https://httpbin.org
+  - name: client
+    value: Aminata

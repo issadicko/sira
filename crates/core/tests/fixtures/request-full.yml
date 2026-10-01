@@ -1,0 +1,89 @@
+info:
+  name: Create User
+  type: http
+  seq: 3
+  tags:
+    - smoke
+  description: Creates a user
+
+http:
+  method: POST
+  url: "{{baseUrl}}/users/:id?verbose=true"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{token}}
+      description: old token
+      disabled: true
+  params:
+    - name: verbose
+      value: "true"
+      type: query
+    - name: limit
+      value: "10"
+      type: query
+      disabled: true
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "name": "John",
+        "age": 30
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  variables:
+    - name: userName
+      value: john
+    - name: count
+      value:
+        type: number
+        data: "42"
+  scripts:
+    - type: before-request
+      code: bru.setVar("ts", Date.now());
+    - type: after-response
+      code: bru.setVar("id", res.body.id);
+    - type: tests
+      code: |-
+        test("ok", function() {
+          expect(res.status).to.equal(201);
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.name
+      operator: isString
+    - expression: res.body.age
+      operator: gt
+      value: "18"
+      disabled: true
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.id
+        method: jsonq
+      variable:
+        name: userId
+        scope: runtime
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+docs: |-
+  # Create user
+
+  Some docs.

@@ -1,0 +1,115 @@
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+
+import { Workspace } from '../core/store';
+import { Icon } from './icon';
+import { methodClass, shortMethod } from './method';
+import { RequestPane } from './request-pane';
+import { ResponsePane } from './response-pane';
+import { UrlBar } from './url-bar';
+
+@Component({
+  selector: 'app-editor',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icon, UrlBar, RequestPane, ResponsePane],
+  host: { style: 'display: contents' },
+  template: `
+    @if (ws.active(); as tab) {
+      <div class="tabs" role="tablist" aria-label="Requêtes ouvertes">
+        @for (t of ws.tabs(); track t.path) {
+          <div
+            class="tab"
+            role="tab"
+            tabindex="0"
+            [class.preview]="t.preview"
+            [class.is-dirty]="ws.isDirty(t)"
+            [attr.aria-selected]="t.path === tab.path"
+            [title]="t.path"
+            (click)="ws.activate(t.path)"
+            (dblclick)="ws.pin(t.path)"
+            (keydown.enter)="ws.activate(t.path)"
+            (auxclick)="ws.closeTab(t.path)"
+          >
+            <span [class]="methodClass(t.doc.method)" style="width: auto">{{ shortMethod(t.doc.method) }}</span>
+            <span class="tab-name">{{ t.doc.name || t.path }}</span>
+            <button class="tab-x" (click)="close($event, t.path)" [attr.aria-label]="'Fermer ' + t.doc.name"><span class="dirty"></span><span class="x"><app-ic name="x" [size]="13" /></span></button>
+          </div>
+        }
+      </div>
+      <div class="crumbs">
+        <app-ic name="file" [size]="13" />
+        @for (p of crumbs(); track $index; let last = $last) {
+          @if (last) {
+            <b>{{ p }}</b>
+          } @else {
+            <span>{{ p }}</span><app-ic name="chev-right" [size]="12" />
+          }
+        }
+        <span class="crumbs-state" [class.dirty]="ws.isDirty(tab)">
+          @if (ws.isDirty(tab)) {
+            Non enregistré <kbd class="kbd">{{ mod }}S</kbd>
+          } @else {
+            <app-ic name="check" [size]="12" />Enregistré sur le disque
+          }
+        </span>
+      </div>
+      <app-url-bar />
+      <div #split class="split" [class.vertical]="ws.stacked()" [style.--req.%]="reqPct()" [style.--reqh.%]="reqPct()">
+        <app-request-pane />
+        <div class="split-handle" role="separator" aria-label="Redimensionner requête et réponse" (pointerdown)="drag($event)"></div>
+        <app-response-pane />
+      </div>
+    } @else {
+      <div class="empty">
+        <span class="empty-ic"><app-ic name="layers" [size]="20" /></span>
+        <h2>Aucune requête ouverte</h2>
+        <p>Choisis une requête dans la collection.</p>
+        <div class="keys">
+          <span>Filtrer les requêtes</span><kbd class="kbd">{{ mod }}K</kbd>
+          <span>Envoyer</span><kbd class="kbd">{{ mod }}↵</kbd>
+          <span>Enregistrer</span><kbd class="kbd">{{ mod }}S</kbd>
+          <span>Masquer la barre latérale</span><kbd class="kbd">{{ mod }}B</kbd>
+        </div>
+      </div>
+    }
+  `,
+})
+export class Editor {
+  protected readonly ws = inject(Workspace);
+  protected readonly methodClass = methodClass;
+  protected readonly shortMethod = shortMethod;
+  protected readonly mod = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl+';
+  protected readonly reqPct = signal(46);
+  private readonly split = viewChild<ElementRef<HTMLElement>>('split');
+
+  protected readonly crumbs = computed(() => {
+    const c = this.ws.collection();
+    const tab = this.ws.active();
+    if (!c || !tab) return [];
+    const root = c.root.split(/[\\/]/).filter(Boolean).pop() ?? c.name;
+    return [root, ...tab.path.split('/')];
+  });
+
+  protected close(event: Event, path: string) {
+    event.stopPropagation();
+    this.ws.closeTab(path);
+  }
+
+  protected drag(event: PointerEvent) {
+    const handle = event.target as HTMLElement;
+    const box = this.split()?.nativeElement.getBoundingClientRect();
+    if (!box) return;
+    handle.setPointerCapture(event.pointerId);
+    handle.classList.add('dragging');
+    const move = (e: PointerEvent) => {
+      const pct = this.ws.stacked() ? ((e.clientY - box.top) / box.height) * 100 : ((e.clientX - box.left) / box.width) * 100;
+      this.reqPct.set(Math.min(75, Math.max(22, pct)));
+    };
+    const up = () => {
+      handle.classList.remove('dragging');
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+  }
+}

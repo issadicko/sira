@@ -1,0 +1,17 @@
+opencollection: 1.0.0
+
+info:
+  name: Démo publique
+
+request:
+  headers:
+    - name: X-Client
+      value: xclient-mvp
+  variables:
+    - name: echo
+      value: https://httpbin.org/anything
+bundled: false
+extensions:
+  bruno:
+    presets:
+      defaultEnvironment: public

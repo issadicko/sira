@@ -1,0 +1,62 @@
+v:
+  - value: '{"a":1}'
+  - value: it's
+  - value: both ' and "
+  - value: " lead"
+  - value: "trail "
+  - value: "null"
+  - value: "true"
+  - value: yes
+  - value: 1.0.0
+  - value: "1"
+  - value: "0x1F"
+  - value: "1e3"
+  - value: "~"
+  - value: "@x"
+  - value: "`x`"
+  - value: "%x"
+  - value: "#x"
+  - value: "a #b"
+  - value: "- x"
+  - value: "a: b"
+  - value: ""
+  - value: |-
+      line1
+      line2
+  - value: |
+      line1
+      line2
+  - value: |+
+      line1
+      line2
+
+  - value: "\tx"
+  - value: "crlf\r\nline"
+  - value: emoji é
+  - value: "*ref"
+  - value: "&anc"
+  - value: "!tag"
+  - value: "|x"
+  - value: ">x"
+  - value: "[x]"
+  - value: "{x}"
+  - value: a,b
+  - value: ?x
+  - value: :x
+  - value: "x:"
+  - value: https://x.com?a=b&c=d
+  - value: |2-
+        indented
+      first
+  - value: "{{var}}"
+  - value: Bearer {{t}}
+  - value: -x
+  - value: "-1"
+  - value: ".5"
+  - value: "+1"
+  - value: "1."
+  - value: ".inf"
+  - value: "-.inf"
+  - value: "0o17"
+  - value: 12:30
+  - value: a\b

@@ -1,0 +1,24 @@
+info:
+  name: Lire un JSON
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{httpbin}}/json"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.slideshow.author
+      operator: isString
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

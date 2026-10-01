@@ -1,0 +1,155 @@
+import type { Api } from './api';
+import { CollectionInfo, KeyValue, Param, RequestDoc, Rung, SendResult, VariableInfo } from './model';
+
+const ROOT = '~/démo/api-paiements';
+
+const doc = (name: string, method: string, url: string, extra: Partial<RequestDoc> = {}): RequestDoc => ({
+  name,
+  requestType: 'http',
+  seq: 1,
+  method,
+  url,
+  params: [],
+  headers: [],
+  body: { type: 'none' },
+  auth: { type: 'inherit' },
+  assertions: [{ expression: 'res.status', operator: 'eq', value: '200', enabled: true }],
+  variables: [],
+  scripts: [],
+  docs: null,
+  timeoutMs: null,
+  ...extra,
+});
+
+const pathParam = (name: string, value: string): Param => ({ name, value, kind: 'path', enabled: true });
+const header = (name: string, value: string): KeyValue => ({ name, value, enabled: true });
+
+const files: Record<string, RequestDoc> = {
+  'auth/connexion.yml': doc('Connexion', 'POST', '{{baseUrl}}/auth/connexion', {
+    auth: { type: 'none' },
+    body: { type: 'json', data: '{\n  "identifiant": "caisse-ouaga-01",\n  "motDePasse": "{{process.env.PSP_PASSWORD}}"\n}' },
+  }),
+  'transactions/liste.yml': doc('Liste des transactions', 'GET', '{{baseUrl}}/transactions?page=1&statut=CONFIRMEE', {
+    params: [
+      { name: 'page', value: '1', kind: 'query', enabled: true },
+      { name: 'statut', value: 'CONFIRMEE', kind: 'query', enabled: true },
+    ],
+  }),
+  'transactions/detail.yml': doc("Détail d'une transaction", 'GET', '{{baseUrl}}/transactions/:id?expand=client', {
+    params: [{ name: 'expand', value: 'client', kind: 'query', enabled: true }, pathParam('id', '{{txId}}')],
+    headers: [header('X-Canal', '{{canal}}')],
+    assertions: [
+      { expression: 'res.status', operator: 'eq', value: '200', enabled: true },
+      { expression: 'res.body.devise', operator: 'eq', value: 'XOF', enabled: true },
+    ],
+  }),
+  'transactions/annuler.yml': doc('Annuler une transaction', 'PATCH', '{{baseUrl}}/transactions/:id/annuler', {
+    params: [pathParam('id', '{{txId}}')],
+    body: { type: 'json', data: '{\n  "motif": "Erreur de saisie",\n  "canal": "USSD"\n}' },
+  }),
+};
+
+const collection: CollectionInfo = {
+  root: ROOT,
+  name: 'API Paiements (démo)',
+  environments: ['dev', 'prod'],
+  defaultEnvironment: 'dev',
+  requestCount: 4,
+  items: [
+    { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: [{ kind: 'request', path: 'auth/connexion.yml', name: 'Connexion', method: 'POST', requestType: 'http' }] },
+    {
+      kind: 'folder',
+      path: 'transactions',
+      name: 'Transactions',
+      seq: 2,
+      children: ['liste', 'detail', 'annuler'].map((f) => {
+        const path = `transactions/${f}.yml`;
+        return { kind: 'request' as const, path, name: files[path].name, method: files[path].method, requestType: 'http' };
+      }),
+    },
+  ],
+};
+
+const envs: Record<string, Record<string, string>> = {
+  dev: { baseUrl: 'https://api.dev.local/v1', txId: 'TX-2026-0042', canal: 'MOBILE' },
+  prod: { baseUrl: 'https://api.paiements.example/v1', canal: 'MOBILE' },
+};
+const collectionVars: Record<string, string> = { baseUrl: 'https://api.paiements.test/v1' };
+const folderVars: Record<string, string> = { canal: 'USSD' };
+
+function variables(path: string, env: string | null): VariableInfo[] {
+  const names = new Set([...Object.keys(envs['dev']), ...Object.keys(collectionVars), ...Object.keys(folderVars), 'token']);
+  return [...names].sort().map((name) => {
+    const rungs: Rung[] = [
+      { level: 'Runtime', source: 'bru.setVar()', value: null },
+      { level: 'Requête', source: path, value: null },
+      { level: 'Dossier Transactions', source: 'transactions/folder.yml', value: path.startsWith('transactions/') ? folderVars[name] ?? null : null },
+      { level: `Environnement ${env ?? '(aucun)'}`, source: `environments/${env}.yml`, value: env ? envs[env]?.[name] ?? null : null },
+      { level: 'Collection', source: 'opencollection.yml', value: collectionVars[name] ?? null },
+    ];
+    const win = rungs.find((r) => r.value != null);
+    return { name, value: win?.value ?? null, level: win?.level ?? null, secret: name === 'token', rungs };
+  });
+}
+
+const body = (path: string) =>
+  path === 'transactions/detail.yml'
+    ? { id: 'TX-2026-0042', montant: 15000, frais: 150, devise: 'XOF', statut: 'CONFIRMEE', client: { id: 'CL-00318', nom: 'Aminata Ouédraogo' }, creeLe: '2026-09-29T10:42:11Z' }
+    : { ok: true, source: 'mode démo du navigateur' };
+
+const timers = new Map<string, () => void>();
+
+export const demoApi: Api = {
+  demo: true,
+  pickFolder: async () => ROOT,
+  openCollection: async () => structuredClone(collection),
+  readRequest: async (_root, path) => structuredClone(files[path]),
+  saveRequest: async (_root, path, d) => {
+    files[path] = structuredClone(d);
+    return true;
+  },
+  readEnvironment: async (_root, name) => [
+    ...Object.entries(envs[name] ?? {}).map(([n, value]) => ({ name: n, value, secret: false, enabled: true })),
+    { name: 'token', value: null, secret: true, enabled: true },
+  ],
+  variables: async (_root, path, _doc, env) => variables(path, env),
+  send: (id, _root, path, d, env) =>
+    new Promise<SendResult>((resolve, reject) => {
+      const t = setTimeout(() => {
+        timers.delete(id);
+        const vars = Object.fromEntries(variables(path, env).map((v) => [v.name, v.value]));
+        const unresolved: string[] = [];
+        const url = d.url.replace(/\{\{([^}]+)\}\}/g, (all, n: string) => {
+          const v = vars[n.trim()];
+          if (v == null) unresolved.push(n.trim());
+          return v ?? all;
+        });
+        const text = JSON.stringify(body(path), null, 2);
+        const total = 90 + Math.round(Math.random() * 60);
+        resolve({
+          method: d.method,
+          url,
+          unresolved,
+          assertions: d.assertions.filter((a) => a.enabled).map((a) => ({ expression: a.expression, operator: a.operator, expected: a.value, actual: '200', passed: a.expression === 'res.status' || a.value === 'XOF' })),
+          response: {
+            status: 200,
+            reason: 'OK',
+            httpVersion: 'HTTP/1.1',
+            remoteAddr: '127.0.0.1:443',
+            headers: [['content-type', 'application/json'], ['content-length', String(text.length)]],
+            body: text,
+            size: text.length,
+            timings: { dnsMs: 4, tcpMs: 11, tlsMs: 28, ttfbMs: total - 55, downloadMs: 12, totalMs: total },
+          },
+        });
+      }, 700);
+      timers.set(id, () => {
+        clearTimeout(t);
+        reject('Requête annulée');
+      });
+    }),
+  cancel: async (id) => {
+    timers.get(id)?.();
+    return timers.delete(id);
+  },
+};

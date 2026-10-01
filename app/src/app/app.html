@@ -1,0 +1,149 @@
+<div class="app">
+  <header class="titlebar" data-tauri-drag-region>
+    <div class="tb-left" data-tauri-drag-region>
+      @if (nativeLights) {
+        <span class="native-lights" data-tauri-drag-region></span>
+      }
+      <span class="mark" aria-hidden="true"><app-ic name="bolt" [size]="12" /></span>
+      <button class="tb-btn" (click)="ws.pickAndOpen()" [title]="ws.collection()?.root ?? 'Ouvrir une collection'">
+        <span>{{ ws.collection()?.name ?? 'Ouvrir une collection' }}</span>
+        <app-ic name="chev-down" [size]="14" />
+      </button>
+    </div>
+    @if (ws.collection()) {
+      <button class="command-center" (click)="focusFilter()" aria-label="Filtrer les requêtes">
+        <app-ic name="search" [size]="14" />
+        <span>Filtrer les requêtes</span>
+        <kbd class="kbd" id="ccKbd">{{ mod }}K</kbd>
+      </button>
+    } @else {
+      <span data-tauri-drag-region></span>
+    }
+    <div class="tb-right" data-tauri-drag-region>
+      @if (ws.collection(); as c) {
+        <div class="env-wrap">
+          <button class="env-btn" [class.is-prod]="ws.env() === 'prod'" (click)="envMenu.set(!envMenu())" aria-haspopup="menu" [attr.aria-expanded]="envMenu()">
+            <span class="env-dot" [class.none]="!ws.env()" [class.prod]="ws.env() === 'prod'"></span>
+            <span>{{ ws.env() ?? 'Aucun environnement' }}</span>
+            <app-ic name="chev-down" [size]="14" />
+          </button>
+          @if (envMenu()) {
+            <div class="menu env-menu" role="menu">
+              <div class="menu-label">Environnement actif</div>
+              <button class="menu-item" role="menuitemradio" [attr.aria-checked]="!ws.env()" (click)="chooseEnv(null)"><span class="chk">@if (!ws.env()) {<app-ic name="check" [size]="14" />}</span>Aucun environnement</button>
+              @for (e of c.environments; track e) {
+                <button class="menu-item" role="menuitemradio" [attr.aria-checked]="ws.env() === e" (click)="chooseEnv(e)">
+                  <span class="chk">@if (ws.env() === e) {<app-ic name="check" [size]="14" />}</span>{{ e }}<span class="sub">{{ e }}.yml</span>
+                </button>
+              } @empty {
+                <div class="menu-label">Aucun fichier dans environments/</div>
+              }
+              @if (ws.envVars().length) {
+                <div class="menu-sep"></div>
+                <div class="menu-label">Coup d'œil</div>
+                <dl class="menu-peek">
+                  @for (v of ws.envVars().slice(0, 6); track v.name) {
+                    <dt>{{ v.name }}</dt><dd>{{ v.secret ? '•••••••• (hors fichier)' : v.value }}</dd>
+                  }
+                </dl>
+              }
+            </div>
+          }
+        </div>
+        <span class="tb-div" aria-hidden="true"></span>
+        <button class="icon-btn" (click)="ws.stacked.set(!ws.stacked())" [title]="(ws.stacked() ? 'Côte à côte' : 'Empiler requête et réponse') + ' (' + mod + '\\)'" [attr.aria-label]="ws.stacked() ? 'Côte à côte' : 'Empiler requête et réponse'">
+          <app-ic [name]="ws.stacked() ? 'rows' : 'cols'" />
+        </button>
+      }
+      <button class="icon-btn" (click)="ws.toggleTheme()" [attr.aria-label]="ws.theme() === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre'" [title]="ws.theme() === 'dark' ? 'Thème clair' : 'Thème sombre'">
+        <app-ic [name]="ws.theme() === 'dark' ? 'sun' : 'moon'" />
+      </button>
+    </div>
+  </header>
+
+  @if (ws.collection(); as c) {
+    <div class="workbench" [class.no-sidebar]="!ws.sidebar()" [style.--sb.px]="sidebarWidth()">
+      <nav class="activity" aria-label="Vues">
+        <button class="act" [attr.aria-current]="ws.view() === 'collections'" (click)="toggleView('collections')" title="Collections" aria-label="Collections"><app-ic name="layers" [size]="20" /></button>
+        <button class="act" [attr.aria-current]="ws.view() === 'env'" (click)="toggleView('env')" title="Environnements et variables" aria-label="Environnements et variables"><app-ic name="variable" [size]="20" /></button>
+        <span class="act-spacer"></span>
+      </nav>
+      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : 'Collection'">
+        @if (ws.view() === 'collections') {
+          <div class="pane-head">
+            <span class="pane-title" [title]="c.root">{{ c.name }}</span>
+            <button class="icon-btn sm" (click)="ws.reload()" title="Relire le dossier" aria-label="Relire le dossier"><app-ic name="sync" [size]="15" /></button>
+          </div>
+          <label class="sb-filter"><app-ic name="filter" [size]="13" /><input #filter type="text" spellcheck="false" placeholder="Filtrer par nom ou chemin" [value]="ws.filter()" (input)="ws.filter.set($any($event.target).value)" aria-label="Filtrer les requêtes" /></label>
+          <div class="sb-scroll" role="tree">
+            <app-tree [items]="c.items" />
+            @if (!c.items.length) {
+              <p class="pal-empty">Cette collection ne contient encore aucune requête.</p>
+            }
+          </div>
+          @if (ws.history().length) {
+            <div class="sb-section">
+              <div class="sb-section-head"><app-ic name="clock" [size]="13" />Historique de la session<span class="row-meta" style="margin-left: auto">{{ ws.history().length }}</span></div>
+              <div class="hist">
+                @for (h of ws.history().slice(0, 5); track $index) {
+                  <button class="hist-row" (click)="ws.openRequest(h.path, true)" [title]="h.url">
+                    <span class="hist-time">{{ h.at }}</span><span [class]="methodClass(h.method)">{{ shortMethod(h.method) }}</span>
+                    <span class="hist-path">{{ h.url }}</span><span class="hist-code" [class]="'hist-code c-' + String(h.status)[0]">{{ h.status }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="pane-head"><span class="pane-title">Environnements</span></div>
+          <div class="sb-scroll">
+            @for (e of c.environments; track e) {
+              <button class="row env-row" [class.is-active]="ws.env() === e" style="--d: 0" (click)="ws.setEnv(e)">
+                <span class="env-dot" [class.prod]="e === 'prod'" style="margin: 0 4px"></span><span class="row-name">{{ e }}</span>
+                @if (ws.env() === e) {
+                  <span class="tag good">actif</span>
+                }
+              </button>
+            } @empty {
+              <p class="pal-empty">Aucun fichier dans environments/.</p>
+            }
+          </div>
+        }
+      </aside>
+      <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner la barre latérale" (pointerdown)="dragSidebar($event)"></div>
+      <main class="island editor">
+        @if (ws.view() === 'env') {
+          <app-env-view />
+        } @else {
+          <app-editor />
+        }
+      </main>
+    </div>
+  } @else {
+    <div class="workbench solo">
+      <app-welcome />
+    </div>
+  }
+
+  <footer class="statusbar">
+    @if (ws.collection(); as c) {
+      <span class="sb-item" [title]="c.root"><app-ic name="disk" [size]="13" />{{ c.requestCount }} requête(s) sur le disque</span>
+      <span class="sb-item">OpenCollection YAML</span>
+      <span class="sb-spacer"></span>
+      @if (lastResult(); as r) {
+        <span class="sb-item">{{ r.response.status }} · {{ r.response.timings.totalMs | number: '1.0-0' }} ms</span>
+      }
+      <button class="sb-item" (click)="toggleView('env')"><app-ic name="variable" [size]="13" />{{ ws.env() ?? 'aucun environnement' }}</button>
+    } @else {
+      <span class="sb-item"><app-ic name="cloud-off" [size]="13" />Hors ligne par défaut, aucune télémétrie</span>
+      <span class="sb-spacer"></span>
+    }
+    @if (ws.demo) {
+      <span class="sb-item warn-text">Mode démo navigateur</span>
+    }
+    <span class="sb-item">v0.1.0</span>
+  </footer>
+</div>
+
+<app-var-popover />
+<div class="toast" [class.show]="!!ws.toast()" role="status" aria-live="polite"><app-ic name="check-circle" [size]="15" /><span>{{ ws.toast() }}</span></div>

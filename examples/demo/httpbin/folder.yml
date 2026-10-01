@@ -1,0 +1,9 @@
+info:
+  name: httpbin
+  type: folder
+  seq: 2
+
+request:
+  auth:
+    type: bearer
+    token: "{{process.env.DEMO_TOKEN}}"

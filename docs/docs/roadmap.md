@@ -1,0 +1,181 @@
+# Roadmap — Client API desktop offline-first
+
+1er octobre 2026 · référence : `docs/cahier-des-charges.md`, maquette `design/maquette-v2/`
+
+Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé par une gate mesurable. Les dates supposent **deux développeurs à temps plein** (hypothèse non confirmée, voir § 9). Avec une seule personne, multiplier les durées par 1,8 environ.
+
+## 0. Avancement au 1er octobre 2026
+
+| Élément | État | Où |
+| --- | --- | --- |
+| Maquette v2 (IDE, sombre d'abord) et `DESIGN.md` | Fait | `docs/design/maquette-v2/`, `DESIGN.md` |
+| 0.1 Workspace Cargo (`core`, `engine`, `cli`, `app`) | Fait ; `sync` et `script` seront créés à leur lot (YAGNI) | `Cargo.toml` |
+| 0.2 CI build / fmt / clippy / tests sur 3 OS | Écrite, à activer sur le dépôt distant | `.github/workflows/ci.yml` |
+| 0.3 Crate YAML | Décidé : parseur `yaml-rust2` + émetteur maison calqué sur celui de Bruno | `crates/core/src/yaml.rs` |
+| 0.4 – 0.6 Modèle, format, variables | Fait (requête HTTP, dossiers, collection, environnements, `.env`, variables dynamiques) | `crates/core` |
+| 0.7 Moteur HTTP avec timings et annulation | Fait (HTTP/1.1, TLS rustls + certificats du système) | `crates/engine` |
+| 0.8 CLI `run` | Fait, plus `check` (aller-retour) et assertions déclaratives | `crates/cli` |
+| 0.9 Corpus de 20 collections Bruno | À faire ; 11 fixtures générées par le sérialiseur de Bruno passent à l'octet près | `crates/core/tests/fixtures` |
+| 0.10 Bench de perf en CI | À faire | — |
+| 0.11 Signature des binaires | À faire | — |
+| MVP-α α.1 – α.8 | Fait, sauf glisser-déposer et coup d'œil éditable des environnements | `app/` |
+| MVP-α α.9 Rechargement à chaud (`notify`) | À faire (bouton « Relire le dossier » en attendant) | — |
+
+Écarts assumés du MVP-α : secrets d'environnement non saisissables (trousseau en V1, `{{process.env.X}}` fonctionne déjà), scripts conservés mais non exécutés, corps `form-urlencoded` / `multipart` / `file` conservés mais non éditables, HTTP/2 non négocié, redirections non suivies.
+
+## 1. Vue d'ensemble
+
+```mermaid
+gantt
+    title Jalons (2 développeurs)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d %b
+    section Fondations
+    Lot 0 · format, moteur, CLI        :l0, 2026-10-05, 4w
+    Gate 1 · corpus Bruno sans diff    :milestone, g1, after l0, 0d
+    section MVP
+    MVP-α · boucle requête testable    :ma, after l0, 3w
+    MVP-β · import cURL et OpenAPI     :mb, after ma, 2w
+    MVP-γ · synchro OpenAPI 3 voies    :mc, after mb, 3w
+    Gate 2 · perf + 10 bêta-testeurs   :milestone, g2, after mc, 0d
+    section V1 parité Bruno
+    V1 · scripts, tests, runner, auth  :v1, after mc, 10w
+    Gate 3 · scripts = bru run         :milestone, g3, after v1, 0d
+    section V2
+    V2 · WS, gRPC, Git, Vault          :v2, after v1, 10w
+```
+
+| Jalon | Fin estimée | Ce qu'on peut montrer |
+| --- | --- | --- |
+| Lot 0 | 30 oct. 2026 | `cli run` exécute une requête Bruno réelle, timings DNS/TCP/TLS/TTFB, aller-retour YAML sans diff |
+| MVP-α | 20 nov. 2026 | L'app ouvre une collection Bruno, édite, envoie, affiche la réponse et la timeline, enregistre sans diff |
+| MVP-β | 4 déc. 2026 | Coller un cURL crée une requête ; importer une spec OpenAPI crée une collection |
+| MVP-γ (MVP complet) | 25 déc. 2026 | Resynchroniser une spec modifiée, arbitrer les conflits champ par champ |
+| V1 | 5 mars 2027 | Parité Bruno sur scripts, tests, runner, OAuth 2.0, GraphQL, CLI avec rapports |
+| V2 | 14 mai 2027 | WebSocket, gRPC, Git intégré, Vault, NTLM, docs |
+
+## 2. Définition du MVP testable (MVP-α)
+
+Le MVP-α est le plus petit produit qu'un développeur peut utiliser une journée entière sur une vraie collection Bruno. Tout le reste attend.
+
+**Dedans**
+
+- Ouvrir un dossier de collection OpenCollection YAML existant (créé par Bruno) et l'afficher en arbre : dossiers, requêtes, ordre `seq`.
+- Onglets de requêtes, indicateur « non enregistré », `Ctrl/⌘+S` qui écrit le fichier sans diff parasite.
+- Éditer méthode, URL, paramètres query (synchronisés avec l'URL), en-têtes, corps JSON/texte.
+- Environnements de la collection : sélection de l'environnement actif, résolution `{{var}}` (runtime > requête > dossier > environnement > collection), variables dynamiques `{{$uuid}}`, `{{$timestamp}}`, `{{$randomInt}}`.
+- Envoi HTTP/1.1 et HTTPS avec annulation, réponse (statut, durée, taille, en-têtes, corps JSON formaté) et timeline DNS / TCP / TLS / TTFB / téléchargement.
+- CLI `run` sur une requête ou un dossier, `--env`, code de sortie non nul si une assertion `res.status` échoue ou si le réseau échoue.
+- Thèmes sombre et clair de la maquette v2.
+
+**Dehors (lots suivants)**
+
+Synchro OpenAPI, imports, scripts JavaScript, auth autre que Bearer/Basic hérités, Git intégré, palette de commandes complète, CodeMirror (le MVP-α utilise un éditeur texte simple et une vue JSON en lecture seule), HTTP/2, proxy, mTLS.
+
+**Critères d'acceptation du MVP-α**
+
+1. Une collection Bruno publique (corpus Gate 1) s'ouvre, chaque requête s'envoie, et un enregistrement sans modification ne change aucun octet.
+2. `cargo test --workspace` passe ; chaque exigence couverte a un test qui porte son identifiant.
+3. Démarrage à froid < 1 s et ouverture d'une collection de 1 000 requêtes < 500 ms sur la machine de référence (mesures indicatives, CI de perf au Lot 0).
+4. Aucun appel réseau sortant au démarrage.
+
+## 3. Lot 0 — Fondations (4 semaines)
+
+| # | Tâche | Exigences | Livrable | Critère de fin |
+| --- | --- | --- | --- | --- |
+| 0.1 | Workspace Cargo `core`, `engine`, `sync`, `cli`, `app` ; `script` créé vide | — | `Cargo.toml` racine | `cargo build` vert sur les 3 OS |
+| 0.2 | CI GitHub Actions : build, test, clippy `-D warnings`, fmt, matrice Windows / macOS / Linux | ENF-COMP-01 | `.github/workflows/ci.yml` | Pipeline vert |
+| 0.3 | Choix de la crate YAML maintenue (`serde_yml` vs `serde_norway` vs écriture maison) avec bench d'aller-retour | ENF-COMP-02 | ADR `docs/adr/0001-yaml.md` | Décision écrite et justifiée |
+| 0.4 | `core::model` : Collection, Folder, Request, Environment, Variable | EF-REQ-01 | types Rust | Tests unitaires |
+| 0.5 | `core::format` lecture et écriture OpenCollection YAML, ordre des clés stable, champs inconnus conservés | ENF-COMP-02 | `read_collection`, `write_request` | Test `enf_comp_02_round_trip` sur le corpus |
+| 0.6 | `core::vars` résolution `{{var}}`, précédence Bruno, variables dynamiques | EF-VAR-01, EF-VAR-02 | `Resolver` | Tests par niveau de précédence |
+| 0.7 | `engine` envoi HTTP avec timings bas niveau (hyper + rustls), annulation | EF-RES-01, EF-RES-02, EF-REQ-03 | `send(&PreparedRequest)` | Test sur serveur local, timings cohérents |
+| 0.8 | `cli run` minimal | EF-CLI-01 | binaire `cli` | Code de sortie testé |
+| 0.9 | Corpus de 20 collections Bruno publiques en sous-module de test | ENF-COMP-02 | `tests/corpus/` | Gate 1 |
+| 0.10 | Bench de perf en CI (criterion) avec seuil de régression 10 % | ENF-PERF-03, 05, 06 | `benches/` | Rapport publié par la CI |
+| 0.11 | Pipeline de signature (macOS notarisation, Windows, Linux) | ENF-SEC-04 | workflow `release.yml` | Un binaire signé produit |
+
+**Gate 1** : le corpus est relu puis réécrit sans aucun diff. Sans elle, le MVP ne démarre pas.
+
+## 4. MVP (8 semaines)
+
+### MVP-α — boucle requête (3 semaines)
+
+| # | Tâche | Exigences |
+| --- | --- | --- |
+| α.1 | Coque Tauri 2 + Angular zoneless (signals), tokens de la maquette v2, thèmes clair/sombre | EF-UX-01 |
+| α.2 | Commandes IPC typées : `open_collection`, `read_request`, `save_request`, `send_request`, `cancel_request`, `list_environments` | — |
+| α.3 | Barre d'activité, îlot Collections (arbre, filtre), barre d'état | EF-COL-01 (sans glisser-déposer) |
+| α.4 | Onglets, fil d'Ariane du fichier, indicateur non enregistré, `Ctrl/⌘+S` | EF-REQ-03 |
+| α.5 | Barre d'URL avec méthode colorée et pastilles `{{var}}` survolables (valeur et niveau) | EF-REQ-01, EF-VAR-01 |
+| α.6 | Paramètres query/path en tableau synchronisés avec l'URL, en-têtes, corps JSON/texte | EF-REQ-01, EF-REQ-02 (partiel) |
+| α.7 | Sélecteur d'environnement, coup d'œil des valeurs | EF-VAR-01 |
+| α.8 | Réponse : statut, durée, taille, en-têtes, corps JSON formaté, timeline, annulation | EF-RES-01, EF-RES-02 |
+| α.9 | Rechargement à chaud quand un fichier change sur disque (`notify`) | EF-COL-03 |
+
+### MVP-β — imports (2 semaines)
+
+| # | Tâche | Exigences |
+| --- | --- | --- |
+| β.1 | Collage d'une commande cURL détecté dans la barre d'URL | EF-IMP-01 (cURL) |
+| β.2 | Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL) vers une collection, dossiers par tag | EF-IMP-02 |
+| β.3 | Snapshot `.oc-sync/openapi/base/` écrit à l'import | § 6 règle 6 |
+| β.4 | Palette de commandes (`Ctrl/⌘+K`) : requêtes, commandes, environnements | EF-UX-01 |
+| β.5 | CodeMirror 6 pour le corps de requête et la réponse (gros documents, pliage, recherche) | ENF-PERF-04 |
+
+### MVP-γ — synchro OpenAPI non destructive (3 semaines)
+
+| # | Tâche | Exigences |
+| --- | --- | --- |
+| γ.1 | `sync::merge` : fusion à 3 voies champ par champ, clé `operationId` ou méthode + chemin normalisé | § 6 |
+| γ.2 | Table de propriété des champs (spec / équipe), valeurs saisies conservées | § 6 |
+| γ.3 | Opérations nouvelles rangées par tag, opérations retirées marquées dépréciées | § 6 règles 2, 3 |
+| γ.4 | Rapprochement manuel quand le chemin change sans `operationId` | § 6 règle 1 |
+| γ.5 | Écran de fusion de la maquette v2 : Équipe / Spec / Résultat, base optionnelle, actions par conflit | § 6 règle 4 |
+| γ.6 | Aperçu avant écriture, base réécrite en dernier, synchro interrompue rejouable | § 6 règles 5, 6 |
+| γ.7 | `cli sync --check` | § 6 règle 7 |
+| γ.8 | Tests des quatre issues de fusion (aucun changement, spec seule, équipe seule, conflit) | Critères § 9 |
+
+**Gate 2** : budgets de perf ENF-PERF-01 à 08 tenus sur les trois OS, 10 bêta-testeurs actifs pendant deux semaines.
+
+## 5. V1 — parité Bruno (10 semaines)
+
+| Semaines | Thème | Exigences |
+| --- | --- | --- |
+| 1-3 | Sandbox QuickJS (`rquickjs`), API `bru` / `req` / `res`, scripts pré et post aux trois niveaux | EF-SCR-01, 02, 03, ENF-SEC-02 |
+| 3-4 | Tests Chai, assertions déclaratives, onglet Tests de la réponse | EF-TST-01, 02 |
+| 4-5 | Runner : collection ou dossier, délai, arrêt au premier échec, itérations CSV/JSON | EF-RUN-01, 02 |
+| 5-6 | CLI : rapports JUnit, HTML, JSON ; image Docker | EF-CLI-02 |
+| 6-7 | Auth : OAuth 2.0 (code + PKCE, client credentials, password, refresh), Digest, AWS SigV4, API Key ; secrets dans le trousseau | EF-AUT-01, 02, 04, EF-VAR-03 |
+| 7-8 | Imports Postman v2.1, Insomnia, lecture et conversion `.bru` ; exports Postman, OpenAPI, cURL | EF-IMP-01, 03 |
+| 8-9 | GraphQL : requêtes, variables, introspection, autocomplétion | EF-GQL-01 |
+| 9-10 | Génération de code (9 langages), historique local, gestionnaire de cookies, réglages réseau (timeout, proxy, mTLS, CA) | EF-GEN-01, EF-UX-02, EF-REQ-04 |
+
+**Gate 3** : les scripts et tests du corpus donnent les mêmes résultats que `bru run` (ENF-COMP-03).
+
+## 6. V2 — protocoles et fonctions avancées (10 semaines)
+
+WebSocket (EF-WS-01), gRPC unaire et streaming via `.proto` ou réflexion (EF-GRPC-01), Git intégré avec la vue Source Control de la maquette (EF-GIT-01, via `gix`), HashiCorp Vault (EF-VAR-03), NTLM et OAuth 1.0 (EF-AUT-03), docs Markdown de collection (EF-DOC-01), interface anglaise complète (EF-UX-01).
+
+## 7. V3 — candidats
+
+Assistant IA optionnel avec clé de l'utilisateur (EF-AI-01), mock server, monitoring planifié. Chacun passe d'abord par une décision écrite au regard des cinq principes du cahier des charges.
+
+## 8. Qualité transverse, à chaque lot
+
+- Chaque exigence implémentée a au moins un test nommé d'après son identifiant (`ef_req_01_…`).
+- Couverture > 80 % sur `core` et `sync` (ENF-QUAL-01), mesurée par `cargo llvm-cov`.
+- Aucune télémétrie, aucun appel sortant non demandé (ENF-SEC-03) : test d'intégration qui démarre l'app sans réseau.
+- Revue de design contre `design/maquette-v2/` et `DESIGN.md` avant chaque fusion touchant l'interface.
+
+## 9. Risques et décisions ouvertes
+
+| Sujet | Impact | Action | Échéance |
+| --- | --- | --- | --- |
+| Taille de l'équipe non confirmée | Planning ×1,8 à une personne | Confirmer avant le 5 oct. | Lot 0 |
+| Spec OpenCollection encore jeune, champs qui bougent | Fichiers réécrits de façon incompatible | Champs inconnus conservés tels quels, corpus mis à jour à chaque release Bruno | Continu |
+| Crate YAML (`serde_yaml` archivé) | Aller-retour sans diff impossible si le sérialiseur reformate | Bench au Lot 0 ; repli : écrivain YAML maison pour le sous-ensemble OpenCollection | Lot 0 |
+| Timings bas niveau avec HTTP/2 | Timeline incomplète en HTTP/2 | HTTP/1.1 au MVP, HTTP/2 via ALPN en V1 | V1 |
+| WebKitGTK plus lent sous Linux | UI moins fluide | Traitements lourds en Rust, listes virtualisées, mesures aussi sous Linux | MVP |
+| Fusion OpenAPI déjà présente chez Bruno ? | Différenciant affaibli | Vérifier la doc Bruno avant toute communication | MVP-γ |
+| Nom du produit | Binaire, bundle id, domaine | Décision avant la première release signée | Gate 2 |

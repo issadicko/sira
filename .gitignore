@@ -1,0 +1,7 @@
+/target
+node_modules/
+/app/dist/
+/app/.angular/
+.DS_Store
+.env
+!examples/demo/.env

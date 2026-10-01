@@ -1,0 +1,43 @@
+info:
+  name: "L'été: \"tests\""
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: https://api.paiements.test/v1/transactions?statut=CONFIRMEE&page=1
+  headers:
+    - name: X-Empty
+      value: ""
+    - name: X-Bool
+      value: "true"
+    - name: X-Hash
+      value: "#tag"
+    - name: X-Json
+      value: '{"a":1}'
+    - name: X-Space
+      value: " padded "
+    - name: X-Utf
+      value: Ouédraogo é
+  params:
+    - name: statut
+      value: CONFIRMEE
+      type: query
+    - name: page
+      value: "1"
+      type: query
+  body:
+    type: xml
+    data: |2+
+       <a>
+        <b/>
+      </a>
+
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

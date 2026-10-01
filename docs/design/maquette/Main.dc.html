@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Espace de travail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{text-decoration:none}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: {{t.bg}}; color: {{t.ink}}; font-family: 'Figtree', system-ui, sans-serif; font-size: 13px; overflow: hidden; transition: background .25s, color .25s">
+
+<header style="height: 60px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: {{t.panel}}; border-bottom: 1px solid {{t.line}}">
+<div style="display: flex; align-items: center; gap: 10px; width: 240px">
+<div style="width: 34px; height: 34px; border-radius: 11px; background: {{t.accent}}; display: flex; align-items: center; justify-content: center; transform: rotate(-6deg)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.accentInk}}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 13h6l-1 8 8-10h-6l1-8z"></path></svg>
+</div>
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 19px; letter-spacing: -0.02em">[NOM]</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid {{t.line}}; background: {{t.raised}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+<span style="font-weight: 600">API Paiements</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<div style="flex-grow: 1"></div>
+<a href="Sync.dc.html" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; background: {{t.warnSoft}}; color: {{t.warn}}; font-weight: 600">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"></path><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"></path><path d="M21 3v5h-5"></path><path d="M3 21v-5h5"></path></svg>
+Spec OpenAPI : 2 conflits
+</a>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid {{t.line}}; background: {{t.raised}}">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: {{t.good}}"></span>
+<span style="font-weight: 600">dev</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<button type="button" aria-label="Changer de thème" onClick="{{toggleTheme}}" style="width: 44px; height: 36px; border-radius: 10px; border: 1px solid {{t.line}}; background: {{t.raised}}; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{light}}" hint-placeholder-val="{{ true }}">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{t.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+</sc-if>
+<sc-if value="{{dark}}" hint-placeholder-val="{{ false }}">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{t.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+</sc-if>
+</button>
+<button type="button" aria-label="Réglages" style="width: 44px; height: 36px; border-radius: 10px; border: 1px solid {{t.line}}; background: {{t.raised}}; display: flex; align-items: center; justify-content: center">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{t.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+</button>
+</header>
+
+<div style="flex-grow: 1; display: flex; min-height: 0">
+
+<aside style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; background: {{t.panel}}; border-right: 1px solid {{t.line}}; box-sizing: border-box">
+<label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 12px; background: {{t.sunken}}; border: 1px solid {{t.line}}">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input type="search" placeholder="Rechercher une requête" aria-label="Rechercher une requête" style="flex-grow: 1; min-width: 0; border: none; background: transparent; outline: none; font-size: 13px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; padding: 2px 6px; border-radius: 6px; border: 1px solid {{t.line}}">Ctrl K</span>
+</label>
+
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: {{t.muted}}">Collection</span>
+<button type="button" aria-label="Nouvelle requête" style="width: 28px; height: 28px; border-radius: 8px; border: none; background: {{t.accentSoft}}; display: flex; align-items: center; justify-content: center">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+</button>
+</div>
+
+<nav style="display: flex; flex-direction: column; gap: 2px">
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg>
+<span style="font-weight: 600; flex-grow: 1">Auth</span>
+<span style="font-size: 11px; color: {{t.muted}}">1</span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 29px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.accent}}">POST</span>
+<span>Connexion</span>
+</button>
+
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; margin-top: 6px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg>
+<span style="font-weight: 600; flex-grow: 1">Transactions</span>
+<span style="font-size: 11px; color: {{t.muted}}">5</span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 29px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.good}}">GET</span>
+<span>Liste des transactions</span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 29px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.accent}}">POST</span>
+<span>Créer une transaction</span>
+</button>
+<button type="button" aria-current="true" style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 29px; border: none; border-radius: 9px; background: {{t.accentSoft}}; text-align: left; font-weight: 600">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.good}}">GET</span>
+<span>Détail d'une transaction</span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 29px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.warn}}">PATCH</span>
+<span style="flex-grow: 1">Annuler une transaction</span>
+<span style="width: 8px; height: 8px; border-radius: 50%; background: {{t.warn}}"></span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 29px; border: none; border-radius: 9px; background: transparent; text-align: left; color: {{t.muted}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; width: 42px; color: {{t.bad}}">DEL</span>
+<span style="flex-grow: 1; text-decoration: line-through">Ancienne annulation</span>
+<span style="font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: {{t.sunken}}; color: {{t.muted}}">dépréciée</span>
+</button>
+
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; margin-top: 6px; border: none; border-radius: 9px; background: transparent; text-align: left">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
+<span style="font-weight: 600; flex-grow: 1">Clients</span>
+<span style="font-size: 11px; color: {{t.muted}}">4</span>
+</button>
+</nav>
+
+<div style="flex-grow: 1"></div>
+
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: {{t.sunken}}; border: 1px solid {{t.line}}">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="8" r="2.5"></circle><path d="M6 8.5v7M18 10.5c0 4-6 3-10 6"></path></svg>
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700">main</span>
+<span style="margin-left: auto; font-size: 12px; color: {{t.muted}}">3 fichiers modifiés</span>
+</div>
+<button type="button" style="height: 36px; border-radius: 10px; border: 1px solid {{t.line}}; background: {{t.panel}}; font-weight: 600">Commit et push</button>
+</div>
+</aside>
+
+<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+
+<div style="height: 46px; flex-shrink: 0; display: flex; align-items: flex-end; gap: 4px; padding: 0 12px; background: {{t.panel}}; border-bottom: 1px solid {{t.line}}">
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border: 1px solid {{t.line}}; border-bottom: none; border-radius: 10px 10px 0 0; background: {{t.bg}}; margin-bottom: -1px; font-weight: 600">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; color: {{t.good}}">GET</span>
+Détail d'une transaction
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{t.accent}}"></span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border: none; background: transparent; color: {{t.muted}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; color: {{t.accent}}">POST</span>
+Connexion
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border: none; background: transparent; color: {{t.muted}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; color: {{t.warn}}">PATCH</span>
+Annuler une transaction
+</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 10px; padding: 16px 20px">
+<div style="flex-grow: 1; display: flex; align-items: center; height: 48px; border-radius: 14px; background: {{t.panel}}; border: 1.5px solid {{t.line}}; overflow: hidden">
+<button type="button" style="height: 100%; padding: 0 14px 0 16px; border: none; border-right: 1px solid {{t.line}}; background: {{t.goodSoft}}; color: {{t.good}}; font-family: 'JetBrains Mono', monospace; font-weight: 700; display: flex; align-items: center; gap: 6px">
+GET
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<div style="flex-grow: 1; display: flex; align-items: center; gap: 2px; padding: 0 14px; font-family: 'JetBrains Mono', monospace; font-size: 13.5px">
+<span style="padding: 3px 8px; border-radius: 7px; background: {{t.accentSoft}}; color: {{t.accent}}; font-weight: 500">{{ baseUrl }}</span>
+<span>/transactions/</span>
+<span style="padding: 3px 8px; border-radius: 7px; background: {{t.accentSoft}}; color: {{t.accent}}; font-weight: 500">{{ txId }}</span>
+</div>
+</div>
+<button type="button" style="height: 48px; padding: 0 22px; border: none; border-radius: 14px; background: {{t.accent}}; color: {{t.accentInk}}; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 18px -8px {{t.accent}}">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4z"></path></svg>
+Envoyer
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.75">Ctrl ↵</span>
+</button>
+</div>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 16px; padding: 0 20px 20px">
+
+<section style="width: 520px; flex-shrink: 0; display: flex; flex-direction: column; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}; overflow: hidden">
+<div style="display: flex; gap: 4px; padding: 10px 10px 0; border-bottom: 1px solid {{t.line}}">
+<button type="button" style="height: 36px; padding: 0 12px; border: none; border-bottom: 2.5px solid {{t.accent}}; background: transparent; font-weight: 700">Params <span style="font-size: 11px; color: {{t.accent}}">2</span></button>
+<button type="button" style="height: 36px; padding: 0 12px; border: none; background: transparent; color: {{t.muted}}">Headers <span style="font-size: 11px">4</span></button>
+<button type="button" style="height: 36px; padding: 0 12px; border: none; background: transparent; color: {{t.muted}}">Body</button>
+<button type="button" style="height: 36px; padding: 0 12px; border: none; background: transparent; color: {{t.muted}}">Auth</button>
+<button type="button" style="height: 36px; padding: 0 12px; border: none; background: transparent; color: {{t.muted}}">Scripts</button>
+<button type="button" style="height: 36px; padding: 0 12px; border: none; background: transparent; color: {{t.muted}}">Tests <span style="font-size: 11px">3</span></button>
+<button type="button" style="height: 36px; padding: 0 12px; border: none; background: transparent; color: {{t.muted}}">Docs</button>
+</div>
+
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: {{t.muted}}">Paramètres de chemin</span>
+<div style="display: grid; grid-template-columns: 28px 1fr 1.4fr; align-items: center; border-radius: 12px; border: 1px solid {{t.line}}; overflow: hidden">
+<span style="height: 40px; background: {{t.raised}}; border-bottom: 1px solid {{t.line}}"></span>
+<span style="height: 40px; line-height: 40px; background: {{t.raised}}; border-bottom: 1px solid {{t.line}}; font-size: 12px; font-weight: 600; color: {{t.muted}}">Clé</span>
+<span style="height: 40px; line-height: 40px; background: {{t.raised}}; border-bottom: 1px solid {{t.line}}; font-size: 12px; font-weight: 600; color: {{t.muted}}">Valeur</span>
+<span style="height: 42px; display: flex; align-items: center; justify-content: center"><span style="width: 16px; height: 16px; border-radius: 5px; background: {{t.accent}}; display: flex; align-items: center; justify-content: center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{t.accentInk}}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span></span>
+<span style="font-family: 'JetBrains Mono', monospace">id</span>
+<span style="font-family: 'JetBrains Mono', monospace; color: {{t.accent}}">{{ txId }}</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: {{t.muted}}">Paramètres de requête</span>
+<div style="display: grid; grid-template-columns: 28px 1fr 1.4fr; align-items: center; border-radius: 12px; border: 1px solid {{t.line}}; overflow: hidden">
+<span style="height: 42px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid {{t.line}}"><span style="width: 16px; height: 16px; border-radius: 5px; background: {{t.accent}}; display: flex; align-items: center; justify-content: center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{t.accentInk}}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span></span>
+<span style="height: 42px; line-height: 42px; border-bottom: 1px solid {{t.line}}; font-family: 'JetBrains Mono', monospace">expand</span>
+<span style="height: 42px; line-height: 42px; border-bottom: 1px solid {{t.line}}; font-family: 'JetBrains Mono', monospace">client</span>
+<span style="height: 42px; display: flex; align-items: center; justify-content: center"><span style="width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid {{t.line}}"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: {{t.muted}}">Nouvelle clé</span>
+<span style="font-family: 'JetBrains Mono', monospace; color: {{t.muted}}">Valeur</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: {{t.accentSoft}}">
+<span style="font-size: 12px; font-weight: 700; color: {{t.accent}}">Variables résolues avec l'environnement dev</span>
+<div style="display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px">
+<span style="color: {{t.accent}}; font-weight: 500">baseUrl</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+<span>https://api.dev.local/v1</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px">
+<span style="color: {{t.accent}}; font-weight: 500">txId</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+<span>TX-2026-0042</span>
+</div>
+</div>
+</div>
+</section>
+
+<section style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; border-radius: 18px; background: {{t.panel}}; border: 1px solid {{t.line}}; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid {{t.line}}">
+<span style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; background: {{t.goodSoft}}; color: {{t.good}}; font-weight: 700">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{t.good}}"></span>
+200 OK
+</span>
+<span style="height: 28px; line-height: 28px; padding: 0 10px; border-radius: 999px; background: {{t.sunken}}; font-family: 'JetBrains Mono', monospace; font-size: 12px">142 ms</span>
+<span style="height: 28px; line-height: 28px; padding: 0 10px; border-radius: 999px; background: {{t.sunken}}; font-family: 'JetBrains Mono', monospace; font-size: 12px">3,2 Ko</span>
+<div style="flex-grow: 1"></div>
+<button type="button" style="height: 32px; padding: 0 12px; border: none; border-radius: 9px; background: {{t.accentSoft}}; color: {{t.accent}}; font-weight: 700">Réponse</button>
+<button type="button" style="height: 32px; padding: 0 12px; border: none; border-radius: 9px; background: transparent; color: {{t.muted}}">Headers</button>
+<button type="button" style="height: 32px; padding: 0 12px; border: none; border-radius: 9px; background: transparent; color: {{t.muted}}">Timeline</button>
+<button type="button" aria-label="Copier la réponse" style="width: 32px; height: 32px; border: none; border-radius: 9px; background: transparent; display: flex; align-items: center; justify-content: center">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+</button>
+</div>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; padding: 14px 0; background: {{t.code}}; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 23px">
+<div style="width: 48px; flex-shrink: 0; text-align: right; padding-right: 14px; color: {{t.faint}}; white-space: pre-line">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</div>
+<div style="white-space: pre">
+<div>{</div>
+<div>  <span style="color: {{t.codeKey}}">"id"</span>: <span style="color: {{t.codeStr}}">"TX-2026-0042"</span>,</div>
+<div>  <span style="color: {{t.codeKey}}">"montant"</span>: <span style="color: {{t.codeNum}}">15000</span>,</div>
+<div>  <span style="color: {{t.codeKey}}">"devise"</span>: <span style="color: {{t.codeStr}}">"XOF"</span>,</div>
+<div>  <span style="color: {{t.codeKey}}">"statut"</span>: <span style="color: {{t.codeStr}}">"CONFIRMEE"</span>,</div>
+<div>  <span style="color: {{t.codeKey}}">"client"</span>: {</div>
+<div>    <span style="color: {{t.codeKey}}">"nom"</span>: <span style="color: {{t.codeStr}}">"[CLIENT]"</span>,</div>
+<div>    <span style="color: {{t.codeKey}}">"telephone"</span>: <span style="color: {{t.codeStr}}">"+226 XX XX XX XX"</span></div>
+<div>  },</div>
+<div>  <span style="color: {{t.codeKey}}">"remboursable"</span>: <span style="color: {{t.codeNum}}">true</span>,</div>
+<div>  <span style="color: {{t.codeKey}}">"creeLe"</span>: <span style="color: {{t.codeStr}}">"2026-09-29T10:42:18Z"</span></div>
+<div>}</div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-top: 1px solid {{t.line}}">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 26px; height: 26px; border-radius: 8px; background: {{t.goodSoft}}; display: flex; align-items: center; justify-content: center">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.good}}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg>
+</span>
+<span style="font-weight: 700">3 tests sur 3 passent</span>
+<span style="color: {{t.muted}}">Tout est vert, beau travail.</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<span style="padding: 5px 10px; border-radius: 999px; background: {{t.goodSoft}}; color: {{t.good}}; font-size: 12px; font-weight: 600">statut 200</span>
+<span style="padding: 5px 10px; border-radius: 999px; background: {{t.goodSoft}}; color: {{t.good}}; font-size: 12px; font-weight: 600">montant est un nombre</span>
+<span style="padding: 5px 10px; border-radius: 999px; background: {{t.goodSoft}}; color: {{t.good}}; font-size: 12px; font-weight: 600">devise = XOF</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 2px">
+<span style="width: 3%; background: {{t.tl1}}"></span>
+<span style="width: 8%; background: {{t.tl2}}"></span>
+<span style="width: 20%; background: {{t.tl3}}"></span>
+<span style="width: 61%; background: {{t.accent}}"></span>
+<span style="width: 8%; background: {{t.good}}"></span>
+</div>
+<div style="display: flex; gap: 16px; font-size: 11.5px; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace">
+<span>DNS 4</span><span>TCP 12</span><span>TLS 28</span><span style="color: {{t.accent}}; font-weight: 700">Attente 86</span><span>Réception 12 ms</span>
+</div>
+</div>
+</div>
+</section>
+
+</div>
+</main>
+</div>
+
+<footer style="height: 30px; flex-shrink: 0; display: flex; align-items: center; gap: 18px; padding: 0 16px; background: {{t.panel}}; border-top: 1px solid {{t.line}}; font-size: 12px; color: {{t.muted}}">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{t.good}}"></span>Tout est sur ton disque</span>
+<span>OpenCollection YAML</span>
+<span>Aucun compte, aucun cloud</span>
+<div style="flex-grow: 1"></div>
+<span style="font-family: 'JetBrains Mono', monospace">v0.1.0</span>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  tokens(dark) {
+    if (dark) {
+      return { bg: '#111113', panel: '#18181C', raised: '#1F1F24', sunken: '#0E0E10', line: '#2C2C33', ink: '#EEECE6', muted: '#A6A298', faint: '#6F6C66', accent: '#9486FF', accentSoft: '#25214A', accentInk: '#100E22', good: '#5BD08A', goodSoft: '#15301F', warn: '#F5A524', warnSoft: '#33240C', bad: '#F2766B', code: '#141417', codeKey: '#B0A7FF', codeStr: '#6FD99A', codeNum: '#F5B454', tl1: '#3A3A44', tl2: '#4D4D5A', tl3: '#6A6680' };
+    }
+    return { bg: '#F4F2EC', panel: '#FFFFFF', raised: '#FBFAF7', sunken: '#F1EEE7', line: '#E3DFD4', ink: '#1C1B18', muted: '#5F5B52', faint: '#A39E92', accent: '#5A48E0', accentSoft: '#EEEBFD', accentInk: '#FFFFFF', good: '#1C7A4B', goodSoft: '#E2F3E9', warn: '#A6520A', warnSoft: '#FCEFDD', bad: '#B8342A', code: '#FBFAF6', codeKey: '#5A48E0', codeStr: '#1C7A4B', codeNum: '#A6520A', tl1: '#D9D5CA', tl2: '#C4BFB2', tl3: '#A9A2C9' };
+  }
+  renderVals() {
+    const dark = this.state.dark ?? this.props.dark ?? false;
+    return {
+      t: this.tokens(dark),
+      dark: dark,
+      light: !dark,
+      baseUrl: '{{baseUrl}}',
+      txId: '{{txId}}',
+      toggleTheme: () => this.setState({ dark: !dark })
+    };
+  }
+}
+</script>
+</body>
+</html>

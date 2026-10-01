@@ -1,0 +1,22 @@
+info:
+  name: Users
+  type: folder
+  seq: 2
+  tags:
+    - api
+
+request:
+  headers:
+    - name: X-Folder
+      value: "1"
+  auth: inherit
+  variables:
+    - name: fv
+      value: x
+  scripts:
+    - type: after-response
+      code: console.log(1)
+
+docs:
+  content: Folder docs
+  type: text/markdown

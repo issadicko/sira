@@ -1,0 +1,41 @@
+info:
+  name: Envoyer du JSON
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{echo}}/transactions?expand=client"
+  params:
+    - name: expand
+      value: client
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "montant": 15000,
+        "devise": "XOF",
+        "client": "{{client}}",
+        "reference": "{{$randomUUID}}"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.json.devise
+      operator: eq
+      value: XOF
+    - expression: res.body.headers.X-Client
+      operator: eq
+      value: xclient-mvp
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

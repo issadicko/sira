@@ -1,0 +1,34 @@
+opencollection: 1.0.0
+
+info:
+  name: My API
+  version: "1"
+
+request:
+  headers:
+    - name: X-Collection
+      value: abc
+  auth:
+    type: bearer
+    token: "{{token}}"
+  variables:
+    - name: baseUrl
+      value: https://api.example.com
+  scripts:
+    - type: before-request
+      code: console.log("coll pre");
+
+docs:
+  content: "# My collection"
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+    presets:
+      request:
+        type: http
+        url: https://api.example.com
+      defaultEnvironment: Local

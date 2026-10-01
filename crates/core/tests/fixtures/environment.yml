@@ -1,0 +1,15 @@
+name: Local
+color: "#ff0000"
+variables:
+  - name: host
+    value: http://localhost:8080
+  - secret: true
+    name: token
+  - name: off
+    value: x
+    disabled: true
+    description: disabled one
+  - name: port
+    value:
+      type: number
+      data: "8080"
