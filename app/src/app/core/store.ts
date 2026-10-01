@@ -3,7 +3,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { api } from './api';
 import { withCurl } from './curl';
 import { CollectionInfo, EnvVar, RequestDoc, SendResult, TreeItem, VariableInfo } from './model';
-import { closeUnder, isUnder, remapPath, remapPaths, remapSet } from './tree-ops';
+import { closeUnder, isUnder, missingPaths, remapPath, remapPaths, remapSet } from './tree-ops';
 import { withParams, withUrl } from './url';
 
 export interface Tab {
@@ -15,6 +15,8 @@ export interface Tab {
   error?: string;
   sendingId?: string;
   sentAt?: number;
+  /** Le fichier n'existe plus sur le disque : l'onglet reste ouvert pour ne pas perdre le brouillon. */
+  missing?: boolean;
 }
 
 export interface HistoryEntry {
@@ -32,7 +34,7 @@ export interface Discard {
 }
 
 export type View = 'collections' | 'env' | 'sync';
-export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete';
+export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete' | 'move';
 
 /** Dossier existant, vide ou non, où l'on propose de créer une collection. */
 export interface FolderTarget {
@@ -66,6 +68,8 @@ export class Workspace {
   readonly demo = api.demo;
   readonly collection = signal<CollectionInfo | null>(null);
   readonly loading = signal(false);
+  /** Une commande de gestion de collection (créer, renommer, déplacer, supprimer) écrit sur le disque. */
+  readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly tabs = signal<Tab[]>([]);
   readonly activePath = signal<string | null>(null);
@@ -145,8 +149,14 @@ export class Workspace {
     );
   }
 
+  /** Vrai, avec un message, tant qu'une commande de collection écrit sur le disque : on n'ouvre ni n'enregistre rien d'autre. */
+  private blocked(): boolean {
+    if (this.busy()) this.notify('Une opération sur la collection est en cours : réessaie dans un instant.', true);
+    return this.busy();
+  }
+
   async pickAndOpen() {
-    if (!(await this.confirmReplace())) return;
+    if (this.blocked() || !(await this.confirmReplace())) return;
     const dir = await api.pickFolder();
     if (dir) await this.openFolder(dir);
   }
@@ -169,7 +179,7 @@ export class Workspace {
   }
 
   async newCollection() {
-    if (!(await this.confirmReplace())) return;
+    if (this.blocked() || !(await this.confirmReplace())) return;
     this.folderTarget.set(null);
     this.dialog.set('collection');
   }
@@ -181,7 +191,7 @@ export class Workspace {
 
   /** Ouvre une collection ; `confirmed` indique que la perte des onglets modifiés a déjà été acceptée. */
   async open(root: string, confirmed = false): Promise<boolean> {
-    if (!confirmed && !(await this.confirmReplace())) return false;
+    if (this.blocked() || (!confirmed && !(await this.confirmReplace()))) return false;
     this.loading.set(true);
     this.error.set(null);
     try {
@@ -270,6 +280,7 @@ export class Workspace {
     this.openFolders.update((open) => remapSet(open, from, to));
     this.activePath.update((active) => active && remapPath(active, from, to));
     this.requested = remapPath(this.requested, from, to);
+    this.refreshVars();
   }
 
   /** Ferme sans confirmation les onglets d'un élément supprimé et retire ses traces de l'historique. */
@@ -281,6 +292,19 @@ export class Workspace {
     this.history.update((history) => history.filter((h) => !isUnder(h.path, path)));
     this.openFolders.update((open) => new Set([...open].filter((p) => !isUnder(p, path))));
     this.refreshVars();
+  }
+
+  /**
+   * Après une relecture : ferme sans confirmation les onglets propres dont le fichier a disparu, garde ceux qui ont un brouillon en les marquant
+   * `missing`. Renvoie le nombre d'onglets gardés.
+   */
+  reconcileTabs(): number {
+    const c = this.collection();
+    if (!c) return 0;
+    const gone = new Set(missingPaths(c.items, this.tabs().map((t) => t.path)));
+    for (const tab of this.tabs()) if (gone.has(tab.path) && !this.isDirty(tab)) this.forgetPath(tab.path);
+    this.tabs.update((tabs) => tabs.map((t) => (!!t.missing === gone.has(t.path) ? t : { ...t, missing: gone.has(t.path) })));
+    return this.tabs().filter((t) => t.missing).length;
   }
 
   /** Reprend le nom et la position (`seq`) écrits sur le disque dans les onglets donnés, sans toucher au reste du brouillon. */
@@ -398,7 +422,11 @@ export class Workspace {
   async save() {
     const c = this.collection();
     const tab = this.active();
-    if (!c || !tab) return;
+    if (!c || !tab || this.blocked()) return;
+    if (tab.missing) {
+      this.notify("Le fichier n'existe plus sur le disque : copie le brouillon avant de fermer l'onglet.", true);
+      return;
+    }
     if (!this.isDirty(tab)) {
       this.notify(`Rien à enregistrer dans ${tab.path}`);
       return;

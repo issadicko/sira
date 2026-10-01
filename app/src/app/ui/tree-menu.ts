@@ -37,16 +37,15 @@ export class TreeMenu {
   private build({ path }: MenuState): MenuEntry[] {
     const item = path ? findItem(this.ws.collection()?.items ?? [], path) : null;
     const parent = !item ? '' : item.kind === 'folder' ? item.path : dirname(item.path);
-    const create: MenuEntry[] = [
-      { label: 'Nouvelle requête', icon: 'file', run: () => this.tree.beginCreate('request', parent) },
-      { label: 'Nouveau dossier', icon: 'folder', run: () => this.tree.beginCreate('folder', parent) },
-    ];
+    const create: MenuEntry[] = [{ label: 'Nouvelle requête', icon: 'file', run: () => this.tree.beginCreate('request', parent) }];
+    if (!item || item.kind === 'folder') create.push({ label: 'Nouveau dossier', icon: 'folder', run: () => this.tree.beginCreate('folder', parent) });
     if (!item) return create;
     return [
       ...create,
       'sep',
       { label: 'Renommer', icon: 'pencil', shortcut: shortcutLabel('f2'), run: () => this.tree.beginRename(item.path) },
       { label: 'Dupliquer', icon: 'copy', shortcut: shortcutLabel('mod+d'), run: () => this.tree.beginClone(item.path) },
+      { label: 'Déplacer vers…', icon: 'arrow-right', run: () => this.tree.requestMove(item.path) },
       'sep',
       { label: 'Supprimer', icon: 'trash', shortcut: DELETE_LABEL, run: () => this.tree.requestDelete(item.path) },
     ];

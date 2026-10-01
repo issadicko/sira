@@ -14,6 +14,7 @@ import { Editor } from './ui/editor';
 import { EnvView } from './ui/env-view';
 import { Icon } from './ui/icon';
 import { methodClass, shortMethod } from './ui/method';
+import { MoveDialog } from './ui/move-dialog';
 import { OpenApiDialog } from './ui/openapi-dialog';
 import { Palette } from './ui/palette';
 import { SyncSidebar } from './ui/sync-sidebar';
@@ -43,6 +44,7 @@ import { Welcome } from './ui/welcome';
     CurlDialog,
     OpenApiDialog,
     CollectionDialog,
+    MoveDialog,
     DeleteDialog,
     DiscardDialog,
   ],
@@ -83,6 +85,7 @@ export class App {
       { id: 'item.new-folder', title: 'Nouveau dossier', group: 'Collection', icon: 'folder', when: opened, run: () => tree.beginCreate('folder') },
       { id: 'item.rename', title: "Renommer l'élément actif", group: 'Collection', icon: 'pencil', when: hasTarget, run: () => tree.beginRename() },
       { id: 'item.clone', title: "Dupliquer l'élément actif", group: 'Collection', icon: 'copy', when: hasTarget, run: () => tree.beginClone() },
+      { id: 'item.move', title: "Déplacer l'élément actif vers…", group: 'Collection', icon: 'arrow-right', when: hasTarget, run: () => tree.requestMove() },
       { id: 'item.delete', title: "Supprimer l'élément actif", group: 'Collection', icon: 'trash', when: hasTarget, run: () => tree.requestDelete() },
       { id: 'collection.openapi', title: 'Importer une spec OpenAPI…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('openapi') },
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },

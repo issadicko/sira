@@ -66,3 +66,18 @@ test('ef_req_02_chemin_refuse_par_le_moteur_est_absolu_ou_remonte', () => {
     assert.equal(isInsideCollection(path), false, path);
   }
 });
+
+test('ef_col_01_dossiers_proposes_au_deplacement_excluent_lelement_et_ses_descendants', () => {
+  const items = [
+    request('racine.yml'),
+    folder('auth', 'Auth', [request('auth/connexion.yml')]),
+    folder('transactions', 'Transactions', [folder('transactions/export', 'Export', [folder('transactions/export/archives', 'Archives')])]),
+  ];
+  assert.deepEqual(folderChoices(items, 0, 'transactions'), [{ path: 'auth', label: 'Auth', depth: 0 }]);
+  assert.deepEqual(
+    folderChoices(items, 0, 'transactions/export').map((f) => f.path),
+    ['auth', 'transactions'],
+  );
+  assert.deepEqual(folderChoices(items, 0, 'auth/connexion.yml'), folderChoices(items));
+  assert.deepEqual(folderChoices(items, 0, 'inconnu'), folderChoices(items));
+});

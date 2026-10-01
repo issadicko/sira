@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { TreeItem } from '../core/model';
 import { Workspace } from '../core/store';
 import { SyncStore } from '../core/sync-store';
-import { cloneName } from '../core/tree-ops';
+import { cloneName, matchesQuery } from '../core/tree-ops';
 import { TreeStore } from '../core/tree-store';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
@@ -14,39 +14,41 @@ function count(item: TreeItem): number {
   return item.kind === 'request' ? 1 : item.children.reduce((n, c) => n + count(c), 0);
 }
 
-function matches(item: TreeItem, q: string): boolean {
-  if (!q) return true;
-  if (item.kind === 'folder') return item.children.some((c) => matches(c, q));
-  return `${item.name} ${item.path}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q);
-}
-
 @Component({
   selector: 'app-tree',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, TreeRow, TreeEdit],
   host: { style: 'display: contents' },
   template: `
-    @for (item of visible(); track item.path) {
+    @for (item of visible(); track item.path; let index = $index) {
       @if (tree.renaming() === item.path) {
         <app-tree-edit [kind]="item.kind" [depth]="depth()" [initial]="item.name" [method]="item.kind === 'request' ? item.method : 'GET'" />
       } @else if (item.kind === 'folder') {
-        <button class="row folder" [appTreeRow]="item" [style.--d]="depth()" [attr.aria-expanded]="isOpen(item.path)" [attr.aria-level]="depth() + 1" (click)="toggle(item.path)">
+        <div
+          class="row folder"
+          [appTreeRow]="item"
+          [style.--d]="depth()"
+          [attr.aria-expanded]="isOpen(item.path)"
+          [attr.aria-level]="depth() + 1"
+          [attr.aria-posinset]="index + 1"
+          [attr.aria-setsize]="visible().length"
+        >
           <span class="twist"><app-ic [name]="isOpen(item.path) ? 'chev-down' : 'chev-right'" [size]="13" /></span>
           <app-ic [name]="isOpen(item.path) ? 'folder-open' : 'folder'" [size]="15" />
           <span class="row-name">{{ item.name }}</span>
           <span class="row-meta">{{ count(item) }}</span>
-        </button>
+        </div>
       } @else {
-        <button
+        <div
           class="row req"
           [appTreeRow]="item"
           [class.is-deprecated]="item.deprecated"
           [style.--d]="depth()"
           [attr.aria-level]="depth() + 1"
+          [attr.aria-posinset]="index + 1"
+          [attr.aria-setsize]="visible().length"
           [attr.aria-disabled]="item.requestType !== 'http' && !item.error"
           [title]="item.error ?? (item.deprecated ? 'Retirée de la spec' : item.path)"
-          (click)="open(item, false)"
-          (dblclick)="open(item, true)"
         >
           @if (item.error) {
             <span class="m m-delete">ERR</span>
@@ -65,7 +67,7 @@ function matches(item: TreeItem, q: string): boolean {
           @if (dirty(item.path)) {
             <span class="dot" style="background: var(--ink)" title="Modifications non enregistrées"></span>
           }
-        </button>
+        </div>
       }
       @if (item.kind === 'folder' && isOpen(item.path)) {
         <div class="group" role="group" [style.--d]="depth()">
@@ -87,8 +89,7 @@ export class Tree {
   /** Chemin du dossier que cette liste montre, vide pour la racine. */
   readonly parent = input('');
 
-  protected readonly query = computed(() => this.ws.filter().trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''));
-  protected readonly visible = computed(() => this.items().filter((i) => matches(i, this.query())));
+  protected readonly visible = computed(() => this.items().filter((i) => matchesQuery(i, this.tree.query())));
   protected readonly adding = computed(() => {
     const edit = this.tree.edit();
     if (edit?.mode === 'create') return edit.parent === this.parent() ? { kind: edit.kind, initial: '' } : null;
@@ -100,17 +101,7 @@ export class Tree {
   protected readonly shortMethod = shortMethod;
 
   protected isOpen(path: string) {
-    return this.query() !== '' || this.ws.openFolders().has(path);
-  }
-
-  protected toggle(path: string) {
-    this.tree.select(path);
-    this.ws.toggleFolder(path);
-  }
-
-  protected open(item: TreeItem, pin: boolean) {
-    this.tree.select(item.path);
-    if (item.kind === 'request' && (item.requestType === 'http' || item.error)) void this.ws.openRequest(item.path, pin);
+    return this.tree.query() !== '' || this.ws.openFolders().has(path);
   }
 
   protected dirty(path: string) {

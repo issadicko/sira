@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
+import { shortcutLabel } from '../core/commands';
 import { Workspace } from '../core/store';
 import { Deletion, TreeStore } from '../core/tree-store';
 import { describeContents, unsavedMessage } from '../core/tree-ops';
@@ -20,7 +21,7 @@ import { Icon } from './icon';
           <div class="note"><app-ic name="alert" [size]="14" /><span>{{ unsaved(d) }}</span></div>
         }
         @if (ws.demo) {
-          <p class="del-text faint">Mode démo : l'élément disparaît de la collection en mémoire, rien n'est envoyé à la corbeille de ton disque.</p>
+          <p class="del-text faint">Mode démo : l'élément disparaît de la collection en mémoire, rien n'est envoyé à la corbeille de ton disque, et le suivi OpenAPI (<span class="mono">.oc-sync</span>) n'est pas simulé.</p>
         }
         @if (tree.deleteError(); as e) {
           <div class="banner err" role="alert"><app-ic name="alert" [size]="15" /><span>{{ e }}</span></div>
@@ -31,7 +32,7 @@ import { Icon } from './icon';
             @if (tree.busy()) {
               <span class="spinner"></span>Suppression…
             } @else {
-              <app-ic name="trash" [size]="15" />Mettre à la corbeille
+              <app-ic name="trash" [size]="15" />Mettre à la corbeille <kbd class="kbd">{{ confirmKey }}</kbd>
             }
           </button>
         </div>
@@ -46,6 +47,7 @@ import { Icon } from './icon';
 export class DeleteDialog {
   protected readonly ws = inject(Workspace);
   protected readonly tree = inject(TreeStore);
+  protected readonly confirmKey = shortcutLabel('mod+enter');
 
   protected message(d: Deletion): string {
     if (d.kind === 'request') return `« ${d.name} » va dans la corbeille du système. Tu pourras la récupérer de là.`;

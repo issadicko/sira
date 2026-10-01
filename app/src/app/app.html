@@ -84,8 +84,10 @@
             <button class="icon-btn sm" (click)="ws.reload()" title="Relire le dossier" aria-label="Relire le dossier"><app-ic name="sync" [size]="15" /></button>
           </div>
           <label class="sb-filter"><app-ic name="filter" [size]="13" /><input #filter type="text" spellcheck="false" placeholder="Filtrer par nom ou chemin" [title]="'Filtrer les requêtes (' + key('mod+shift+f') + ')'" [value]="ws.filter()" (input)="ws.filter.set($any($event.target).value)" aria-label="Filtrer les requêtes" /></label>
-          <div class="sb-scroll" role="tree" appTreeRoot aria-label="Requêtes de la collection">
-            <app-tree [items]="c.items" />
+          <div class="sb-scroll" appTreeRoot>
+            <div role="tree" aria-label="Requêtes de la collection">
+              <app-tree [items]="c.items" />
+            </div>
             @if (!c.items.length && !tree.edit()) {
               <div class="sb-empty">
                 <p>Cette collection ne contient encore aucune requête.</p>
@@ -128,7 +130,7 @@
         }
       </aside>
       <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner la barre latérale" (pointerdown)="dragSidebar($event)"></div>
-      <main class="island editor">
+      <main class="island editor" (focusin)="tree.followEditor()">
         @if (ws.view() === 'env') {
           @defer (on immediate) { <app-env-view /> }
         } @else if (ws.view() === 'sync') {
@@ -188,6 +190,9 @@
   }
   @case ('collection') {
     @defer (on immediate) { <app-collection-dialog /> }
+  }
+  @case ('move') {
+    @defer (on immediate) { <app-move-dialog /> }
   }
 }
 <app-delete-dialog />

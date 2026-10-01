@@ -1,7 +1,7 @@
 import type { Api } from './api';
 import { CollectionInfo, FolderKind, RequestDoc, TreeItem } from './model';
 import { dirname, joinPath } from './paths';
-import { canDrop, findItem, validateName } from './tree-ops';
+import { canDrop, endSeq, findItem, sanitizeName, validateName } from './tree-ops';
 
 export interface DemoCollection {
   info: CollectionInfo;
@@ -22,12 +22,6 @@ export const DEMO_FOLDERS: Record<string, FolderKind> = {
 
 const EXT = '.yml';
 
-const sanitize = (name: string) =>
-  name
-    .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
-    .replace(/^[.\s]+/, '')
-    .replace(/[.\s]+$/, '');
 const basename = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 const join = (folder: string, name: string) => (folder ? `${folder}/${name}` : name);
 const extOf = (item: TreeItem) => (item.kind === 'request' ? EXT : '');
@@ -87,7 +81,7 @@ function uniqueName(list: TreeItem[], stem: string, ext: string, except?: TreeIt
 }
 
 const seqOf = (c: DemoCollection, item: TreeItem) => item.seq ?? (item.kind === 'request' ? c.files[item.path]?.seq : null) ?? 0;
-const nextSeq = (c: DemoCollection, list: TreeItem[]) => Math.max(0, ...list.map((i) => seqOf(c, i))) + 1;
+const nextSeq = (c: DemoCollection, list: TreeItem[]) => endSeq(list.map((i) => seqOf(c, i)));
 
 function setSeq(c: DemoCollection, item: TreeItem, seq: number) {
   item.seq = seq;
@@ -124,7 +118,10 @@ function checked(name: string, kind: 'request' | 'folder' | 'collection', parent
   return name.trim();
 }
 
-/** Opérations de collection du mode démo : appliquées pour de bon, mais à la collection gardée en mémoire. */
+/**
+ * Opérations de collection du mode démo : appliquées pour de bon, mais à la collection gardée en mémoire, avec les règles de nommage et de `seq` du moteur.
+ * Le suivi OpenAPI (`.oc-sync`) n'est pas simulé : renommer, déplacer ou supprimer ne le met pas à jour.
+ */
 export function createDemoTree(collections: Map<string, DemoCollection>): DemoTree {
   const at = (root: string) => collectionAt(collections, root);
 
@@ -144,7 +141,7 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
 
     createCollection: async (parent, name) => {
       const title = checked(name, 'collection');
-      const stem = sanitize(title);
+      const stem = sanitizeName(title);
       let root = joinPath(parent, stem);
       for (let n = 1; collections.has(root); n++) root = joinPath(parent, `${stem} ${n}`);
       return register(root, title);
@@ -160,7 +157,7 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
       const c = at(root);
       const title = checked(name, 'request');
       const list = childrenOf(c, folder);
-      const path = join(folder, uniqueName(list, sanitize(title), EXT));
+      const path = join(folder, uniqueName(list, sanitizeName(title), EXT));
       const seq = list.length + 1;
       c.files[path] = blank(title, seq);
       return created(c, list, { kind: 'request', path, name: title, seq, method: 'GET', requestType: 'http', url: '', deprecated: false });
@@ -170,7 +167,7 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
       const c = at(root);
       const title = checked(name, 'folder', parent);
       const list = childrenOf(c, parent);
-      const path = join(parent, uniqueName(list, sanitize(title), ''));
+      const path = join(parent, uniqueName(list, sanitizeName(title), ''));
       return created(c, list, { kind: 'folder', path, name: title, seq: list.length + 1, children: [] });
     },
 
@@ -179,7 +176,7 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
       const item = locate(c, path);
       const parent = dirname(path);
       const title = checked(name, item.kind, parent);
-      const file = uniqueName(childrenOf(c, parent), sanitize(title), extOf(item), item);
+      const file = uniqueName(childrenOf(c, parent), sanitizeName(title), extOf(item), item);
       item.name = title;
       if (item.kind === 'request') c.files[path].name = title;
       const next = join(parent, file);
@@ -193,7 +190,7 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
       const parent = dirname(path);
       const title = checked(name, item.kind, parent);
       const list = childrenOf(c, parent);
-      const next = join(parent, uniqueName(list, sanitize(title), extOf(item)));
+      const next = join(parent, uniqueName(list, sanitizeName(title), extOf(item)));
       const copy = duplicate(c, item, next, title);
       setSeq(c, copy, nextSeq(c, list));
       return created(c, list, copy);

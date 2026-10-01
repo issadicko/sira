@@ -50,8 +50,9 @@ const lastSegment = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() 
           aria-label="Nom de la collection"
           [attr.aria-invalid]="!!shown()"
           [value]="name()"
+          [readOnly]="!!created()"
           (input)="edit($any($event.target).value)"
-          (keydown.enter)="run()"
+          (keydown)="onKey($event)"
           placeholder="Mes API"
         />
         @if (shown(); as e) {
@@ -69,9 +70,9 @@ const lastSegment = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() 
         <button class="btn ghost" [disabled]="busy()" (click)="close()">Annuler</button>
         <button class="btn-primary" [class.is-sending]="busy()" [disabled]="!ready() || busy()" (click)="run()">
           @if (busy()) {
-            <span class="spinner"></span>Création…
+            <span class="spinner"></span>{{ created() ? 'Ouverture…' : 'Création…' }}
           } @else {
-            Créer la collection <kbd class="kbd">{{ confirmKey }}</kbd>
+            {{ created() ? 'Ouvrir la collection' : 'Créer la collection' }} <kbd class="kbd">{{ confirmKey }}</kbd>
           }
         </button>
       </div>
@@ -97,7 +98,9 @@ export class CollectionDialog {
   protected readonly name = signal(lastSegment(this.ws.folderTarget()?.dir ?? ''));
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
-  private readonly touched = signal(false);
+  /** Racine déjà créée dont l'ouverture a échoué : un nouveau clic rouvre, sans rien recréer. */
+  protected readonly created = signal<string | null>(null);
+  private readonly touched = signal(this.name() !== '');
   protected readonly problem = computed(() => validateName(this.name(), 'collection'));
   protected readonly shown = computed(() => (this.touched() ? this.problem() : null));
   protected readonly target = computed(() => {
@@ -111,6 +114,10 @@ export class CollectionDialog {
 
   constructor() {
     afterNextRender(() => this.field()?.nativeElement.select());
+  }
+
+  protected onKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.isComposing) void this.run();
   }
 
   protected edit(name: string) {
@@ -137,13 +144,14 @@ export class CollectionDialog {
     this.busy.set(true);
     this.error.set(null);
     try {
-      const root = here ? await api.initCollection(here.dir, name) : await api.createCollection(parent!, name);
+      const root = this.created() ?? (here ? await api.initCollection(here.dir, name) : await api.createCollection(parent!, name));
+      this.created.set(root);
       if (!(await this.ws.open(root, true))) {
-        this.error.set(`Collection créée dans ${root}, mais impossible de l'ouvrir : ${this.ws.error()}`);
+        this.error.set(`Collection créée dans ${root}, mais impossible de l'ouvrir : ${this.ws.error() ?? 'réessaie dans un instant'}`);
         return;
       }
       this.close();
-      this.ws.notify(`Collection créée : ${root}`);
+      this.ws.notify(`Collection créée : ${name}`);
     } catch (e) {
       this.error.set(String(e));
     } finally {

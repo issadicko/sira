@@ -6,10 +6,10 @@ export interface FolderChoice {
   depth: number;
 }
 
-/** Dossiers de la collection dans l'ordre de l'arbre, avec leur profondeur. */
-export function folderChoices(items: TreeItem[], depth = 0): FolderChoice[] {
+/** Dossiers de la collection dans l'ordre de l'arbre, avec leur profondeur ; `except` écarte un chemin et tout ce qu'il contient. */
+export function folderChoices(items: TreeItem[], depth = 0, except?: string): FolderChoice[] {
   return items.flatMap((i) =>
-    i.kind === 'folder' ? [{ path: i.path, label: i.name, depth }, ...folderChoices(i.children, depth + 1)] : [],
+    i.kind === 'folder' && i.path !== except ? [{ path: i.path, label: i.name, depth }, ...folderChoices(i.children, depth + 1, except)] : [],
   );
 }
 

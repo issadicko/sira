@@ -13,7 +13,7 @@ let count = 0;
   imports: [Icon],
   host: { style: 'display: contents' },
   template: `
-    <div class="row edit" [class.req]="kind() === 'request'" [style.--d]="depth()">
+    <div class="row edit" role="treeitem" [attr.aria-level]="depth() + 1" [class.req]="kind() === 'request'" [style.--d]="depth()">
       @if (kind() === 'folder') {
         <span class="twist"></span><app-ic name="folder" [size]="15" />
       } @else {
@@ -76,6 +76,6 @@ export class TreeEdit {
   }
 
   protected onBlur() {
-    if (document.hasFocus()) this.tree.cancelEdit();
+    if (document.hasFocus()) this.tree.cancelEdit(false);
   }
 }

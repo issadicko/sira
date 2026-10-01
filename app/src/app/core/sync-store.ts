@@ -135,10 +135,13 @@ export class SyncStore {
     if (!this.status()) await this.refreshStatus();
     const afterSync = reopened && !!this.synced();
     if (afterSync) this.synced.set(null);
-    const idle = this.connected() && !this.plan() && !this.synced() && !this.comparing() && !this.error() && !this.connecting() && !this.uncompared();
-    if (!idle) return;
+    if (!this.idle()) return;
     if (comparesOnOpen(this.source(), afterSync)) await this.compare();
     else this.uncompared.set(true);
+  }
+
+  private idle(): boolean {
+    return this.connected() && !this.plan() && !this.synced() && !this.comparing() && !this.error() && !this.connecting() && !this.uncompared();
   }
 
   /** Comparaison demandée par la commande « Lancer la synchro », quelle que soit la source enregistrée. */
@@ -260,10 +263,11 @@ export class SyncStore {
     this.ws.notify("Synchro abandonnée : rien n'a été écrit sur le disque.");
   }
 
-  /** Abandonne la comparaison en cours quand un fichier qu'elle visait a changé de chemin ou disparu. */
-  invalidate() {
+  /** Abandonne la comparaison en cours quand un fichier qu'elle visait a été réécrit, déplacé ou supprimé : la vue attend le bouton, sans rien relancer. */
+  async invalidate() {
     this.clear();
-    void this.refreshStatus();
+    await this.refreshStatus();
+    if (this.idle()) this.uncompared.set(true);
   }
 
   private clear() {

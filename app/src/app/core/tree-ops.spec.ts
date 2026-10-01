@@ -9,16 +9,27 @@ import {
   contentsOf,
   describeContents,
   dropPosition,
+  dropPositionAt,
+  endSeq,
   findItem,
+  insideRect,
+  isNoopMove,
   isUnder,
+  missingPaths,
+  navigate,
   neighbourOf,
+  normalizeQuery,
   remapPath,
   remapPaths,
   remapSet,
   reorderMove,
+  reorderNotice,
+  sanitizeName,
+  tabbablePath,
   treeKeyAction,
   unsavedMessage,
   validateName,
+  visibleRows,
 } from './tree-ops.ts';
 
 const request = (path: string): TreeItem => ({ kind: 'request', path, name: path, method: 'GET', requestType: 'http', url: '', deprecated: false });
@@ -141,7 +152,6 @@ test('ef_col_01_nom_propose_a_la_duplication_ajoute_copie', () => {
 test('ef_col_01_clavier_option_fleche_est_reconnu_sans_confondre_les_autres_touches', () => {
   assert.equal(treeKeyAction(key('ArrowUp', { altKey: true }), true), 'up');
   assert.equal(treeKeyAction(key('ArrowDown', { altKey: true }), false), 'down');
-  assert.equal(treeKeyAction(key('ArrowDown'), true), null);
   assert.equal(treeKeyAction(key('ArrowDown', { altKey: true, metaKey: true }), true), null);
   assert.equal(treeKeyAction(key('ArrowDown', { altKey: true, shiftKey: true }), true), null);
 });
@@ -272,4 +282,170 @@ test('ef_col_04_contenu_dun_dossier_est_decrit_au_singulier_ou_au_pluriel', () =
 test('ef_col_04_suppression_avec_onglets_modifies_previent_que_les_modifications_seront_perdues', () => {
   assert.equal(unsavedMessage(['Connexion']), "L'onglet « Connexion » contient des modifications non enregistrées : elles seront perdues.");
   assert.match(unsavedMessage(['Connexion', 'Jeton']), /^2 onglets contiennent .*\(Connexion, Jeton\)/);
+});
+
+const rowsOf = (open: string[] = [], query = '') => visibleRows(tree, new Set(open), query);
+const paths = (open: string[] = [], query = '') => rowsOf(open, query).map((r) => r.path);
+
+test('ef_ux_01_lignes_affichees_suivent_les_dossiers_ouverts', () => {
+  assert.deepEqual(paths(), ['auth', 'transactions', 'sante.yml']);
+  assert.deepEqual(paths(['transactions']), ['auth', 'transactions', 'transactions/liste.yml', 'transactions/export', 'transactions/detail.yml', 'sante.yml']);
+  assert.deepEqual(rowsOf(['transactions', 'transactions/export']).find((r) => r.path === 'transactions/export/csv.yml'), {
+    path: 'transactions/export/csv.yml',
+    kind: 'request',
+    depth: 2,
+    parent: 'transactions/export',
+    open: false,
+  });
+  assert.deepEqual(rowsOf(['transactions']).find((r) => r.path === 'transactions'), { path: 'transactions', kind: 'folder', depth: 0, parent: '', open: true });
+  assert.equal(rowsOf().find((r) => r.path === 'auth')?.open, false);
+});
+
+test('ef_ux_01_filtre_ouvre_les_dossiers_utiles_et_masque_le_reste_sans_tenir_compte_des_accents', () => {
+  assert.deepEqual(paths([], 'csv'), ['transactions', 'transactions/export', 'transactions/export/csv.yml']);
+  assert.ok(rowsOf([], 'csv').filter((r) => r.kind === 'folder').every((r) => r.open));
+  assert.equal(normalizeQuery('  Étagé  '), 'etage');
+  assert.deepEqual(visibleRows([request('élan.yml'), request('autre.yml')], new Set(), normalizeQuery('ELAN')).map((r) => r.path), ['élan.yml']);
+  assert.deepEqual(paths([], 'absent'), []);
+});
+
+test('ef_ux_01_une_seule_ligne_est_atteignable_par_tab', () => {
+  const rows = rowsOf(['auth']);
+  assert.equal(tabbablePath(rows, 'auth/jeton.yml'), 'auth/jeton.yml');
+  assert.equal(tabbablePath(rows, 'transactions/liste.yml'), 'auth');
+  assert.equal(tabbablePath(rows, null), 'auth');
+  assert.equal(tabbablePath([], 'auth'), null);
+});
+
+test('ef_ux_01_fleches_haut_bas_debut_et_fin_parcourent_les_lignes_affichees', () => {
+  const rows = rowsOf(['transactions']);
+  assert.deepEqual(navigate(rows, 'auth', 'next'), { focus: 'transactions' });
+  assert.deepEqual(navigate(rows, 'transactions', 'next'), { focus: 'transactions/liste.yml' });
+  assert.deepEqual(navigate(rows, 'transactions/detail.yml', 'next'), { focus: 'sante.yml' });
+  assert.deepEqual(navigate(rows, 'sante.yml', 'prev'), { focus: 'transactions/detail.yml' });
+  assert.equal(navigate(rows, 'auth', 'prev'), null);
+  assert.equal(navigate(rows, 'sante.yml', 'next'), null);
+  assert.deepEqual(navigate(rows, 'transactions/liste.yml', 'first'), { focus: 'auth' });
+  assert.deepEqual(navigate(rows, 'auth', 'last'), { focus: 'sante.yml' });
+  assert.equal(navigate(rows, 'inconnu.yml', 'next'), null);
+});
+
+test('ef_ux_01_fleche_droite_ouvre_un_dossier_ferme_puis_va_au_premier_enfant', () => {
+  assert.deepEqual(navigate(rowsOf(), 'auth', 'expand'), { toggle: 'auth' });
+  assert.deepEqual(navigate(rowsOf(['auth']), 'auth', 'expand'), { focus: 'auth/connexion.yml' });
+  assert.equal(navigate(rowsOf(['auth']), 'auth/connexion.yml', 'expand'), null);
+  const empty = visibleRows([folder('vide'), request('x.yml')], new Set(['vide']), '');
+  assert.equal(navigate(empty, 'vide', 'expand'), null);
+});
+
+test('ef_ux_01_fleche_gauche_ferme_un_dossier_ouvert_puis_va_au_parent', () => {
+  const rows = rowsOf(['transactions']);
+  assert.deepEqual(navigate(rows, 'transactions', 'collapse'), { toggle: 'transactions' });
+  assert.deepEqual(navigate(rows, 'transactions/liste.yml', 'collapse'), { focus: 'transactions' });
+  assert.deepEqual(navigate(rows, 'transactions/export', 'collapse'), { focus: 'transactions' });
+  assert.equal(navigate(rows, 'auth', 'collapse'), null);
+  assert.equal(navigate(rows, 'sante.yml', 'collapse'), null);
+});
+
+test('ef_ux_01_fleche_gauche_sous_un_filtre_va_au_parent_car_les_dossiers_restent_ouverts', () => {
+  const rows = rowsOf([], 'csv');
+  assert.deepEqual(navigate(rows, 'transactions/export', 'collapse', true), { focus: 'transactions' });
+  assert.deepEqual(navigate(rows, 'transactions/export', 'collapse', false), { toggle: 'transactions/export' });
+});
+
+test('ef_ux_01_entree_et_espace_activent_la_ligne', () => {
+  assert.equal(treeKeyAction(key('Enter'), true), 'activate');
+  assert.equal(treeKeyAction(key(' '), false), 'activate');
+  assert.deepEqual(navigate(rowsOf(), 'sante.yml', 'activate'), { activate: 'sante.yml' });
+});
+
+test('ef_ux_01_touches_de_navigation_sont_reconnues_sans_modificateur', () => {
+  const expected = { ArrowDown: 'next', ArrowUp: 'prev', Home: 'first', End: 'last', ArrowRight: 'expand', ArrowLeft: 'collapse' };
+  for (const [name, action] of Object.entries(expected)) {
+    assert.equal(treeKeyAction(key(name), true), action, name);
+    assert.equal(treeKeyAction(key(name, { metaKey: true }), true), null, `${name} avec ⌘`);
+    assert.equal(treeKeyAction(key(name, { ctrlKey: true }), false), null, `${name} avec Ctrl`);
+    assert.equal(treeKeyAction(key(name, { shiftKey: true }), false), null, `${name} avec Maj`);
+  }
+  assert.equal(treeKeyAction(key('ArrowUp', { altKey: true }), true), 'up');
+  assert.equal(treeKeyAction(key('toString'), true), null);
+});
+
+test('ef_col_01_option_fleche_en_bout_de_liste_annonce_la_position', () => {
+  assert.equal(reorderNotice(-1), 'Déjà en première position');
+  assert.equal(reorderNotice(1), 'Déjà en dernière position');
+  assert.equal(reorderMove(tree, 'auth', -1), null);
+  assert.equal(reorderMove(tree, 'sante.yml', 1), null);
+});
+
+test('ef_col_01_depot_qui_ne_change_pas_la_position_est_sans_effet', () => {
+  assert.equal(isNoopMove(tree, 'auth', 'transactions', 'before'), true);
+  assert.equal(isNoopMove(tree, 'transactions', 'auth', 'after'), true);
+  assert.equal(isNoopMove(tree, 'auth/jeton.yml', 'auth/jeton.yml', 'after'), true);
+  assert.equal(isNoopMove(tree, 'sante.yml', '', 'inside'), true);
+  assert.equal(isNoopMove(tree, 'auth/jeton.yml', 'auth', 'inside'), true);
+});
+
+test('ef_col_01_depot_qui_change_la_position_ou_le_dossier_est_applique', () => {
+  assert.equal(isNoopMove(tree, 'auth', 'transactions', 'after'), false);
+  assert.equal(isNoopMove(tree, 'transactions', 'auth', 'before'), false);
+  assert.equal(isNoopMove(tree, 'auth', 'sante.yml', 'before'), false);
+  assert.equal(isNoopMove(tree, 'auth/connexion.yml', 'auth', 'inside'), false);
+  assert.equal(isNoopMove(tree, 'auth', '', 'inside'), false);
+  assert.equal(isNoopMove(tree, 'auth/jeton.yml', 'transactions/liste.yml', 'before'), false);
+  assert.equal(isNoopMove(tree, 'inconnu.yml', '', 'inside'), false);
+});
+
+test('ef_col_01_position_de_depot_est_calculee_depuis_les_coordonnees_de_levenement', () => {
+  const box = { top: 100, height: 26 };
+  assert.equal(dropPositionAt(101, box, 'request'), 'before');
+  assert.equal(dropPositionAt(120, box, 'request'), 'after');
+  assert.equal(dropPositionAt(105, box, 'folder'), 'before');
+  assert.equal(dropPositionAt(113, box, 'folder'), 'inside');
+  assert.equal(dropPositionAt(124, box, 'folder'), 'after');
+  assert.equal(dropPositionAt(124, box, 'folder', true), 'inside');
+  assert.equal(dropPositionAt(500, box, 'request'), 'after');
+  assert.equal(dropPositionAt(-20, box, 'request'), 'before');
+  assert.equal(dropPositionAt(100, { top: 100, height: 0 }, 'request'), 'after');
+});
+
+test('ef_col_01_sous_un_filtre_seul_le_depot_dans_un_dossier_reste_possible', () => {
+  const box = { top: 0, height: 26 };
+  for (const y of [1, 13, 25]) {
+    assert.equal(dropPositionAt(y, box, 'folder', false, false), 'inside');
+    assert.equal(dropPositionAt(y, box, 'request', false, false), null);
+  }
+  assert.equal(dropPosition(0.1, 'folder', false, false), 'inside');
+});
+
+test('ef_col_01_glisser_a_quitte_la_zone_quand_le_pointeur_sort_du_rectangle', () => {
+  const rect = { left: 44, top: 80, right: 314, bottom: 600 };
+  assert.equal(insideRect(100, 200, rect), true);
+  assert.equal(insideRect(44, 80, rect), true);
+  assert.equal(insideRect(314, 200, rect), false);
+  assert.equal(insideRect(100, 600, rect), false);
+  assert.equal(insideRect(0, 0, rect), false);
+});
+
+test('ef_col_04_nom_de_fichier_suit_sanitize_name_du_moteur', () => {
+  assert.equal(sanitizeName('-brouillon'), 'brouillon');
+  assert.equal(sanitizeName('  - -x'), 'x');
+  assert.equal(sanitizeName('GET /transactions/:id'), 'GET -transactions--id');
+  assert.equal(sanitizeName('/liste'), 'liste');
+  assert.equal(sanitizeName('Liste. '), 'Liste');
+  assert.equal(sanitizeName('.env'), '.env');
+  assert.equal(sanitizeName('a-b'), 'a-b');
+});
+
+test('ef_col_04_seq_de_fin_de_liste_depasse_le_plus_grand_seq_et_le_nombre_de_freres', () => {
+  assert.equal(endSeq([]), 1);
+  assert.equal(endSeq([1, 2, 3]), 4);
+  assert.equal(endSeq([1, 7]), 8);
+  assert.equal(endSeq([0, 0, 0]), 4);
+  assert.equal(endSeq([2, 5, 1, 1, 1, 1, 1]), 8);
+});
+
+test('ef_col_04_chemins_disparus_de_larbre_sont_reperes_apres_un_echec', () => {
+  assert.deepEqual(missingPaths(tree, ['auth/jeton.yml', 'auth/ancien.yml', 'sante.yml', 'transactions/export']), ['auth/ancien.yml']);
+  assert.deepEqual(missingPaths(tree, []), []);
 });

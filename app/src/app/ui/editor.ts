@@ -24,8 +24,9 @@ import { UrlBar } from './url-bar';
             tabindex="0"
             [class.preview]="t.preview"
             [class.is-dirty]="ws.isDirty(t)"
+            [class.is-missing]="t.missing"
             [attr.aria-selected]="t.path === tab.path"
-            [title]="t.path"
+            [title]="t.missing ? 'Fichier introuvable : le brouillon reste ouvert' : t.path"
             (click)="ws.activate(t.path)"
             (dblclick)="ws.pin(t.path)"
             (keydown.enter)="ws.activate(t.path)"
@@ -47,7 +48,9 @@ import { UrlBar } from './url-bar';
           }
         }
         <span class="crumbs-state" [class.dirty]="ws.isDirty(tab)">
-          @if (ws.isDirty(tab)) {
+          @if (tab.missing) {
+            <app-ic name="alert" [size]="12" />Fichier introuvable sur le disque
+          } @else if (ws.isDirty(tab)) {
             Non enregistré <kbd class="kbd">{{ label('request.save') }}</kbd>
           } @else {
             <app-ic name="check" [size]="12" />Enregistré sur le disque
