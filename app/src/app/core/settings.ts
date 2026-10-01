@@ -23,7 +23,7 @@ export interface FontGroupSpec {
 export const SETTINGS_KEY = 'xc-settings';
 export const SETTINGS_VERSION = 1;
 export const FONT_NAME_MAX = 64;
-export const FONT_NAME_RULE = `Lettres, chiffres, espaces, point, tiret et plus, ${FONT_NAME_MAX} caractères au plus.`;
+export const FONT_NAME_RULE = `Lettres, chiffres, espaces, point, tiret, tiret bas et plus ; ${FONT_NAME_MAX} caractères au plus.`;
 
 const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif';
 const SYSTEM_SANS = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif';
