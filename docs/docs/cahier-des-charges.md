@@ -94,14 +94,13 @@ ma-collection/
 └── .oc-sync/
     └── openapi/
         ├── source.yml
-        └── base/
-            └── <operation-key>.yml
+        └── spec.json
 ```
 
 ### Règles
 
 - Tout ce qui est standard OpenCollection reste strictement conforme à la spec. On ne pose aucun champ propriétaire dans les fichiers de requête, sinon Bruno les perdrait à la réécriture.
-- Nos métadonnées propres (snapshot `base` de la synchro OpenAPI, source de la spec) vivent dans `.oc-sync/`, versionnable ou ignorable au choix de l'équipe.
+- Nos métadonnées propres (copie brute de la spec qui sert de base à la synchro OpenAPI, source de la spec, correspondance opération → fichier) vivent dans `.oc-sync/`, faites pour être versionnées : c'est ce qui rend la base partageable dans l'équipe. Format détaillé : `synchro-openapi.md`.
 - Les secrets ne sont jamais écrits dans les fichiers : trousseau de l'OS, ou `.env` local ignoré par Git.
 - Écriture atomique (fichier temporaire puis renommage) pour ne jamais laisser un fichier à moitié écrit.
 - Ordre des clés et indentation déterministes : sauvegarder sans modification ne produit aucun diff.
@@ -188,13 +187,13 @@ Un conflit n'est jamais tranché automatiquement : la valeur de l'équipe reste 
 
 ### Règles
 
-1. **Clé stable** : `operationId` si présent, sinon méthode + chemin normalisé (`/users/{id}` et `/users/{userId}` sont la même route). Si le chemin change sans `operationId`, l'outil propose un rapprochement manuel au lieu d'une suppression + création.
-2. **Nouvelles opérations** : créées dans le dossier correspondant à leur tag OpenAPI.
-3. **Opérations retirées de la spec** : marquées dépréciées, jamais supprimées.
-4. **Revue des conflits** : écran de diff côte à côte, choix champ par champ (garder l'équipe, prendre la spec, éditer).
-5. **Aperçu avant application** : la synchro montre le résumé (créées, mises à jour, dépréciées, conflits) avant d'écrire quoi que ce soit.
-6. **Base mise à jour en dernier** : le snapshot `.oc-sync/base` n'est réécrit qu'après une application réussie, pour qu'une synchro interrompue soit rejouable.
-7. **CI** : `sync --check` sort en erreur si la spec a divergé de la collection, pour détecter une collection en retard sur le contrat.
+1. **EF-SYN-01 · Clé stable** : `operationId` si présent, sinon méthode + chemin normalisé (`/users/{id}` et `/users/{userId}` sont la même route). Si le chemin change sans `operationId`, l'outil propose un rapprochement manuel au lieu d'une suppression + création.
+2. **EF-SYN-02 · Nouvelles opérations** : créées dans le dossier correspondant à leur tag OpenAPI.
+3. **EF-SYN-03 · Opérations retirées de la spec** : marquées dépréciées, jamais supprimées.
+4. **EF-SYN-04 · Revue des conflits** : écran de diff côte à côte, choix champ par champ (garder l'équipe, prendre la spec, éditer).
+5. **EF-SYN-05 · Aperçu avant application** : la synchro montre le résumé (créées, mises à jour, dépréciées, conflits) avant d'écrire quoi que ce soit.
+6. **EF-SYN-06 · Base mise à jour en dernier** : la base `.oc-sync/` n'est réécrite qu'après une application réussie, pour qu'une synchro interrompue soit rejouable.
+7. **EF-SYN-07 · CI** : `sync --check` sort en erreur si la spec a divergé de la collection, pour détecter une collection en retard sur le contrat.
 
 ## 7. Exigences non fonctionnelles
 
