@@ -1,0 +1,29 @@
+opencollection: 1.0.0
+
+info:
+  name: OAuth2 au niveau collection
+
+request:
+  auth:
+    type: oauth2
+    flow: resource_owner_password_credentials
+    accessTokenUrl: /token
+    refreshTokenUrl: "{{oauth_refresh_url}}"
+    credentials:
+      clientId: "{{oauth_client_id}}"
+      clientSecret: "{{oauth_client_secret}}"
+      placement: header
+    scope: admin user
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

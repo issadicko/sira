@@ -1,0 +1,72 @@
+info:
+  name: Fichier
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value: []
+        description: Le fichier
+      - name: caption
+        type: text
+        value: légende
+  auth:
+    type: oauth2
+    flow: implicit
+    authorizationUrl: https://auth.example.com/authorize
+    callbackUrl: "{{oauth_callback_url}}"
+    credentials:
+      clientId: "{{oauth_client_id}}"
+    scope: write
+    state: "{{oauth_state}}"
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: multipart-form
+        data:
+          - name: file
+            type: file
+            value: []
+            description: Le fichier
+          - name: caption
+            type: text
+            value: légende
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

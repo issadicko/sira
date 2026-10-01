@@ -1,0 +1,6 @@
+info:
+  name: trailing-dots
+  type: folder
+
+request:
+  auth: inherit

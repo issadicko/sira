@@ -1,0 +1,16 @@
+opencollection: 1.0.0
+
+info:
+  name: Tic Tac Toe
+
+docs:
+  content: |
+    This API allows writing down marks on a Tic Tac Toe board
+    and requesting the state of the board or of individual squares.
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

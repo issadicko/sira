@@ -1,0 +1,86 @@
+info:
+  name: Get a single board square
+  type: http
+  seq: 1
+  tags:
+    - Gameplay
+
+http:
+  method: GET
+  url: "{{baseUrl}}/board/:row/:column"
+  params:
+    - name: row
+      value: "1"
+      type: path
+      description: Board row (vertical coordinate)
+    - name: column
+      value: "1"
+      type: path
+      description: Board column (horizontal coordinate)
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) {
+          bru.setVar('put-square_row', $request.path.row);
+          bru.setVar('put-square_column', $request.path.column);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: GET
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: .
+  - name: 400 Response
+    description: The provided parameters are incorrect
+    request:
+      url: "{{baseUrl}}/board/:row/:column"
+      method: GET
+      params:
+        - name: row
+          value: "1"
+          type: path
+          description: Board row (vertical coordinate)
+        - name: column
+          value: "1"
+          type: path
+          description: Board column (horizontal coordinate)
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: text/html
+      body:
+        type: html
+        data: Illegal coordinates
+
+docs: Retrieves the requested square.

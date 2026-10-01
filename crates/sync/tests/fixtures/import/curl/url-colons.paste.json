@@ -1,0 +1,45 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "GET",
+    "url": "https://x.test/a:b/:c/::d/:/:c",
+    "headers": [],
+    "params": [
+      {
+        "name": "c",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": ":d",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

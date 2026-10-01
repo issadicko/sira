@@ -1,0 +1,6 @@
+info:
+  name: board
+  type: folder
+
+request:
+  auth: inherit

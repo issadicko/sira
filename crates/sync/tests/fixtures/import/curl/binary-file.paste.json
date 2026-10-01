@@ -1,0 +1,39 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "POST",
+    "url": "https://x.test/up",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/octet-stream",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "file",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

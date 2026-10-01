@@ -1,0 +1,31 @@
+info:
+  name: 'Bad <chars>: "quoted" | pipe? *star* back\slash'
+  type: http
+  seq: 1
+  tags:
+    - a_b
+
+http:
+  method: POST
+  url: "{{baseUrl}}/bad-chars"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/bad-chars"
+      method: POST
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

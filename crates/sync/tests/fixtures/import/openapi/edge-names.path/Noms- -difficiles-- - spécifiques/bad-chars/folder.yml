@@ -1,0 +1,6 @@
+info:
+  name: bad-chars
+  type: folder
+
+request:
+  auth: inherit

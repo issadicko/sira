@@ -1,0 +1,23 @@
+info:
+  name: No scheme
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: https://example.com/users/:id?x=1
+  params:
+    - name: x
+      value: "1"
+      type: query
+    - name: id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

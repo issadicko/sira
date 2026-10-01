@@ -1,0 +1,6 @@
+info:
+  name: "{row}"
+  type: folder
+
+request:
+  auth: inherit

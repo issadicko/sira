@@ -1,0 +1,65 @@
+info:
+  name: find pet by id
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{baseUrl}}/pets/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: ID of pet to fetch
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: pet response
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: ID of pet to fetch
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: ""
+  - name: default Response
+    description: unexpected error
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: ID of pet to fetch
+    response:
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "code": 0,
+            "message": ""
+          }
+
+docs: Returns a user based on a single ID, if the user does not have access to the pet

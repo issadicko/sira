@@ -1,0 +1,56 @@
+info:
+  name: createFolder
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/folders"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "children": [
+          {}
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/folders"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "children": [
+              {}
+            ]
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "children": [
+              {}
+            ]
+          }

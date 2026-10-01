@@ -1,0 +1,6 @@
+info:
+  name: "{eventId}"
+  type: folder
+
+request:
+  auth: inherit

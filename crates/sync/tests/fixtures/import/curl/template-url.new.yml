@@ -1,0 +1,26 @@
+info:
+  name: Template
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: https://example.com/%7B%7Bp%7D%7D/users/:id?q=%7B%7Ba?b%7D%7D&x=1
+  params:
+    - name: q
+      value: "%7B%7Ba?b%7D%7D"
+      type: query
+    - name: x
+      value: "1"
+      type: query
+    - name: id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

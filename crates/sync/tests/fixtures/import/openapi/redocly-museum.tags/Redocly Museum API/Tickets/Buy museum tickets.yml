@@ -1,0 +1,194 @@
+info:
+  name: Buy museum tickets
+  type: http
+  seq: 1
+  tags:
+    - Tickets
+
+http:
+  method: POST
+  url: "{{baseUrl}}/tickets"
+  body:
+    type: json
+    data: |-
+      {
+        "ticketType": "general",
+        "ticketDate": "2023-09-07",
+        "email": "todd@example.com"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: General entry ticket
+    request:
+      url: "{{baseUrl}}/tickets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "ticketType": "general",
+            "ticketDate": "2023-09-07",
+            "email": "todd@example.com"
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "message": "Museum general entry ticket purchased",
+            "ticketId": "382c0820-0530-4f4b-99af-13811ad0f17a",
+            "ticketType": "general",
+            "ticketDate": "2023-09-07",
+            "confirmationCode": "ticket-general-e5e5c6-dce78"
+          }
+  - name: Special event ticket
+    request:
+      url: "{{baseUrl}}/tickets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "ticketType": "event",
+            "eventId": "dad4bce8-f5cb-4078-a211-995864315e39",
+            "ticketDate": "2023-09-05",
+            "email": "todd@example.com"
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "message": "Museum special event ticket purchased",
+            "ticketId": "b811f723-17b2-44f7-8952-24b03e43d8a9",
+            "eventName": "Mermaid Treasure Identification and Analysis",
+            "ticketType": "event",
+            "ticketDate": "2023-09-05",
+            "confirmationCode": "ticket-event-9c55eg-8v82a"
+          }
+  - name: 400 Response (General entry ticket)
+    description: Bad request.
+    request:
+      url: "{{baseUrl}}/tickets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "ticketType": "general",
+            "ticketDate": "2023-09-07",
+            "email": "todd@example.com"
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 400 Response (Special event ticket)
+    description: Bad request.
+    request:
+      url: "{{baseUrl}}/tickets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "ticketType": "event",
+            "eventId": "dad4bce8-f5cb-4078-a211-995864315e39",
+            "ticketDate": "2023-09-05",
+            "email": "todd@example.com"
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 404 Response (General entry ticket)
+    description: Not found.
+    request:
+      url: "{{baseUrl}}/tickets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "ticketType": "general",
+            "ticketDate": "2023-09-07",
+            "email": "todd@example.com"
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 404 Response (Special event ticket)
+    description: Not found.
+    request:
+      url: "{{baseUrl}}/tickets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "ticketType": "event",
+            "eventId": "dad4bce8-f5cb-4078-a211-995864315e39",
+            "ticketDate": "2023-09-05",
+            "email": "todd@example.com"
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+
+docs: Purchase museum tickets for general entry or special events.

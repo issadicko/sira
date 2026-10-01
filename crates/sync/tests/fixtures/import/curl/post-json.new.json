@@ -1,0 +1,45 @@
+{
+  "type": "http-request",
+  "name": "Create user",
+  "request": {
+    "method": "post",
+    "url": "https://api.example.com/users",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "enabled": true
+      },
+      {
+        "name": "Authorization",
+        "value": "Bearer abc",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"name\": \"Ada\",\n  \"age\": 36\n}",
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

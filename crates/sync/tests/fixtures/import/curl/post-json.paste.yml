@@ -1,0 +1,27 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: POST
+  url: https://api.example.com/users
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer abc
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Ada",
+        "age": 36
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

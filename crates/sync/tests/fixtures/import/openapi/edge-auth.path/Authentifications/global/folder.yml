@@ -1,0 +1,6 @@
+info:
+  name: global
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,76 @@
+info:
+  name: Créer
+  type: http
+  seq: 2
+  tags:
+    - pets
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets"
+  params:
+    - name: limit
+      value: "20"
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "id": 0,
+        "name": "Rex",
+        "tag": "",
+        "owner": {
+          "pets": [
+            {}
+          ]
+        }
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    description: Créé
+    request:
+      url: "{{baseUrl}}/pets"
+      method: POST
+      params:
+        - name: limit
+          value: "20"
+          type: query
+      body:
+        type: json
+        data: |-
+          {
+            "id": 0,
+            "name": "Rex",
+            "tag": "",
+            "owner": {
+              "pets": [
+                {}
+              ]
+            }
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/xml
+      body:
+        type: xml
+        data: |-
+          <?xml version="1.0" encoding="UTF-8"?>
+          <root>
+            <id>0</id>
+            <name>Rex</name>
+            <tag></tag>
+            <owner>
+              <pets>[object Object]</pets>
+            </owner>
+          </root>

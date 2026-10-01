@@ -1,0 +1,39 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "POST",
+    "url": "https://api.example.com/graphql",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"query\": \"{ me { id } }\",\n  \"variables\": {\n    \"a\": 1\n  }\n}",
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

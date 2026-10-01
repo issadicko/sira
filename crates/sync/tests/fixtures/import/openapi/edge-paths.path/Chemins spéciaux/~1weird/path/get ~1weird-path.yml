@@ -1,0 +1,29 @@
+info:
+  name: get ~1weird/path
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}~1weird/path"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: sans barre initiale
+    request:
+      url: "{{baseUrl}}~1weird/path"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

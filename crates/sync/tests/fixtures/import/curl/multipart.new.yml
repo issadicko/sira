@@ -1,0 +1,28 @@
+info:
+  name: Upload avatar
+  type: http
+  seq: 1
+
+http:
+  method: post
+  url: https://api.example.com/upload
+  headers:
+    - name: Content-Type
+      value: multipart/form-data
+  body:
+    type: multipart-form
+    data:
+      - name: name
+        type: text
+        value: Ada
+      - name: avatar
+        type: file
+        value: /tmp/a.png
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

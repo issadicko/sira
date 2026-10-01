@@ -1,0 +1,47 @@
+{
+  "type": "http-request",
+  "name": "Ipv6",
+  "request": {
+    "method": "get",
+    "url": "http://[::1]:8080/a/:b?c=:d",
+    "headers": [],
+    "params": [
+      {
+        "name": "c",
+        "value": ":d",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "b",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

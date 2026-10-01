@@ -1,0 +1,65 @@
+info:
+  name: Supprimer
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/pets/:id"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: multipart-form
+    data:
+      - name: reason
+        type: text
+        value: ""
+  auth:
+    type: oauth2
+    flow: resource_owner_password_credentials
+    accessTokenUrl: https://auth.example.com/token
+    refreshTokenUrl: "{{oauth_refresh_url}}"
+    credentials:
+      clientId: "{{oauth_client_id}}"
+      clientSecret: "{{oauth_client_secret}}"
+      placement: header
+    scope: a
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: supprimé
+    request:
+      url: "{{baseUrl}}/pets/:id"
+      method: DELETE
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: multipart-form
+        data:
+          - name: reason
+            type: text
+            value: ""
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""

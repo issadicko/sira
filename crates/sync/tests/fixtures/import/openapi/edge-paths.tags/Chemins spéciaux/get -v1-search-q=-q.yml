@@ -1,0 +1,29 @@
+info:
+  name: get /v1/search?q=:q
+  type: http
+  seq: 12
+
+http:
+  method: GET
+  url: "{{baseUrl}}/v1/search?q=:q"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: requête
+    request:
+      url: "{{baseUrl}}/v1/search?q=:q"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

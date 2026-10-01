@@ -1,0 +1,6 @@
+info:
+  name: query
+  type: folder
+
+request:
+  auth: inherit

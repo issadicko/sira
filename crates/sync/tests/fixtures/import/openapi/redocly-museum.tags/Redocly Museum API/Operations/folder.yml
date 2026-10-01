@@ -1,0 +1,10 @@
+info:
+  name: Operations
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Operational information about the museum.
+  type: text/markdown

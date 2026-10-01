@@ -1,0 +1,49 @@
+info:
+  name: mergePullRequest
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/2.0/repositories/:username/:slug/pullrequests/:pid/merge"
+  params:
+    - name: username
+      value: ""
+      type: path
+    - name: slug
+      value: ""
+      type: path
+    - name: pid
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: the PR was successfully merged
+    request:
+      url: "{{baseUrl}}/2.0/repositories/:username/:slug/pullrequests/:pid/merge"
+      method: POST
+      params:
+        - name: username
+          value: ""
+          type: path
+        - name: slug
+          value: ""
+          type: path
+        - name: pid
+          value: ""
+          type: path
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""

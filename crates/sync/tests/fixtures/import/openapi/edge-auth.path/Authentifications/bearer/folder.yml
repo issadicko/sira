@@ -1,0 +1,6 @@
+info:
+  name: bearer
+  type: folder
+
+request:
+  auth: inherit

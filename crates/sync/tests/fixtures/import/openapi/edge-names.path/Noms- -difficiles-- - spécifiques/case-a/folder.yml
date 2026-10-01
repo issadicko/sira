@@ -1,0 +1,6 @@
+info:
+  name: case-a
+  type: folder
+
+request:
+  auth: inherit

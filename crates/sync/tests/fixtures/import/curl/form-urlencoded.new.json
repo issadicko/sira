@@ -1,0 +1,45 @@
+{
+  "type": "http-request",
+  "name": "Login",
+  "request": {
+    "method": "post",
+    "url": "https://api.example.com/login",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "formUrlEncoded",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": [
+        {
+          "name": "user",
+          "value": "ada",
+          "enabled": true
+        },
+        {
+          "name": "pass",
+          "value": "secret",
+          "enabled": true
+        }
+      ],
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

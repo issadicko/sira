@@ -1,0 +1,31 @@
+info:
+  name: post /b
+  type: http
+  seq: 1
+  tags:
+    - "2"
+
+http:
+  method: POST
+  url: "{{baseUrl}}/b"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/b"
+      method: POST
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

@@ -1,0 +1,6 @@
+info:
+  name: "{item-id}"
+  type: folder
+
+request:
+  auth: inherit

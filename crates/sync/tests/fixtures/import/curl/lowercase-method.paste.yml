@@ -1,0 +1,24 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: PATCH
+  url: https://x.test/items/1
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "done": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

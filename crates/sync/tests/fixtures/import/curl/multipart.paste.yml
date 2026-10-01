@@ -1,0 +1,20 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: POST
+  url: https://api.example.com/upload
+  headers:
+    - name: Content-Type
+      value: multipart/form-data
+  body:
+    type: multipart-form
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

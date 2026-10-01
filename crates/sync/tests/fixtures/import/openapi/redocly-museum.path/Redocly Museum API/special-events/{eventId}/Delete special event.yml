@@ -1,0 +1,112 @@
+info:
+  name: Delete special event
+  type: http
+  seq: 3
+  tags:
+    - Events
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/special-events/:eventId"
+  params:
+    - name: eventId
+      value: dad4bce8-f5cb-4078-a211-995864315e39
+      type: path
+      description: Identifier for a special event.
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: Success - no content.
+    request:
+      url: "{{baseUrl}}/special-events/:eventId"
+      method: DELETE
+      params:
+        - name: eventId
+          value: dad4bce8-f5cb-4078-a211-995864315e39
+          type: path
+          description: Identifier for a special event.
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""
+  - name: 400 Response
+    description: Bad request.
+    request:
+      url: "{{baseUrl}}/special-events/:eventId"
+      method: DELETE
+      params:
+        - name: eventId
+          value: dad4bce8-f5cb-4078-a211-995864315e39
+          type: path
+          description: Identifier for a special event.
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 401 Response
+    description: Unauthorized.
+    request:
+      url: "{{baseUrl}}/special-events/:eventId"
+      method: DELETE
+      params:
+        - name: eventId
+          value: dad4bce8-f5cb-4078-a211-995864315e39
+          type: path
+          description: Identifier for a special event.
+    response:
+      status: 401
+      statusText: Unauthorized
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 404 Response
+    description: Not found.
+    request:
+      url: "{{baseUrl}}/special-events/:eventId"
+      method: DELETE
+      params:
+        - name: eventId
+          value: dad4bce8-f5cb-4078-a211-995864315e39
+          type: path
+          description: Identifier for a special event.
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+
+docs: Delete a special event from the collection. Allows museum to cancel planned events.

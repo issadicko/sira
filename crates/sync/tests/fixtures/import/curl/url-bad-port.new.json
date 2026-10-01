@@ -1,0 +1,47 @@
+{
+  "type": "http-request",
+  "name": "Bad port",
+  "request": {
+    "method": "get",
+    "url": "http://a.test:99999/:id?x=1",
+    "headers": [],
+    "params": [
+      {
+        "name": "x",
+        "value": "1",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "id?x=1",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

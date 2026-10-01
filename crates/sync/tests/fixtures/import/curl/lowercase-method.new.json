@@ -1,0 +1,40 @@
+{
+  "type": "http-request",
+  "name": "Patch",
+  "request": {
+    "method": "patch",
+    "url": "https://x.test/items/1",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "json",
+      "json": "{\n  \"done\": true\n}",
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

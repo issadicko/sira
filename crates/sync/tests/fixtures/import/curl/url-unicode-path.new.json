@@ -1,0 +1,53 @@
+{
+  "type": "http-request",
+  "name": "Unicode path",
+  "request": {
+    "method": "get",
+    "url": "https://x.test/été/:id/a%20b/:name?q=é",
+    "headers": [],
+    "params": [
+      {
+        "name": "q",
+        "value": "é",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "name",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

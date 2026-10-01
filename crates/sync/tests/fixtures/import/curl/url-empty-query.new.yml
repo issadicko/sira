@@ -1,0 +1,16 @@
+info:
+  name: Empty query
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: https://x.test/a
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

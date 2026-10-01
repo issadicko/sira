@@ -1,0 +1,31 @@
+info:
+  name: Nom avec espaces
+  type: http
+  seq: 5
+  tags:
+    - Écoles_Lycées
+
+http:
+  method: HEAD
+  url: "{{baseUrl}}/c"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/c"
+      method: HEAD
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

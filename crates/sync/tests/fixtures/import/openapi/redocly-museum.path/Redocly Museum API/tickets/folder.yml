@@ -1,0 +1,6 @@
+info:
+  name: tickets
+  type: folder
+
+request:
+  auth: inherit

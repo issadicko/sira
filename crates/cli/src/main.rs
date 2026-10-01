@@ -8,6 +8,8 @@ use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{COLLECTION_FILE, FOLDER_FILE};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::{normalize, open_collection, prepare, read_request, TreeItem};
+use xc_sync::import::{fetch_spec, import_spec};
+use xc_sync::openapi::GroupBy;
 
 #[derive(Parser)]
 #[command(
@@ -40,6 +42,16 @@ enum Command {
     },
     /// Relit et réécrit chaque fichier en mémoire pour vérifier l'aller-retour sans diff
     Check { collection: PathBuf },
+    /// Importe une spec OpenAPI 3.x ou Swagger 2.0 dans une nouvelle collection et affiche son chemin
+    Import {
+        /// Chemin d'un fichier ou URL http(s) de la spec
+        source: String,
+        /// Dossier parent où créer le dossier de la collection (il doit exister)
+        location: PathBuf,
+        /// Regroupement des requêtes : tags ou path
+        #[arg(long, default_value = "tags")]
+        group_by: GroupBy,
+    },
 }
 
 fn parse_pair(s: &str) -> Result<(String, String), String> {
@@ -53,6 +65,27 @@ fn main() -> ExitCode {
             runtime.block_on(run(&collection, target.as_deref(), env.as_deref(), env_vars.into_iter().collect(), bail))
         }
         Command::Check { collection } => check(&collection),
+        Command::Import { source, location, group_by } => {
+            let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
+            runtime.block_on(import(&source, &location, group_by))
+        }
+    }
+}
+
+async fn import(source: &str, location: &Path, group_by: GroupBy) -> ExitCode {
+    let result = match fetch_spec(source).await {
+        Ok(text) => import_spec(&text, source, location, group_by),
+        Err(e) => Err(e),
+    };
+    match result {
+        Ok(root) => {
+            println!("{}", root.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("erreur : {e}");
+            ExitCode::from(if e.is_input() { 2 } else { 1 })
+        }
     }
 }
 

@@ -1,0 +1,6 @@
+info:
+  name: museum-hours
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,6 @@
+info:
+  name: repositories
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,51 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "GET",
+    "url": "https://services.odata.org/V4/Northwind/Northwind.svc/Products(:id)/Orders(Key1=:k1,Key2=%27:k2%27)",
+    "headers": [],
+    "params": [
+      {
+        "name": "id",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "k1",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      },
+      {
+        "name": "k2",
+        "value": "",
+        "enabled": true,
+        "type": "path"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

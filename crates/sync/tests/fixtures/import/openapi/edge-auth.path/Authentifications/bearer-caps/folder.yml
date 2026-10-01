@@ -1,0 +1,6 @@
+info:
+  name: bearer-caps
+  type: folder
+
+request:
+  auth: inherit

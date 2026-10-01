@@ -1,0 +1,92 @@
+info:
+  name: Get ticket QR code
+  type: http
+  seq: 1
+  tags:
+    - Tickets
+
+http:
+  method: GET
+  url: "{{baseUrl}}/tickets/:ticketId/qr"
+  params:
+    - name: ticketId
+      value: a54a57ca-36f8-421b-a6b4-2e8f26858a4c
+      type: path
+      description: Identifier for a ticket to a museum event. Used to generate ticket image.
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: Scannable event ticket in image format.
+    request:
+      url: "{{baseUrl}}/tickets/:ticketId/qr"
+      method: GET
+      params:
+        - name: ticketId
+          value: a54a57ca-36f8-421b-a6b4-2e8f26858a4c
+          type: path
+          description: Identifier for a ticket to a museum event. Used to generate ticket image.
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: image/png
+      body:
+        type: text
+        data: ""
+  - name: 400 Response
+    description: Bad request.
+    request:
+      url: "{{baseUrl}}/tickets/:ticketId/qr"
+      method: GET
+      params:
+        - name: ticketId
+          value: a54a57ca-36f8-421b-a6b4-2e8f26858a4c
+          type: path
+          description: Identifier for a ticket to a museum event. Used to generate ticket image.
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 404 Response
+    description: Not found.
+    request:
+      url: "{{baseUrl}}/tickets/:ticketId/qr"
+      method: GET
+      params:
+        - name: ticketId
+          value: a54a57ca-36f8-421b-a6b4-2e8f26858a4c
+          type: path
+          description: Identifier for a ticket to a museum event. Used to generate ticket image.
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+
+docs: Return an image of your ticket with scannable QR code. Used for event entry.

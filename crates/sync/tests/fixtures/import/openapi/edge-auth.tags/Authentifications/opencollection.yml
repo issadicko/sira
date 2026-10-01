@@ -1,0 +1,17 @@
+opencollection: 1.0.0
+
+info:
+  name: Authentifications
+
+request:
+  auth:
+    type: apikey
+    key: api_key
+    value: "{{apiKey}}"
+    placement: query
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

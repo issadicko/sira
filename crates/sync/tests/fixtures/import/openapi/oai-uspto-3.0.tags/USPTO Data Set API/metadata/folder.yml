@@ -1,0 +1,10 @@
+info:
+  name: metadata
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Find out about the data sets
+  type: text/markdown

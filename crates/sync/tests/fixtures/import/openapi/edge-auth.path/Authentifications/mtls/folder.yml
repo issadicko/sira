@@ -1,0 +1,6 @@
+info:
+  name: mtls
+  type: folder
+
+request:
+  auth: inherit

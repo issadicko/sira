@@ -1,0 +1,34 @@
+info:
+  name: Serveur de l'opération
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/items"
+  auth: inherit
+
+runtime:
+  variables:
+    - name: baseUrl
+      value: https://write.example.com
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/items"
+      method: POST
+    response:
+      status: 201
+      statusText: Created
+      body:
+        type: text
+        data: ""

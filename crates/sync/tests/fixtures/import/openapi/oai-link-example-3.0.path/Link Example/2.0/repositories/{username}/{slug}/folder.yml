@@ -1,0 +1,6 @@
+info:
+  name: "{slug}"
+  type: folder
+
+request:
+  auth: inherit

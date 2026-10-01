@@ -1,0 +1,18 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: POST
+  url: https://api.example.com/q
+  headers:
+    - name: Content-Type
+      value: application/graphql
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

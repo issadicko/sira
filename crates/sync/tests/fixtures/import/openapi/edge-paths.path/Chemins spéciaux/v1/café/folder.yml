@@ -1,0 +1,6 @@
+info:
+  name: café
+  type: folder
+
+request:
+  auth: inherit

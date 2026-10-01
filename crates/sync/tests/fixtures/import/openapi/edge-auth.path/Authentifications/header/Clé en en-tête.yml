@@ -1,0 +1,39 @@
+info:
+  name: Clé en en-tête
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/header"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+  auth:
+    type: apikey
+    key: X-API-Key
+    value: "{{apiKey}}"
+    placement: header
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/header"
+      method: GET
+      headers:
+        - name: X-API-Key
+          value: "{{apiKey}}"
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

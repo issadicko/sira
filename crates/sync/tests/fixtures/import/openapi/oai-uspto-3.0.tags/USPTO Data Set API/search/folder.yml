@@ -1,0 +1,10 @@
+info:
+  name: search
+  type: folder
+
+request:
+  auth: inherit
+
+docs:
+  content: Search a data set
+  type: text/markdown

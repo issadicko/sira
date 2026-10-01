@@ -1,0 +1,6 @@
+name: Environment 1
+variables:
+  - name: baseUrl
+    value: "{{scheme}}://developer.uspto.gov/ds-api"
+  - name: scheme
+    value: https

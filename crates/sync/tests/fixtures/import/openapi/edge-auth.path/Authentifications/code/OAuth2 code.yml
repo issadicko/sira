@@ -1,0 +1,48 @@
+info:
+  name: OAuth2 code
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/code"
+  auth:
+    type: oauth2
+    flow: authorization_code
+    authorizationUrl: https://auth.example.com/authorize
+    accessTokenUrl: https://auth.example.com/token
+    refreshTokenUrl: https://auth.example.com/refresh
+    callbackUrl: "{{oauth_callback_url}}"
+    credentials:
+      clientId: "{{oauth_client_id}}"
+      clientSecret: "{{oauth_client_secret}}"
+      placement: header
+    scope: read write
+    state: "{{oauth_state}}"
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/code"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

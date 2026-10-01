@@ -1,0 +1,6 @@
+info:
+  name: Products
+  type: folder
+
+request:
+  auth: inherit

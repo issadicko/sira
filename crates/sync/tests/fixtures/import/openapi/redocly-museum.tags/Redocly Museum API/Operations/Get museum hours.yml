@@ -1,0 +1,175 @@
+info:
+  name: Get museum hours
+  type: http
+  seq: 1
+  tags:
+    - Operations
+
+http:
+  method: GET
+  url: "{{baseUrl}}/museum-hours"
+  params:
+    - name: startDate
+      value: 2023-02-23
+      type: query
+      description: Starting date to retrieve future operating hours from. Defaults to today's date.
+    - name: page
+      value: "1"
+      type: query
+      description: Page number to retrieve.
+    - name: limit
+      value: "10"
+      type: query
+      description: Number of days per page.
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: Get hours response
+    request:
+      url: "{{baseUrl}}/museum-hours"
+      method: GET
+      params:
+        - name: startDate
+          value: 2023-02-23
+          type: query
+          description: Starting date to retrieve future operating hours from. Defaults to today's date.
+        - name: page
+          value: "1"
+          type: query
+          description: Page number to retrieve.
+        - name: limit
+          value: "10"
+          type: query
+          description: Number of days per page.
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "date": "2023-09-11",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-12",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-13",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-14",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-15",
+              "timeOpen": "10:00",
+              "timeClose": "16:00"
+            },
+            {
+              "date": "2023-09-18",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-19",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-20",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-21",
+              "timeOpen": "09:00",
+              "timeClose": "18:00"
+            },
+            {
+              "date": "2023-09-22",
+              "timeOpen": "10:00",
+              "timeClose": "16:00"
+            }
+          ]
+  - name: 400 Response
+    description: Bad request.
+    request:
+      url: "{{baseUrl}}/museum-hours"
+      method: GET
+      params:
+        - name: startDate
+          value: 2023-02-23
+          type: query
+          description: Starting date to retrieve future operating hours from. Defaults to today's date.
+        - name: page
+          value: "1"
+          type: query
+          description: Page number to retrieve.
+        - name: limit
+          value: "10"
+          type: query
+          description: Number of days per page.
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+  - name: 404 Response
+    description: Not found.
+    request:
+      url: "{{baseUrl}}/museum-hours"
+      method: GET
+      params:
+        - name: startDate
+          value: 2023-02-23
+          type: query
+          description: Starting date to retrieve future operating hours from. Defaults to today's date.
+        - name: page
+          value: "1"
+          type: query
+          description: Page number to retrieve.
+        - name: limit
+          value: "10"
+          type: query
+          description: Number of days per page.
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/problem+json
+      body:
+        type: json
+        data: |-
+          {
+            "type": "object",
+            "title": "Validation failed"
+          }
+
+docs: Get upcoming museum operating hours.

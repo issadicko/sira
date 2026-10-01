@@ -1,0 +1,37 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: GET
+  url: https://api.example.com/users/:id/posts/:postId?page=2&flag&empty=&a=b=c
+  params:
+    - name: page
+      value: "2"
+      type: query
+    - name: flag
+      value: ""
+      type: query
+    - name: empty
+      value: ""
+      type: query
+    - name: a
+      value: b=c
+      type: query
+    - name: id
+      value: ""
+      type: path
+    - name: postId
+      value: ""
+      type: path
+  auth:
+    type: basic
+    username: me
+    password: pw
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

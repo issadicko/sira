@@ -1,0 +1,6 @@
+name: Régional
+variables:
+  - name: baseUrl
+    value: https://{{region}}.example.com
+  - name: region
+    value: ""

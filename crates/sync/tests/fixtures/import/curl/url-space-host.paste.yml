@@ -1,0 +1,25 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: GET
+  url: http://a/%20b.test/users/:id?x=1&y=:z
+  params:
+    - name: x
+      value: "1"
+      type: query
+    - name: y
+      value: :z
+      type: query
+    - name: id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

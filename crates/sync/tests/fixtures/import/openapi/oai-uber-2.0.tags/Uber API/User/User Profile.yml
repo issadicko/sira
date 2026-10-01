@@ -1,0 +1,43 @@
+info:
+  name: User Profile
+  type: http
+  seq: 1
+  tags:
+    - User
+
+http:
+  method: GET
+  url: "{{baseUrl}}/me"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: Profile information for a user
+    request:
+      url: "{{baseUrl}}/me"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "picture": "",
+            "promo_code": ""
+          }
+
+docs: The User Profile endpoint returns information about the Uber user that has authorized with the application.

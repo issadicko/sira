@@ -9,6 +9,8 @@ use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, RequestDoc};
 use xc_engine::Timings;
+use xc_sync::import::{fetch_spec, OpenApiPreview};
+use xc_sync::openapi::GroupBy;
 
 #[derive(Default)]
 struct AppState {
@@ -137,6 +139,34 @@ fn cancel_request(state: State<'_, AppState>, id: String) -> Reply<bool> {
     Ok(state.inflight.lock().map_err(err)?.remove(&id).map(|h| h.abort()).is_some())
 }
 
+#[tauri::command]
+fn parse_curl(command: String) -> Option<RequestDoc> {
+    xc_sync::import::request_doc_from_curl(&command)
+}
+
+#[tauri::command]
+fn create_request_from_curl(root: String, folder: String, name: String, command: String) -> Reply<String> {
+    xc_sync::import::create_request_from_curl(Path::new(&root), &folder, &name, &command).map_err(err)
+}
+
+#[tauri::command]
+async fn preview_openapi(source: String) -> Reply<OpenApiPreview> {
+    let text = fetch_spec(&source).await.map_err(err)?;
+    xc_sync::import::preview(&text).map_err(err)
+}
+
+#[tauri::command]
+async fn import_openapi(source: String, location: String, group_by: String) -> Reply<String> {
+    let group_by: GroupBy = group_by.parse().map_err(err)?;
+    let text = fetch_spec(&source).await.map_err(err)?;
+    let created = tokio::task::spawn_blocking(move || {
+        xc_sync::import::import_spec(&text, &source, Path::new(&location), group_by)
+    })
+    .await
+    .map_err(err)?;
+    created.map(|root| root.display().to_string()).map_err(err)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -149,7 +179,11 @@ pub fn run() {
             read_environment,
             variables,
             send_request,
-            cancel_request
+            cancel_request,
+            parse_curl,
+            create_request_from_curl,
+            preview_openapi,
+            import_openapi
         ])
         .run(tauri::generate_context!())
         .expect("impossible de démarrer l'application");

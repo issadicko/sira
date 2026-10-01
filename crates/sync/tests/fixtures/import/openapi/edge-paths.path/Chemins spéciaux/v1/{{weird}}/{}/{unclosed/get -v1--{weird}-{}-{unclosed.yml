@@ -1,0 +1,29 @@
+info:
+  name: get /v1/:{weird}/{}/{unclosed
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/v1/:{{undefined_weird}}/{}/{unclosed"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: accolades
+    request:
+      url: "{{baseUrl}}/v1/:{{undefined_weird}}/{}/{unclosed"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

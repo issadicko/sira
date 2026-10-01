@@ -1,0 +1,29 @@
+info:
+  name: put /users/:id
+  type: http
+  seq: 1
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/users/:id"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/users/:id"
+      method: PUT
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""

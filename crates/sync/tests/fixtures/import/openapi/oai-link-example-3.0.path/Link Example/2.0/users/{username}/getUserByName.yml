@@ -1,0 +1,52 @@
+info:
+  name: getUserByName
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/2.0/users/:username"
+  params:
+    - name: username
+      value: ""
+      type: path
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) {
+          bru.setVar('getRepositoriesByOwner_username', res.body.username);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: The User
+    request:
+      url: "{{baseUrl}}/2.0/users/:username"
+      method: GET
+      params:
+        - name: username
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "username": "",
+            "uuid": ""
+          }

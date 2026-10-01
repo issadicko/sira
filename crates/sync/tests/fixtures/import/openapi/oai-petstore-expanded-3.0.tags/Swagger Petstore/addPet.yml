@@ -1,0 +1,71 @@
+info:
+  name: addPet
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/pets"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "tag": ""
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: pet response
+    request:
+      url: "{{baseUrl}}/pets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "tag": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: ""
+  - name: default Response
+    description: unexpected error
+    request:
+      url: "{{baseUrl}}/pets"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "tag": ""
+          }
+    response:
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "code": 0,
+            "message": ""
+          }
+
+docs: Creates a new pet in the store. Duplicates are allowed

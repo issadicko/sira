@@ -1,0 +1,6 @@
+info:
+  name: dashes
+  type: folder
+
+request:
+  auth: inherit

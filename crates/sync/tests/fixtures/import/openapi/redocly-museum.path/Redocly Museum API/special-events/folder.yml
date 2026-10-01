@@ -1,0 +1,6 @@
+info:
+  name: special-events
+  type: folder
+
+request:
+  auth: inherit

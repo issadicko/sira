@@ -1,0 +1,39 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "PUT",
+    "url": "https://x.test/doc",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/xml",
+        "description": "",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "xml",
+      "json": null,
+      "text": null,
+      "xml": "<a><b/></a>",
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

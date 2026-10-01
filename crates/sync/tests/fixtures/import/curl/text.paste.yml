@@ -1,0 +1,21 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: POST
+  url: https://x.test/t
+  headers:
+    - name: Content-Type
+      value: text/plain
+  body:
+    type: text
+    data: hello
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

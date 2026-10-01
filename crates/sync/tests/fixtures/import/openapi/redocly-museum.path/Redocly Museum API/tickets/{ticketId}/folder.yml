@@ -1,0 +1,6 @@
+info:
+  name: "{ticketId}"
+  type: folder
+
+request:
+  auth: inherit

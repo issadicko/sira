@@ -1,0 +1,6 @@
+info:
+  name: noflow
+  type: folder
+
+request:
+  auth: inherit

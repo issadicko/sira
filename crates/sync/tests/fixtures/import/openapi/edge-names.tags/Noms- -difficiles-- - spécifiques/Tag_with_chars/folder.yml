@@ -1,0 +1,6 @@
+info:
+  name: Tag_with_chars
+  type: folder
+
+request:
+  auth: inherit

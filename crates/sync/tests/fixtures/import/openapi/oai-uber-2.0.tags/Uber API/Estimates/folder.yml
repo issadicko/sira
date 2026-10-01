@@ -1,0 +1,6 @@
+info:
+  name: Estimates
+  type: folder
+
+request:
+  auth: inherit

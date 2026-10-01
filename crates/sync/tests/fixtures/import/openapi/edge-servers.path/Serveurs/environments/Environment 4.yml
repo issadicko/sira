@@ -1,0 +1,4 @@
+name: Environment 4
+variables:
+  - name: baseUrl
+    value: /relative

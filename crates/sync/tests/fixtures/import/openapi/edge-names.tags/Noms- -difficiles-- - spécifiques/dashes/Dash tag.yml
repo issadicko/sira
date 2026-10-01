@@ -1,0 +1,31 @@
+info:
+  name: Dash tag
+  type: http
+  seq: 1
+  tags:
+    - dashes
+
+http:
+  method: GET
+  url: "{{baseUrl}}/dash-tag"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/dash-tag"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

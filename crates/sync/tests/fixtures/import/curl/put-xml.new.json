@@ -1,0 +1,40 @@
+{
+  "type": "http-request",
+  "name": "Replace document",
+  "request": {
+    "method": "put",
+    "url": "https://x.test/doc",
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/xml",
+        "enabled": true
+      }
+    ],
+    "params": [],
+    "body": {
+      "mode": "xml",
+      "json": null,
+      "text": null,
+      "xml": "<a><b/></a>",
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

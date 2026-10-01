@@ -1,0 +1,83 @@
+info:
+  name: Time Estimates
+  type: http
+  seq: 1
+  tags:
+    - Estimates
+
+http:
+  method: GET
+  url: "{{baseUrl}}/estimates/time"
+  params:
+    - name: start_latitude
+      value: ""
+      type: query
+      description: Latitude component of start location.
+    - name: start_longitude
+      value: ""
+      type: query
+      description: Longitude component of start location.
+    - name: customer_uuid
+      value: ""
+      type: query
+      description: Unique customer identifier to be used for experience customization.
+      disabled: true
+    - name: product_id
+      value: ""
+      type: query
+      description: Unique identifier representing a specific product for a given latitude & longitude.
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: An array of products
+    request:
+      url: "{{baseUrl}}/estimates/time"
+      method: GET
+      params:
+        - name: start_latitude
+          value: ""
+          type: query
+          description: Latitude component of start location.
+        - name: start_longitude
+          value: ""
+          type: query
+          description: Longitude component of start location.
+        - name: customer_uuid
+          value: ""
+          type: query
+          description: Unique customer identifier to be used for experience customization.
+          disabled: true
+        - name: product_id
+          value: ""
+          type: query
+          description: Unique identifier representing a specific product for a given latitude & longitude.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "product_id": "",
+              "description": "",
+              "display_name": "",
+              "capacity": 0,
+              "image": ""
+            }
+          ]
+
+docs: The Time Estimates endpoint returns ETAs for all products offered at a given location, with the responses expressed as integers in seconds. We recommend that this endpoint be called every minute to provide the most accurate, up-to-date ETAs.

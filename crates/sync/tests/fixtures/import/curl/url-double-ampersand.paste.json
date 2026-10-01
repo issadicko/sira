@@ -1,0 +1,44 @@
+{
+  "type": "http-request",
+  "name": "",
+  "request": {
+    "method": "GET",
+    "url": "https://x.test/a?a=1&b",
+    "headers": [],
+    "params": [
+      {
+        "name": "a",
+        "value": "1",
+        "enabled": true,
+        "type": "query"
+      },
+      {
+        "name": "b",
+        "enabled": true,
+        "type": "query"
+      }
+    ],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  }
+}

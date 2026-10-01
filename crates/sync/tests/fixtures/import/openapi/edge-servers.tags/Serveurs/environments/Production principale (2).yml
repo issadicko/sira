@@ -1,0 +1,4 @@
+name: Production principale (2)
+variables:
+  - name: baseUrl
+    value: https://staging.example.com

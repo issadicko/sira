@@ -1,0 +1,19 @@
+info:
+  name: Graphql by header
+  type: graphql
+  seq: 1
+
+graphql:
+  method: post
+  url: https://api.example.com/q
+  headers:
+    - name: Content-Type
+      value: application/graphql
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,6 @@
+info:
+  name: time
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,48 @@
+info:
+  name: Code
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/oauth"
+  auth:
+    type: oauth2
+    flow: authorization_code
+    authorizationUrl: https://auth.example.com/code
+    accessTokenUrl: https://auth.example.com/token
+    refreshTokenUrl: "{{oauth_refresh_url}}"
+    callbackUrl: "{{oauth_callback_url}}"
+    credentials:
+      clientId: "{{oauth_client_id}}"
+      clientSecret: "{{oauth_client_secret}}"
+      placement: header
+    scope: x y
+    state: "{{oauth_state}}"
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/oauth"
+      method: POST
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

@@ -1,0 +1,6 @@
+info:
+  name: empty-requirement
+  type: folder
+
+request:
+  auth: inherit

@@ -1,0 +1,6 @@
+info:
+  name: "{unclosed"
+  type: folder
+
+request:
+  auth: inherit

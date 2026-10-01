@@ -1,0 +1,20 @@
+info:
+  name: Untitled Request
+  type: http
+
+http:
+  method: POST
+  url: https://x.test/up
+  headers:
+    - name: Content-Type
+      value: application/octet-stream
+  body:
+    type: file
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

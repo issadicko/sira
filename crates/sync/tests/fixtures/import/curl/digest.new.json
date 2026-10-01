@@ -1,0 +1,38 @@
+{
+  "type": "http-request",
+  "name": "Secure",
+  "request": {
+    "method": "get",
+    "url": "https://x.test/secure",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": null,
+      "formUrlEncoded": null,
+      "graphql": null,
+      "file": null
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "digest",
+      "digest": {
+        "username": "u",
+        "password": "p"
+      }
+    }
+  },
+  "settings": {
+    "encodeUrl": false,
+    "forwardAuthorizationHeader": false
+  },
+  "seq": 1
+}

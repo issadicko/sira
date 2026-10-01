@@ -1,0 +1,31 @@
+info:
+  name: Mixed Case
+  type: http
+  seq: 3
+  tags:
+    - Spaces
+
+http:
+  method: GET
+  url: "{{baseUrl}}/case-a"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/case-a"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

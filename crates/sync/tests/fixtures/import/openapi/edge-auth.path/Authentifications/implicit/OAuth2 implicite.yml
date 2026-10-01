@@ -1,0 +1,44 @@
+info:
+  name: OAuth2 implicite
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/implicit"
+  auth:
+    type: oauth2
+    flow: implicit
+    authorizationUrl: https://auth.example.com/implicit
+    callbackUrl: "{{oauth_callback_url}}"
+    credentials:
+      clientId: "{{oauth_client_id}}"
+    scope: pets:read
+    state: "{{oauth_state}}"
+    tokenConfig:
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: false
+      autoRefreshToken: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: ok
+    request:
+      url: "{{baseUrl}}/implicit"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""
