@@ -1,0 +1,270 @@
+openapi: 3.0.3
+info:
+  title: "  Corps de requête  "
+  version: 2.0
+  description: Formulaires, multipart, XML, texte, SPARQL et types structurés.
+servers:
+  - url: https://api.example.com/
+paths:
+  /form:
+    post:
+      summary: Formulaire depuis le schéma
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                name: { type: string, example: Ada, description: Le nom }
+                age: { type: integer, default: 36 }
+                ratio: { type: number, example: 1.0 }
+                empty: { type: string }
+                flag: { type: boolean, example: false }
+      responses:
+        '204': { description: Rien }
+  /form-example:
+    post:
+      summary: Formulaire depuis l'exemple
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                a: { type: string }
+              example: { a: 1, b: [1, 2], c: { d: 1 }, e: null2 }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
+  /form-falsy-example:
+    put:
+      summary: Exemple falsy
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              example: 0
+              properties:
+                kept: { type: string, default: value }
+      responses:
+        default: { description: défaut }
+  /upload:
+    post:
+      summary: Envoi multipart
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary, description: Le fichier }
+                files: { type: array, items: { type: string, format: binary } }
+                label: { type: string, example: photo }
+                meta: { type: object, default: { k: v } }
+      responses:
+        '201': { description: créé }
+  /upload-example:
+    post:
+      summary: Multipart avec exemple
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                file: { type: string, format: binary }
+            example: { file: data.bin, count: 3 }
+      responses:
+        '201': { description: créé }
+  /xml:
+    post:
+      summary: Corps XML
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              type: object
+              xml: { name: pet }
+              properties:
+                id: { type: integer, xml: { attribute: true } }
+                name: { type: string, xml: { name: petName } }
+                tags:
+                  type: array
+                  items: { type: string }
+                owner:
+                  type: object
+                  properties:
+                    first: { type: string }
+                    address: { type: object, properties: { city: { type: string } } }
+              example: { id: 7, name: Rex, tags: [a, b], owner: { first: Jo, extra: 1 } }
+      responses:
+        '200':
+          description: XML
+          content:
+            application/xml:
+              example: { pet: { id: 1, name: Rex } }
+            text/xml:
+              example: <raw/>
+            application/atom+xml:
+              schema: { type: array, items: { type: object, properties: { id: { type: integer } } } }
+  /xml-schema-only:
+    post:
+      summary: XML sans exemple
+      requestBody:
+        content:
+          application/rss+xml:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                item: { type: object, properties: { link: { type: string } } }
+      responses:
+        '200': { description: ok }
+  /xml-string:
+    post:
+      summary: XML brut
+      requestBody:
+        content:
+          text/xml:
+            schema: { type: string }
+            example: <note><to>Tove</to></note>
+      responses:
+        '200': { description: ok }
+  /text:
+    post:
+      summary: Texte
+      requestBody:
+        content:
+          text/plain:
+            schema: { type: string, example: 42 }
+      responses:
+        '200':
+          description: texte
+          content:
+            text/plain:
+              example: 12.50
+            text/html:
+              example: <b>ok</b>
+  /sparql:
+    post:
+      summary: SPARQL
+      requestBody:
+        content:
+          application/sparql-query:
+            example: SELECT * WHERE { ?s ?p ?o }
+      responses:
+        '200': { description: ok }
+  /octet:
+    put:
+      summary: Binaire
+      requestBody:
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200': { description: ok }
+  /any:
+    put:
+      summary: N'importe quoi
+      requestBody:
+        content:
+          '*/*':
+            schema: { type: string }
+      responses:
+        '200': { description: ok }
+  /vendor:
+    patch:
+      summary: JSON API
+      requestBody:
+        content:
+          Application/VND.API+JSON:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, enum: [x, y] }
+                  n: { type: integer }
+                  list: { type: array, items: { type: integer, example: 5 } }
+                  bools: { type: array, items: { type: boolean } }
+                  strs: { type: array, items: { type: string, enum: [s1] } }
+                  nested: { type: array, items: { type: array, items: { type: number, default: 2 } } }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/hal+json:
+              schema:
+                type: array
+                items: { type: integer }
+  /array-body:
+    post:
+      summary: Tableau sans items
+      requestBody:
+        content:
+          application/json:
+            schema: { type: array }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { type: array, items: { type: string } }
+  /unknown:
+    post:
+      summary: Type inconnu
+      requestBody:
+        content:
+          image/png:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: ok
+          content:
+            image/png: {}
+  /content-example:
+    post:
+      summary: Exemple au niveau du contenu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                a: { type: string }
+            examples:
+              first:
+                summary: Premier
+                value: { a: premier, big: 1e21, small: 0.0000001, neg: -0, int: 12345678901234567890 }
+              second:
+                value: { a: second }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              examples:
+                first:
+                  summary: Réponse au premier
+                  value: { ok: 1 }
+                other:
+                  description: Autre
+                  value: [1, 2]
+  /no-schema:
+    post:
+      summary: Sans schéma
+      requestBody:
+        content:
+          application/json: {}
+      responses:
+        '200': { description: ok }
+  /empty-content:
+    post:
+      summary: Contenu vide
+      requestBody:
+        content: {}
+      responses:
+        '200': { description: ok }

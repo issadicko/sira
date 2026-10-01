@@ -1,0 +1,21 @@
+openapi: 3.0.0
+info:
+  title: OAuth2 au niveau collection
+  version: '1'
+security:
+  - oauth: [admin]
+components:
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: /token
+          scopes: { admin: Admin, user: Utilisateur }
+        clientCredentials:
+          tokenUrl: /cc
+paths:
+  /me:
+    get:
+      operationId: me
+      responses: { '200': { description: ok } }

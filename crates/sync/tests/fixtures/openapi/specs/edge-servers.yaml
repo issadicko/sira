@@ -1,0 +1,43 @@
+openapi: 3.0.1
+info:
+  title: Serveurs
+  version: '1'
+servers:
+  - url: https://{tenant}.example.com:{port}/{basePath}/
+    description: "Production\n  principale."
+    variables:
+      tenant: { default: demo, enum: [demo, prod] }
+      port: { enum: ['8443', '443'] }
+      basePath: { default: v2 }
+      unused: { default: '$&$$' }
+  - url: https://staging.example.com
+    description: Production principale
+  - url: http://localhost:8080/
+    description: Production principale
+  - url: /relative
+  - url: https://{region}.example.com
+    name: Régional
+    variables:
+      region: {}
+  - url: https://api.example.com
+    description: "   "
+paths:
+  /items:
+    servers:
+      - url: https://items.example.com/{version}
+        variables:
+          version: { default: v9 }
+    get:
+      summary: Serveur du chemin
+      responses: { '200': { description: ok } }
+    post:
+      summary: Serveur de l'opération
+      servers:
+        - url: https://write.example.com/
+        - url: https://ignored.example.com
+      responses: { '201': { description: ok } }
+  /plain:
+    get:
+      summary: Sans serveur propre
+      servers: []
+      responses: { '200': { description: ok } }

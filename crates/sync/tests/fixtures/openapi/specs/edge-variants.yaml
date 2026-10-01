@@ -1,0 +1,46 @@
+openapi: 3.0.0
+info:
+  title: Variantes et doublons
+  version: '1'
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: Lister
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      x-bruno-variants:
+        - summary: Lister la page 2
+          parameters:
+            - { name: page, in: query, schema: { type: integer, default: 2 } }
+        - operationId: listUsersAdmin
+          parameters:
+            - { name: admin, in: query, schema: { type: boolean, default: true } }
+          responses:
+            '200': { description: variante }
+        - not an object
+        - null
+        - [1, 2]
+    post:
+      operationId: listUsers
+      responses:
+        '201': { description: créé }
+  /users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: id, in: query, schema: { type: string } }
+    get:
+      summary: Lister
+      operationId: '  listUsers  '
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, example: 42 } }
+      responses:
+        '200': { description: ok }
+    delete:
+      summary: Lister
+      responses:
+        '204': { description: supprimé }
+    put:
+      summary: Lister
+      responses:
+        '204': { description: modifié }

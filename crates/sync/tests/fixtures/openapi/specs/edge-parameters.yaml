@@ -1,0 +1,102 @@
+openapi: 3.0.3
+info:
+  title: Paramètres et exemples
+  version: '1'
+paths:
+  /search/{kind}:
+    parameters:
+      - { name: kind, in: path, required: true, schema: { type: string, enum: [a, b, c] } }
+      - { name: X-Trace, in: header, description: Trace, schema: { type: string, example: abc } }
+      - { name: shared, in: query, schema: { type: string, default: chemin } }
+    get:
+      summary: Toutes les priorités
+      parameters:
+        - { name: shared, in: query, schema: { type: string, default: opération } }
+        - { name: ex, in: query, example: 12, schema: { type: integer } }
+        - name: exs
+          in: query
+          examples:
+            un: { value: [1, 2] }
+            deux: { value: 3 }
+          schema: { type: array }
+        - name: exs-novalue
+          in: query
+          examples: { un: { summary: sans valeur } }
+          schema: { type: string, example: repli }
+        - { name: emptyex, in: query, example: '', schema: { type: string, default: après } }
+        - { name: def, in: query, schema: { type: number, default: 1.50 } }
+        - { name: defarr, in: query, schema: { type: array, default: [x, 1, true, null], items: { type: string } } }
+        - { name: sex, in: query, required: true, schema: { type: string, example: { a: 1 } } }
+        - { name: arr1, in: query, schema: { type: array, items: { type: string, example: it } } }
+        - { name: arr2, in: query, required: true, schema: { type: array, items: { type: string, enum: [] } } }
+        - { name: arr3, in: query, schema: { type: array, items: { type: integer, default: 4 } } }
+        - { name: arr4, in: query, required: true, schema: { type: array, items: { type: integer } } }
+        - { name: arrenum, in: query, required: true, schema: { type: array, items: { type: string, enum: [p, q] } } }
+        - { name: arrenumdef, in: query, schema: { type: array, items: { type: string, enum: [p, q], default: q } } }
+        - { name: arrenumarr, in: query, schema: { type: array, default: [q, p], items: { type: string, enum: [p, q] } } }
+        - { name: ex31, in: query, schema: { type: string, examples: [premier, second] } }
+        - { name: min, in: query, required: true, schema: { type: integer, minimum: 0 } }
+        - { name: nullable, in: query, schema: { type: string, nullable: true } }
+        - { name: allowEmpty, in: query, allowEmptyValue: true, required: true }
+        - { name: enumdef, in: query, schema: { type: integer, enum: [1, 2, 3], default: 2 } }
+        - { name: enumreq, in: query, required: true, schema: { enum: [z, y, z] } }
+        - { name: enumobj, in: query, schema: { enum: [{ a: 1 }, [1, 2], null, 2.50] } }
+        - { name: qs, in: querystring, schema: { type: string } }
+        - { name: c, in: cookie, schema: { type: string } }
+        - { in: query, schema: { type: string } }
+        - name: filter
+          in: query
+          style: deepObject
+          description: Filtre parent
+          schema:
+            type: object
+            required: [status]
+            example: { status: open, limit: 20, missing: 1 }
+            properties:
+              status: { type: string, enum: [open, closed] }
+              limit: { type: integer, description: Limite }
+              since: { type: string, format: date, example: 2024-01-02 }
+              tags: { type: array, items: { type: string } }
+        - name: X-Obj
+          in: header
+          example: { ignored: true }
+          schema:
+            type: object
+            properties:
+              a: { type: string }
+        - name: pathobj
+          in: path
+          schema:
+            properties:
+              id: { type: integer, example: 9 }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, example: 5 }
+                  when: { type: string, example: 2024-01-02T10:00:00Z }
+                  any: {}
+                  arr: { type: array, items: { $ref: '#/components/schemas/Leaf' } }
+        2XX:
+          description: Plage
+        '404':
+          description: Absent
+          content:
+            application/json:
+              example: null
+        '500':
+          description: Erreur
+          content:
+            application/json:
+              example: une chaîne
+            application/problem+json:
+              example: 503
+            text/plain:
+              example: true
+components:
+  schemas:
+    Leaf: { type: object, properties: { v: { type: string, default: d } } }

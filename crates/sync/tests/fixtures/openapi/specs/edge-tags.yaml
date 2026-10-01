@@ -1,0 +1,70 @@
+openapi: 3.0.0
+info:
+  title: Tags
+  version: '1'
+  description: Tags spéciaux, numériques et absents.
+tags:
+  - name: pet store
+    description: Animalerie
+  - name: '10'
+    description: Dix
+  - name: Pet_Store!
+    description: Remplace la description précédente
+  - name: vide
+  - not-an-object
+  - name: 7
+    description: nom numérique
+  - name: Écoles & Lycées
+    description: Accents
+paths:
+  /a:
+    get:
+      summary: Premier
+      tags: [pet store, extra tag, Pet Store, { name: objet }, 3, null, '', '!!!', 'Écoles & Lycées']
+      responses: { '200': { description: ok } }
+    post:
+      summary: Premier
+      tags: ['  pet   store  ']
+      responses: { '200': { description: ok } }
+  /b:
+    get:
+      tags: ['10']
+      responses: { '200': { description: ok } }
+    post:
+      tags: ['2']
+      responses: { '200': { description: ok } }
+  /c:
+    get:
+      summary: Sans tag
+      responses: { '200': { description: ok } }
+    put:
+      tags: []
+      operationId: putC
+      responses: { '200': { description: ok } }
+    patch:
+      tags: ['***']
+      description: "Une description\nsur deux lignes..."
+      responses: { '200': { description: ok } }
+    delete:
+      tags: notAnArray
+      responses: { '200': { description: ok } }
+    head:
+      tags: ['Écoles & Lycées']
+      summary: "  Nom  avec   espaces . . "
+      responses: { '200': { description: ok } }
+  /d:
+    get:
+      summary: Premier
+      responses: { '200': { description: ok } }
+    post:
+      summary: Premier
+      responses: { '200': { description: ok } }
+    put:
+      summary: Premier
+      responses: { '200': { description: ok } }
+    options:
+      summary: Premier (OPTIONS)
+      responses: { '200': { description: ok } }
+    trace:
+      summary: Premier
+      responses: { '200': { description: ok } }

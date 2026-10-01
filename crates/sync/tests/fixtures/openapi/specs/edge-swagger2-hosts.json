@@ -1,0 +1,25 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "Hôtes multiples", "version": "1" },
+  "host": "api.example.com",
+  "basePath": "/",
+  "schemes": ["http", "https", "wss"],
+  "definitions": {
+    "Folder": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "children": { "type": "array", "items": { "$ref": "#/definitions/Folder" } }
+      }
+    }
+  },
+  "paths": {
+    "/folders": {
+      "post": {
+        "operationId": "createFolder",
+        "parameters": [{ "name": "body", "in": "body", "schema": { "$ref": "#/definitions/Folder" } }],
+        "responses": { "200": { "description": "ok", "schema": { "$ref": "#/definitions/Folder" } } }
+      }
+    }
+  }
+}

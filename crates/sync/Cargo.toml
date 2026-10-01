@@ -6,12 +6,15 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 xc-core.workspace = true
+yaml-rust2 = "0.10"
 
 [dev-dependencies]
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 tempfile = "3"
 
 [lints]

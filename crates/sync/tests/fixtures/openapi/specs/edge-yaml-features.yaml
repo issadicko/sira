@@ -1,0 +1,50 @@
+openapi: 3.0.0
+info:
+  title: &title Fonctionnalités YAML
+  version: 1.10
+x-defaults: &defaults
+  responses:
+    200:
+      description: *title
+    0x1F4:
+      description: hexadécimal
+    1.0:
+      description: flottant
+    true:
+      description: booléen
+    ~:
+      description: nul
+paths:
+  /merge:
+    get:
+      <<: *defaults
+      summary: Fusion
+      parameters:
+        - &param
+          name: q
+          in: query
+          schema:
+            type: string
+            enum: [yes, no, on, off, TRUE, ~, 0o17, 0x10, 1_000, .5, +12, 1e3, -.5, 2020-01-01, '2020-01-01']
+        - <<: *param
+          name: r
+        - { name: d, in: query, schema: { type: string, default: 2001-12-14t21:59:43.10-05:00 } }
+        - { name: e, in: query, schema: { type: number, default: 012 } }
+    post:
+      <<: [*defaults]
+      summary: >-
+        Résumé
+        plié
+      description: |
+        Ligne 1
+        Ligne 2
+      requestBody:
+        content:
+          application/json:
+            example:
+              quoted: "a\tbé\x41"
+              single: 'it''s'
+              multi: !!str 123
+              float: !!float 1
+              int: !!int "42"
+              nested: { a: [1, { b: null }] }

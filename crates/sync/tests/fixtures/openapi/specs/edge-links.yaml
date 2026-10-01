@@ -1,0 +1,48 @@
+openapi: 3.0.0
+info:
+  title: Liens
+  version: '1'
+paths:
+  /users:
+    post:
+      operationId: createUser
+      responses:
+        '201':
+          description: créé
+          links:
+            GetUser:
+              operationId: getUser
+              parameters:
+                userId: $response.body#/id
+                whole: $response.body
+                nested: $response.body#/data/items/0
+                header: $response.header.Location
+                constant: fixe
+            NoParams:
+              operationId: listUsers
+        default:
+          description: erreur
+          links:
+            Retry:
+              operationRef: '#/paths/~1users/post'
+              parameters:
+                attempt: $request.body#/attempt
+  /users/{userId}:
+    get:
+      operationId: getUser
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: ok
+          links: {}
+  /{userId}/raw/{Id2}/{a_b}:
+    get:
+      operationId: raw
+      responses:
+        '200':
+          description: ok
+          links:
+            Self:
+              operationId: raw
+              parameters: { a_b: $response.body#/a_b }

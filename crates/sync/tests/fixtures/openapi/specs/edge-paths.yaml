@@ -1,0 +1,52 @@
+openapi: 3.0.0
+info:
+  title: Chemins spéciaux
+  version: '1'
+servers:
+  - url: https://api.example.com/base/
+paths:
+  /:
+    get:
+      responses: { '200': { description: racine } }
+  /{tenant}:
+    get:
+      responses: { '200': { description: tenant } }
+  /2/items:
+    get:
+      responses: { '200': { description: deux } }
+  /10/items:
+    get:
+      responses: { '200': { description: dix } }
+  /v1/items/{item-id}/files/{file.name}.json:
+    get:
+      responses: { '200': { description: fichier } }
+  /v1/items//double:
+    get:
+      responses: { '200': { description: double barre } }
+  /v1/items/:
+    post:
+      responses: { '200': { description: barre finale } }
+  /v1/{{weird}}/{}/{unclosed:
+    get:
+      responses: { '200': { description: accolades } }
+  /v1/café/ünïcödé:
+    get:
+      summary: Unicode
+      responses: { '200': { description: unicode } }
+  /v1/items/{id}:
+    get:
+      summary: Unicode
+      responses: { '200': { description: même nom } }
+    GET:
+      summary: Méthode majuscule
+      responses: { '200': { description: majuscule } }
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    summary: ignoré
+    x-extension: ignorée
+  /v1/search?q={q}:
+    get:
+      responses: { '200': { description: requête } }
+  ~1weird/path:
+    get:
+      responses: { '200': { description: sans barre initiale } }

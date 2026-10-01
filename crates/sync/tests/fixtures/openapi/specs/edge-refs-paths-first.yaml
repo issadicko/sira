@@ -1,0 +1,115 @@
+openapi: 3.0.0
+info:
+  title: Références (chemins d'abord)
+  version: '1'
+paths:
+  /tree:
+    post:
+      summary: Arbre récursif
+      requestBody:
+        $ref: '#/components/requestBodies/TreeBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TreeResponse'
+        '400':
+          $ref: '#/components/responses/Missing'
+  /list:
+    get:
+      summary: Liste récursive
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Nope'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/List' }
+  /compose:
+    post:
+      summary: Composition
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/Node'
+                - type: object
+                  properties: { extra: { type: string } }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Node'
+                  - type: string
+            application/xml:
+              schema:
+                anyOf: [{ type: integer }]
+                properties: { a: { $ref: '#/components/schemas/Node' } }
+  /siblings:
+    post:
+      summary: Références avec voisins
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Node'
+              description: ignoré
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  external: { $ref: 'other.yaml#/Pet' }
+                  local: { $ref: '#/definitions/Pet' }
+                  escaped: { $ref: '#/components/schemas/a~1b' }
+                  self: { $ref: '#/components/schemas/Node/properties/name' }
+                  arrayRef: { $ref: '#/components/schemas/Tuple/items/0' }
+                  zero: { $ref: '#/components/schemas/Zero' }
+components:
+  schemas:
+    Node:
+      type: object
+      properties:
+        name: { type: string, example: racine }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/Node' }
+        parent: { $ref: '#/components/schemas/Node' }
+        sibling: { $ref: '#/components/schemas/Other' }
+    Other:
+      type: object
+      properties:
+        back: { $ref: '#/components/schemas/Node' }
+        n: { type: integer }
+    List:
+      type: array
+      items: { $ref: '#/components/schemas/List' }
+    a~1b: { type: string }
+    Tuple:
+      type: array
+      items:
+        - { type: string, example: premier }
+    Zero: 0
+  parameters:
+    Limit: { name: limit, in: query, schema: { type: integer, default: 10 } }
+  requestBodies:
+    TreeBody:
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Node' }
+  responses:
+    TreeResponse:
+      description: Un arbre
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Node' }
+        application/xml:
+          schema: { $ref: '#/components/schemas/Node' }
