@@ -30,7 +30,7 @@ export interface Discard {
   resolve: (accepted: boolean) => void;
 }
 
-export type View = 'collections' | 'env';
+export type View = 'collections' | 'env' | 'sync';
 export type DialogKind = 'curl' | 'openapi';
 
 const RECENT_KEY = 'xc-recent';
@@ -181,6 +181,24 @@ export class Workspace {
     } catch (e) {
       this.notify(`Impossible de relire la collection : ${e}`, true);
     }
+  }
+
+  /** Relit depuis le disque les onglets des fichiers donnés ; renvoie le nombre d'onglets modifiés, laissés tels quels. */
+  async refreshTabs(paths: string[]): Promise<number> {
+    const c = this.collection();
+    if (!c) return 0;
+    const open = this.tabs().filter((t) => paths.includes(t.path));
+    const clean = open.filter((t) => !this.isDirty(t));
+    await Promise.all(
+      clean.map(async (t) => {
+        const doc = await api.readRequest(c.root, t.path).catch(() => null);
+        if (doc && this.collection()?.root === c.root && !this.isDirty(this.tabs().find((x) => x.path === t.path) ?? t)) {
+          this.patchTab(t.path, { doc, saved: JSON.stringify(doc) });
+        }
+      }),
+    );
+    this.refreshVars();
+    return open.length - clean.length;
   }
 
   async loadEnv() {

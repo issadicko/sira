@@ -7,7 +7,7 @@ import { CodeEditor, CodeLanguage } from './code-editor';
 import { Icon } from './icon';
 
 type Section = 'body' | 'headers' | 'timeline' | 'tests';
-const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', text: 'Texte' };
+const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 'YAML', text: 'Texte' };
 
 @Component({
   selector: 'app-response-pane',

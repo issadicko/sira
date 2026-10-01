@@ -1,17 +1,34 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, effect, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, effect, inject, input, output, signal } from '@angular/core';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
 import { xml } from '@codemirror/lang-xml';
-import { bracketMatching, codeFolding, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
+import { StreamLanguage, bracketMatching, codeFolding, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { search, searchKeymap } from '@codemirror/search';
-import { Annotation, Compartment, EditorState, Extension } from '@codemirror/state';
-import { EditorView, ViewUpdate, drawSelection, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view';
+import { Annotation, Compartment, EditorState, Extension, Range, RangeSet, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, DecorationSet, EditorView, GutterMarker, ViewUpdate, WidgetType, drawSelection, gutterLineClass, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view';
 import { tagHighlighter, tags as t } from '@lezer/highlight';
 
-export type CodeLanguage = 'json' | 'xml' | 'text';
+import type { FoldRange, Lens, LineMark } from '../core/sync';
 
-const LANGUAGES: Record<CodeLanguage, Extension> = { json: json(), xml: xml(), text: [] };
+export type CodeLanguage = 'json' | 'xml' | 'yaml' | 'text';
+
+const YAML = StreamLanguage.define({
+  name: 'yaml',
+  token(stream) {
+    if (stream.eatSpace()) return null;
+    if (stream.match(/^"(?:[^"\\]|\\.)*"(?=\s*:)/)) return 'propertyName';
+    if (stream.match(/^"(?:[^"\\]|\\.)*"/) || stream.match(/^'[^']*'/)) return 'string';
+    if (stream.match(/^-?\d+(?:\.\d+)?(?=[\s,]|$)/)) return 'number';
+    if (stream.match(/^(?:true|false|null)(?=[\s,]|$)/)) return 'keyword';
+    if (stream.match(/^[\w.$-]+(?=:(?:\s|$))/)) return 'propertyName';
+    if (stream.match(/^#.*/)) return 'comment';
+    stream.next();
+    return null;
+  },
+});
+
+const LANGUAGES: Record<CodeLanguage, Extension> = { json: json(), xml: xml(), yaml: YAML, text: [] };
 /** Raccourcis globaux de l'application (⌘↵ envoie) que l'éditeur ne doit pas capturer. */
 const APP_SHORTCUTS = new Set(['Mod-Enter']);
 const external = Annotation.define<boolean>();
@@ -101,7 +118,119 @@ const THEME = EditorView.theme({
   '.cm-panel.cm-search label:has(:checked)': { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' },
   '.cm-panel.cm-search label:has(:focus-visible)': { outline: '2px solid var(--accent-line)', outlineOffset: '1px' },
   '.cm-panel.cm-search input[type=checkbox]': { position: 'absolute', width: '0', height: '0', margin: '0', opacity: '0' },
+  '.cm-line.h-o, .cm-gutterElement.h-o': { backgroundColor: 'var(--accent-soft)' },
+  '.cm-line.h-t, .cm-gutterElement.h-t': { backgroundColor: 'var(--info-soft)' },
+  '.cm-line.h-b, .cm-gutterElement.h-b': { backgroundColor: 'var(--raised)' },
+  '.cm-line.r-u, .cm-gutterElement.r-u': { backgroundColor: 'var(--warn-soft)' },
+  '.cm-foldGutter .cm-gutterElement.r-o': { background: 'linear-gradient(var(--accent), var(--accent)) center / 3px 100% no-repeat' },
+  '.cm-foldGutter .cm-gutterElement.r-t': { background: 'linear-gradient(var(--info), var(--info)) center / 3px 100% no-repeat' },
+  '.cm-foldGutter .cm-gutterElement.r-b': { background: 'linear-gradient(var(--accent), var(--info)) center / 3px 100% no-repeat' },
+  '.cm-foldGutter .cm-gutterElement.r-e': { background: 'linear-gradient(var(--good), var(--good)) center / 3px 100% no-repeat' },
+  '.cm-foldGutter .cm-gutterElement.r-u': { background: 'linear-gradient(var(--warn), var(--warn)) center / 3px 100% no-repeat, var(--warn-soft)' },
+  '.cm-fold-row': { display: 'flex', alignItems: 'center', gap: '6px', minHeight: '20px', padding: '0 20px 0 8px', backgroundColor: 'var(--raised)', boxShadow: '-64px 0 0 var(--raised)', color: 'var(--faint)', fontStyle: 'italic', cursor: 'pointer' },
+  '.cm-fold-row:hover': { color: 'var(--ink)' },
+  '.cm-lens': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', minHeight: '26px', padding: '0 0 0 8px', font: '11.5px var(--font-ui)', color: 'var(--faint)' },
+  '.cm-lens-label': { marginRight: '6px', color: 'var(--muted)', fontWeight: '500' },
+  '.cm-lens-label.is-open': { color: 'var(--warn)' },
+  '.cm-lens button': { padding: '2px 6px', borderRadius: '4px', color: 'var(--muted)', cursor: 'pointer' },
+  '.cm-lens button:hover': { color: 'var(--accent)', backgroundColor: 'var(--hover)' },
+  '.cm-lens button[aria-pressed=true]': { color: 'var(--accent)', backgroundColor: 'var(--accent-soft)' },
+  '.cm-lens i': { fontStyle: 'normal', color: 'var(--faint)' },
 });
+
+class LineClass extends GutterMarker {
+  constructor(readonly cls: string) {
+    super();
+    this.elementClass = cls;
+  }
+
+  override eq(other: LineClass) {
+    return other.cls === this.cls;
+  }
+}
+
+class FoldRow extends WidgetType {
+  constructor(
+    readonly label: string,
+    readonly expand: () => void,
+  ) {
+    super();
+  }
+
+  override eq(other: FoldRow) {
+    return other.label === this.label;
+  }
+
+  override toDOM() {
+    const row = document.createElement('div');
+    row.className = 'cm-fold-row';
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.title = 'Déplier';
+    row.innerHTML = `<svg class="ic" width="12" height="12" aria-hidden="true"><use href="#i-chev-right" /></svg>`;
+    row.append(this.label);
+    row.onclick = this.expand;
+    row.onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') this.expand();
+    };
+    return row;
+  }
+}
+
+class LensBar extends WidgetType {
+  constructor(
+    readonly lens: Lens,
+    readonly pick: (id: string, key: string) => void,
+  ) {
+    super();
+  }
+
+  override eq(other: LensBar) {
+    const key = (l: Lens) => `${l.id}|${l.label}|${l.active}|${l.choices.map((c) => c.key).join()}`;
+    return key(other.lens) === key(this.lens);
+  }
+
+  override toDOM() {
+    const bar = document.createElement('div');
+    bar.className = 'cm-lens';
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', 'Arbitrer ce conflit');
+    if (this.lens.label) {
+      const label = document.createElement('span');
+      label.className = this.lens.active ? 'cm-lens-label' : 'cm-lens-label is-open';
+      label.textContent = this.lens.label;
+      bar.append(label);
+    }
+    this.lens.choices.forEach((choice, i) => {
+      if (i) bar.append(Object.assign(document.createElement('i'), { textContent: '·' }));
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = choice.label;
+      button.setAttribute('aria-pressed', String(this.lens.active === choice.key));
+      button.onclick = () => this.pick(this.lens.id, choice.key);
+      bar.append(button);
+    });
+    return bar;
+  }
+}
+
+interface Layers {
+  lines: DecorationSet;
+  gutter: RangeSet<GutterMarker>;
+}
+
+const setLayers = StateEffect.define<Layers>();
+const LAYERS = StateField.define<Layers>({
+  create: () => ({ lines: Decoration.none, gutter: RangeSet.empty }),
+  update(layers, tr) {
+    for (const effect of tr.effects) if (effect.is(setLayers)) return effect.value;
+    return tr.docChanged ? { lines: layers.lines.map(tr.changes), gutter: layers.gutter.map(tr.changes) } : layers;
+  },
+  provide: (field) => [EditorView.decorations.from(field, (l) => l.lines), gutterLineClass.from(field, (l) => l.gutter)],
+});
+
+const lineClasses = new Map<string, LineClass>();
+const lineClass = (cls: string) => lineClasses.get(cls) ?? lineClasses.set(cls, new LineClass(cls)).get(cls)!;
 
 function foldMarker(open: boolean): HTMLElement {
   const marker = document.createElement('span');
@@ -134,6 +263,7 @@ const BASE: Extension = [
   indentUnit.of('  '),
   EditorState.tabSize.of(2),
   EditorState.phrases.of(PHRASES),
+  LAYERS,
   keymap.of([...closeBracketsKeymap, ...defaultKeymap.filter((b) => !APP_SHORTCUTS.has(b.key ?? '')), ...searchKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
   THEME,
 ];
@@ -151,12 +281,22 @@ export class CodeEditor {
   readonly readonly = input(false);
   readonly wrap = input(false);
   readonly label = input('');
+  /** Lignes à teinter, par plage 1-based inclusive. */
+  readonly marks = input<LineMark[]>([]);
+  /** Plages de lignes à masquer derrière une ligne qui les résume ; un clic les déplie. */
+  readonly folds = input<FoldRange[]>([]);
+  /** Barres de choix posées au-dessus d'une ligne. */
+  readonly lenses = input<Lens[]>([]);
+  /** Ligne à amener au centre de la vue ; un nouvel objet relance le défilement. */
+  readonly reveal = input<{ line: number } | null>(null);
   readonly valueChange = output<string>();
+  readonly lensPicked = output<{ id: string; key: string }>();
 
   private readonly lang = new Compartment();
   private readonly mode = new Compartment();
   private readonly wrapping = new Compartment();
   private current = '';
+  private readonly expanded = signal<ReadonlySet<string>>(new Set());
   private readonly view = new EditorView({
     parent: inject<ElementRef<HTMLElement>>(ElementRef).nativeElement,
     state: EditorState.create({
@@ -166,10 +306,18 @@ export class CodeEditor {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.view.destroy());
-    effect(() => this.setValue(this.value()));
+    effect(() => {
+      this.setValue(this.value());
+      this.decorate();
+    });
+    effect(() => this.scrollTo(this.reveal()));
     effect(() => this.configure(this.lang, LANGUAGES[this.language()]));
     effect(() => this.configure(this.mode, [this.readonly() ? EditorState.readOnly.of(true) : history(), EditorView.contentAttributes.of({ 'aria-label': this.label() })]));
     effect(() => this.configure(this.wrapping, this.wrap() ? EditorView.lineWrapping : []));
+  }
+
+  focus() {
+    this.view.focus();
   }
 
   private configure(compartment: Compartment, extension: Extension) {
@@ -187,6 +335,40 @@ export class CodeEditor {
     while (tail < max - from && doc.charCodeAt(doc.length - 1 - tail) === value.charCodeAt(value.length - 1 - tail)) tail++;
     if (from === doc.length && from === value.length) return;
     this.view.dispatch({ changes: { from, to: doc.length - tail, insert: value.slice(from, value.length - tail) }, annotations: external.of(true) });
+  }
+
+  private decorate() {
+    const doc = this.view.state.doc;
+    const line = (n: number) => doc.line(Math.min(Math.max(n, 1), doc.lines));
+    const open = this.expanded();
+    const lines: Range<Decoration>[] = [];
+    const gutter: Range<GutterMarker>[] = [];
+    for (const { from, to, cls } of this.marks()) {
+      for (let n = Math.max(from, 1); n <= Math.min(to, doc.lines); n++) {
+        lines.push(Decoration.line({ class: cls }).range(doc.line(n).from));
+        gutter.push(lineClass(cls).range(doc.line(n).from));
+      }
+    }
+    for (const fold of this.folds()) {
+      const key = `${fold.from}-${fold.to}`;
+      if (open.has(key) || fold.from > doc.lines) continue;
+      const widget = new FoldRow(fold.label, () => this.expanded.update((set) => new Set([...set, key])));
+      lines.push(Decoration.replace({ widget, block: true }).range(line(fold.from).from, line(fold.to).to));
+    }
+    for (const lens of this.lenses()) {
+      const widget = new LensBar(lens, (id, key) => this.lensPicked.emit({ id, key }));
+      lines.push(Decoration.widget({ widget, block: true, side: -1 }).range(line(lens.line).from));
+    }
+    this.view.dispatch({ effects: setLayers.of({ lines: Decoration.set(lines, true), gutter: RangeSet.of(gutter, true) }) });
+  }
+
+  private scrollTo(target: { line: number } | null) {
+    if (!target) return;
+    requestAnimationFrame(() => {
+      const doc = this.view.state.doc;
+      const at = doc.line(Math.min(Math.max(target.line, 1), doc.lines)).from;
+      this.view.dispatch({ effects: EditorView.scrollIntoView(at, { y: 'center' }) });
+    });
   }
 
   private changed(update: ViewUpdate) {

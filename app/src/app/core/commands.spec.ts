@@ -150,3 +150,19 @@ test('ef_ux_01_libelle_du_raccourci_vient_du_registre', () => {
   assert.equal(commands.label('tree.reload'), '');
   assert.equal(commands.label('inconnue'), '');
 });
+
+test('ef_syn_04_raccourci_de_navigation_entre_conflits_affiche_alt_et_fleche', () => {
+  assert.equal(shortcutLabel('alt+arrowup', true), '⌥↑');
+  assert.equal(shortcutLabel('alt+arrowdown', true), '⌥↓');
+  assert.equal(shortcutLabel('alt+arrowup', false), 'Alt+↑');
+  assert.equal(shortcutLabel('alt+arrowdown', false), 'Alt+↓');
+});
+
+test('ef_syn_04_fleche_seule_ne_declenche_pas_la_navigation_entre_conflits', () => {
+  assert.ok(matchesShortcut('alt+arrowdown', press('ArrowDown', { alt: true }), true));
+  assert.ok(matchesShortcut('alt+arrowup', press('ArrowUp', { alt: true }), false));
+  assert.ok(!matchesShortcut('alt+arrowdown', press('ArrowDown'), true));
+  assert.ok(!matchesShortcut('alt+arrowdown', press('ArrowDown', { alt: true, shift: true }), true));
+  assert.ok(!matchesShortcut('alt+arrowdown', press('ArrowUp', { alt: true }), true));
+  assert.ok(!matchesShortcut('alt+arrowdown', press('ArrowDown', { alt: true, meta: true }), true));
+});

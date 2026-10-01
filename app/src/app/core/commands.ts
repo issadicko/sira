@@ -23,6 +23,8 @@ const LABELS: Record<string, [mac: string, other: string]> = {
   alt: ['⌥', 'Alt'],
   enter: ['↵', '↵'],
   esc: ['Échap', 'Échap'],
+  arrowup: ['↑', '↑'],
+  arrowdown: ['↓', '↓'],
 };
 
 const KEYS: Record<string, string> = { esc: 'escape' };
@@ -44,7 +46,7 @@ export function matchesShortcut(keys: string, event: KeyLike, mac = isMac): bool
   if (altGraph) return false;
   const parts = keys.split('+');
   const key = parts[parts.length - 1];
-  const symbol = !/^([a-z0-9]|enter|esc)$/.test(key);
+  const symbol = !/^([a-z0-9]|enter|esc|arrow(up|down|left|right))$/.test(key);
   return (
     (mac ? event.metaKey : event.ctrlKey) === parts.includes('mod') &&
     (symbol || (event.shiftKey === parts.includes('shift') && event.altKey === parts.includes('alt'))) &&

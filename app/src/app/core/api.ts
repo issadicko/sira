@@ -2,7 +2,20 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import { demoApi } from './demo';
-import { CollectionInfo, EnvVar, GroupBy, OpenApiPreview, RequestDoc, SendResult, VariableInfo } from './model';
+import {
+  CollectionInfo,
+  EnvVar,
+  GroupBy,
+  OpenApiPreview,
+  OpView,
+  RequestDoc,
+  SendResult,
+  SyncDecisions,
+  SyncPlan,
+  SyncReport,
+  SyncStatus,
+  VariableInfo,
+} from './model';
 
 export interface Api {
   readonly demo: boolean;
@@ -20,6 +33,10 @@ export interface Api {
   createRequestFromCurl(root: string, folder: string, name: string, command: string): Promise<string>;
   previewOpenApi(source: string): Promise<OpenApiPreview>;
   importOpenApi(source: string, location: string, groupBy: GroupBy): Promise<string>;
+  syncStatus(root: string): Promise<SyncStatus>;
+  syncPlan(root: string, source: string | null, pairings: [string, string][]): Promise<SyncPlan>;
+  syncOpView(planId: string, key: string, decisions: SyncDecisions): Promise<OpView>;
+  syncApply(planId: string, decisions: SyncDecisions): Promise<SyncReport>;
 }
 
 async function pick(options: Parameters<typeof open>[0]): Promise<string | null> {
@@ -44,6 +61,10 @@ const tauriApi: Api = {
   createRequestFromCurl: (root, folder, name, command) => invoke('create_request_from_curl', { root, folder, name, command }),
   previewOpenApi: (source) => invoke('preview_openapi', { source }),
   importOpenApi: (source, location, groupBy) => invoke('import_openapi', { source, location, groupBy }),
+  syncStatus: (root) => invoke('sync_status', { root }),
+  syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),
+  syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),
+  syncApply: (planId, decisions) => invoke('sync_apply', { planId, decisions }),
 };
 
 export const isTauri = '__TAURI_INTERNALS__' in window;

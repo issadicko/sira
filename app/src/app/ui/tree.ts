@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 
 import { TreeItem } from '../core/model';
 import { Workspace } from '../core/store';
+import { SyncStore } from '../core/sync-store';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
 
@@ -38,8 +39,9 @@ function matches(item: TreeItem, q: string): boolean {
         <button
           class="row req"
           [class.is-active]="ws.activePath() === item.path"
+          [class.is-deprecated]="item.deprecated"
           [style.--d]="depth()"
-          [title]="item.error ?? item.path"
+          [title]="item.error ?? (item.deprecated ? 'Retirée de la spec' : item.path)"
           [disabled]="item.requestType !== 'http' && !item.error"
           (click)="ws.openRequest(item.path)"
           (dblclick)="ws.openRequest(item.path, true)"
@@ -52,6 +54,12 @@ function matches(item: TreeItem, q: string): boolean {
             <span [class]="methodClass(item.method)">{{ shortMethod(item.method) }}</span>
           }
           <span class="row-name">{{ item.name }}</span>
+          @if (item.deprecated) {
+            <span class="tag">dépréciée</span>
+          }
+          @if (sync.conflictPaths().has(item.path)) {
+            <span class="tree-conflict" title="Conflit avec la spec OpenAPI"><app-ic name="alert" [size]="13" /></span>
+          }
           @if (dirty(item.path)) {
             <span class="dot" style="background: var(--ink)" title="Modifications non enregistrées"></span>
           }
@@ -62,6 +70,7 @@ function matches(item: TreeItem, q: string): boolean {
 })
 export class Tree {
   protected readonly ws = inject(Workspace);
+  protected readonly sync = inject(SyncStore);
   readonly items = input.required<TreeItem[]>();
   readonly depth = input(0);
 

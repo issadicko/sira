@@ -60,7 +60,7 @@ export interface RequestDoc {
 
 export type TreeItem =
   | { kind: 'folder'; path: string; name: string; seq?: number | null; children: TreeItem[] }
-  | { kind: 'request'; path: string; name: string; seq?: number | null; method: string; requestType: string; url: string; error?: string };
+  | { kind: 'request'; path: string; name: string; seq?: number | null; method: string; requestType: string; url: string; deprecated: boolean; error?: string };
 
 export interface CollectionInfo {
   root: string;
@@ -148,4 +148,106 @@ export interface OpenApiPreview {
   summary: SpecSummary;
   /** Nom du dossier que l'import créerait. */
   folderName: string;
+}
+
+export type ChangeKind = 'applied' | 'kept' | 'same' | 'merged' | 'conflict';
+export type Choice = 'team' | 'spec' | 'both' | 'edit';
+export type OpStatus = 'unchanged' | 'updated' | 'kept' | 'merged' | 'conflict' | 'new' | 'removed' | 'restored' | 'missing';
+
+export interface SyncStatus {
+  connected: boolean;
+  source: string | null;
+  groupBy: GroupBy | null;
+  operationCount: number;
+  removedCount: number;
+}
+
+export interface SpecRef {
+  title: string;
+  version: string;
+}
+
+export interface SyncChange {
+  id: string;
+  field: 'method' | 'url' | 'param' | 'header' | 'body' | 'auth';
+  label: string;
+  reason: string;
+  kind: ChangeKind;
+  base: string | null;
+  ours: string | null;
+  theirs: string | null;
+  result: string | null;
+  choices: Choice[];
+}
+
+export interface SyncOperation {
+  key: string;
+  name: string;
+  method: string;
+  path: string;
+  file: string | null;
+  status: OpStatus;
+  changes: SyncChange[];
+}
+
+export interface SyncPairing {
+  removed: string;
+  added: string;
+  reason: string;
+}
+
+export interface SyncSummary {
+  unchanged: number;
+  updated: number;
+  kept: number;
+  merged: number;
+  conflicts: number;
+  conflictFields: number;
+  created: number;
+  removed: number;
+  restored: number;
+  missing: number;
+}
+
+export interface SyncPlan {
+  id: string;
+  source: string;
+  groupBy: GroupBy;
+  hasBase: boolean;
+  from: SpecRef | null;
+  to: SpecRef;
+  summary: SyncSummary;
+  operations: SyncOperation[];
+  suggestions: SyncPairing[];
+}
+
+export interface SyncDecisions {
+  choices: Record<string, { choice: Choice; value?: string }>;
+  skip: string[];
+  recreate: string[];
+}
+
+export type LineRange = [first: number, last: number];
+
+export interface Hunk {
+  changeId: string;
+  ours: LineRange | null;
+  theirs: LineRange | null;
+  base: LineRange | null;
+  result: LineRange | null;
+}
+
+export interface OpView {
+  ours: string;
+  theirs: string;
+  base: string | null;
+  result: string;
+  hunks: Hunk[];
+}
+
+export interface SyncReport {
+  written: string[];
+  created: string[];
+  removed: string[];
+  ignored: string[];
 }

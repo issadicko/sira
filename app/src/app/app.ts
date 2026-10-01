@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed,
 import { isTauri } from './core/api';
 import { COMMANDS, isMac, shortcutLabel } from './core/commands';
 import { View, Workspace } from './core/store';
+import { SyncStore } from './core/sync-store';
 import { CurlDialog } from './ui/curl-dialog';
 import { DiscardDialog } from './ui/discard-dialog';
 import { Editor } from './ui/editor';
@@ -12,6 +13,8 @@ import { Icon } from './ui/icon';
 import { methodClass, shortMethod } from './ui/method';
 import { OpenApiDialog } from './ui/openapi-dialog';
 import { Palette } from './ui/palette';
+import { SyncSidebar } from './ui/sync-sidebar';
+import { SyncView } from './ui/sync-view';
 import { Tree } from './ui/tree';
 import { VarPopover } from './ui/var-popover';
 import { Welcome } from './ui/welcome';
@@ -19,12 +22,13 @@ import { Welcome } from './ui/welcome';
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, Welcome, VarPopover, Palette, CurlDialog, OpenApiDialog, DiscardDialog],
+  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, SyncSidebar, SyncView, Welcome, VarPopover, Palette, CurlDialog, OpenApiDialog, DiscardDialog],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
   protected readonly ws = inject(Workspace);
+  protected readonly sync = inject(SyncStore);
   private readonly commands = inject(COMMANDS);
   protected readonly key = shortcutLabel;
   protected readonly nativeLights = isTauri && isMac;
@@ -40,8 +44,9 @@ export class App {
   constructor() {
     const ws = this.ws;
     const opened = () => !!ws.collection();
+    const inConflicts = () => ws.view() === 'sync' && this.sync.refs().length > 0;
     this.commands.register(
-      { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => !!ws.active(), run: () => ws.send() },
+      { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.send() },
       { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
       { id: 'request.curl', title: 'Nouvelle requête depuis cURL…', group: 'Requête', icon: 'terminal', when: opened, run: () => ws.dialog.set('curl') },
       { id: 'request.save', title: 'Enregistrer la requête', group: 'Requête', icon: 'download', keys: 'mod+s', when: () => !!ws.active(), run: () => ws.save() },
@@ -51,6 +56,10 @@ export class App {
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
       { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
       { id: 'view.env', title: 'Gérer les environnements', group: 'Collection', icon: 'variable', when: opened, run: () => this.show('env') },
+      { id: 'sync.run', title: 'Lancer la synchro OpenAPI', group: 'Synchro', icon: 'merge', when: opened, run: () => this.runSync() },
+      { id: 'sync.connect', title: 'Connecter une spec OpenAPI…', group: 'Synchro', icon: 'import', when: opened, run: () => this.connectSync() },
+      { id: 'sync.next', title: 'Conflit suivant', group: 'Synchro', icon: 'chev-down', keys: 'alt+arrowdown', when: inConflicts, run: () => this.sync.next(1) },
+      { id: 'sync.previous', title: 'Conflit précédent', group: 'Synchro', icon: 'chev-up', keys: 'alt+arrowup', when: inConflicts, run: () => this.sync.next(-1) },
       { id: 'view.sidebar', title: 'Afficher ou masquer la barre latérale', group: 'Affichage', icon: 'cols', keys: 'mod+b', when: opened, run: () => ws.sidebar.update((v) => !v) },
       { id: 'view.layout', title: 'Empiler ou juxtaposer requête et réponse', group: 'Affichage', icon: 'rows', keys: 'mod+\\', when: opened, run: () => ws.stacked.update((v) => !v) },
       { id: 'view.theme', title: 'Basculer le thème clair / sombre', group: 'Affichage', icon: 'sun', run: () => ws.toggleTheme() },
@@ -62,6 +71,20 @@ export class App {
   protected toggleView(view: View) {
     if (this.ws.view() === view) this.ws.sidebar.update((v) => !v);
     else this.show(view);
+  }
+
+  protected openSync() {
+    this.show('sync');
+  }
+
+  private runSync() {
+    this.show('sync');
+    if (this.sync.connected() && !this.sync.comparing()) void this.sync.relaunch();
+  }
+
+  private connectSync() {
+    this.sync.beginConnect();
+    this.show('sync');
   }
 
   protected chooseEnv(env: string | null) {
@@ -98,6 +121,7 @@ export class App {
   private show(view: View) {
     this.ws.view.set(view);
     this.ws.sidebar.set(true);
+    if (view === 'sync') void this.sync.enter();
   }
 
   @HostListener('document:keydown', ['$event'])

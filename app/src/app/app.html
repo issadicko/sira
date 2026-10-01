@@ -17,6 +17,11 @@
     </button>
     <div class="tb-right" data-tauri-drag-region>
       @if (ws.collection(); as c) {
+        @if (sync.conflictsLeft() > 0) {
+          <button class="spec-chip" (click)="openSync()" title="Ouvrir la synchro OpenAPI">
+            <app-ic name="alert" [size]="14" /><span class="lbl-long">Spec OpenAPI :</span><span>{{ sync.conflictsLeft() }} {{ sync.conflictsLeft() > 1 ? 'conflits' : 'conflit' }}</span>
+          </button>
+        }
         <div class="env-wrap">
           <button class="env-btn" [class.is-prod]="ws.env() === 'prod'" (click)="envMenu.set(!envMenu())" aria-haspopup="menu" [attr.aria-expanded]="envMenu()">
             <span class="env-dot" [class.none]="!ws.env()" [class.prod]="ws.env() === 'prod'"></span>
@@ -62,10 +67,16 @@
       <nav class="activity" aria-label="Vues">
         <button class="act" [attr.aria-current]="ws.view() === 'collections'" (click)="toggleView('collections')" title="Collections" aria-label="Collections"><app-ic name="layers" [size]="20" /></button>
         <button class="act" [attr.aria-current]="ws.view() === 'env'" (click)="toggleView('env')" title="Environnements et variables" aria-label="Environnements et variables"><app-ic name="variable" [size]="20" /></button>
+        <button class="act" [attr.aria-current]="ws.view() === 'sync'" (click)="toggleView('sync')" title="Synchro OpenAPI" [attr.aria-label]="'Synchro OpenAPI' + (sync.conflictsLeft() ? ' (' + sync.conflictsLeft() + ')' : '')">
+          <app-ic name="merge" [size]="20" />
+          @if (sync.conflictsLeft() > 0) {
+            <span class="act-badge warn">{{ sync.conflictsLeft() }}</span>
+          }
+        </button>
         <span class="act-spacer"></span>
         <button class="act" (click)="openPalette('>')" [title]="'Commandes et réglages (' + key('mod+shift+p') + ')'" aria-label="Commandes et réglages"><app-ic name="settings" [size]="19" /></button>
       </nav>
-      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : 'Collection'">
+      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : 'Collection'">
         @if (ws.view() === 'collections') {
           <div class="pane-head">
             <span class="pane-title" [title]="c.root">{{ c.name }}</span>
@@ -91,6 +102,8 @@
               </div>
             </div>
           }
+        } @else if (ws.view() === 'sync') {
+          <app-sync-sidebar />
         } @else {
           <div class="pane-head"><span class="pane-title">Environnements</span></div>
           <div class="sb-scroll">
@@ -111,6 +124,8 @@
       <main class="island editor">
         @if (ws.view() === 'env') {
           <app-env-view />
+        } @else if (ws.view() === 'sync') {
+          <app-sync-view />
         } @else {
           <app-editor />
         }
@@ -126,6 +141,19 @@
     @if (ws.collection(); as c) {
       <span class="sb-item" [title]="c.root"><app-ic name="disk" [size]="13" />{{ c.requestCount }} requête(s) sur le disque</span>
       <span class="sb-item">OpenCollection YAML</span>
+      @if (sync.connected() || sync.plan() || sync.synced()) {
+        @let spec = sync.specStatus();
+        <button class="sb-item" [class.warn]="spec.tone === 'warn'" [class.good]="spec.tone === 'good'" (click)="openSync()" title="Ouvrir la synchro OpenAPI">
+          @if (spec.tone === 'warn') {
+            <span class="dot warn"></span>
+          } @else if (spec.tone === 'good') {
+            <app-ic name="check" [size]="13" />
+          } @else {
+            <app-ic name="merge" [size]="13" />
+          }
+          {{ spec.label }}
+        </button>
+      }
       <span class="sb-spacer"></span>
       @if (lastResult(); as r) {
         <span class="sb-item">{{ r.response.status }} · {{ r.response.timings.totalMs | number: '1.0-0' }} ms</span>

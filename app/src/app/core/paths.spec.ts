@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { TreeItem } from './model.ts';
 import { dirname, folderChoices, isInsideCollection, joinPath, relativeToRoot } from './paths.ts';
 
-const request = (path: string): TreeItem => ({ kind: 'request', path, name: path, method: 'GET', requestType: 'http', url: '' });
+const request = (path: string): TreeItem => ({ kind: 'request', path, name: path, method: 'GET', requestType: 'http', url: '', deprecated: false });
 const folder = (path: string, name: string, children: TreeItem[] = []): TreeItem => ({ kind: 'folder', path, name, children });
 
 test('ef_imp_01_liste_les_dossiers_de_la_collection_avec_leur_profondeur', () => {

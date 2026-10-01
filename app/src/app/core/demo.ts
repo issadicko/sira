@@ -1,4 +1,5 @@
 import type { Api } from './api';
+import { createDemoSync } from './demo-sync';
 import { CollectionInfo, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
@@ -75,11 +76,17 @@ const files: Record<string, RequestDoc> = {
     },
   }),
   [EXPORT]: doc('Export des transactions (10 Mo)', 'GET', '{{baseUrl}}/transactions/export'),
+  'transactions/supprimer.yml': doc('Supprimer une transaction', 'DELETE', '{{baseUrl}}/transactions/:id', {
+    params: [pathParam('id', '{{txId}}')],
+    assertions: [{ expression: 'res.status', operator: 'eq', value: '204', enabled: true }],
+  }),
 };
+
+const DEPRECATED = new Set(['transactions/supprimer.yml']);
 
 function treeRequest(path: string): TreeItem {
   const { name, method, url } = files[path];
-  return { kind: 'request', path, name, method, requestType: 'http', url };
+  return { kind: 'request', path, name, method, requestType: 'http', url, deprecated: DEPRECATED.has(path) };
 }
 
 const collection: CollectionInfo = {
@@ -87,7 +94,7 @@ const collection: CollectionInfo = {
   name: 'API Paiements (démo)',
   environments: ['dev', 'prod'],
   defaultEnvironment: 'dev',
-  requestCount: 7,
+  requestCount: 8,
   items: [
     { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: ['connexion', 'jeton'].map((f) => treeRequest(`auth/${f}.yml`)) },
     {
@@ -95,7 +102,7 @@ const collection: CollectionInfo = {
       path: 'transactions',
       name: 'Transactions',
       seq: 2,
-      children: ['liste', 'detail', 'annuler', 'justificatif', 'export'].map((f) => treeRequest(`transactions/${f}.yml`)),
+      children: ['liste', 'detail', 'annuler', 'justificatif', 'export', 'supprimer'].map((f) => treeRequest(`transactions/${f}.yml`)),
     },
   ],
 };
@@ -228,4 +235,5 @@ export const demoApi: Api = {
   createRequestFromCurl: desktopOnly,
   previewOpenApi: async () => structuredClone(SPEC),
   importOpenApi: desktopOnly,
+  ...createDemoSync(files),
 };
