@@ -19,6 +19,7 @@ serde_json.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tokio.workspace = true
+trash = "5"
 xc-core.workspace = true
 xc-engine.workspace = true
 xc-sync.workspace = true

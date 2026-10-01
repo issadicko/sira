@@ -9,11 +9,11 @@ use std::sync::LazyLock;
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use url::Url;
-use xc_core::collection::{count_entries, is_hidden, resolve_path, write_new, REQUEST_EXT};
+use xc_core::collection::{count_entries, resolve_path, write_new};
 use xc_core::yaml::{self, is_js_space};
 use xc_core::{CoreError, RequestDoc};
 
-use super::naming::{fit, is_device_name, sanitize_name, validate_name};
+use super::naming::request_file_name;
 use super::{join, text, ImportError};
 use crate::curl::{request_from_curl, request_from_curl_typed, MAX_COMMAND_BYTES};
 use crate::stringify;
@@ -195,34 +195,6 @@ fn is_graphql(request: &Value) -> bool {
     text(request, "url").ends_with("/graphql") || content_type.contains("application/graphql")
 }
 
-/// Validation du formulaire de Bruno : nom obligatoire de 255 caractères au plus, nom de fichier `sanitizeName(nom)`
-/// valide et hors des noms réservés `collection` et `folder`. Écart avec Bruno : le fichier final ne peut être ni
-/// caché ni réservé (`folder.yml`, `opencollection.yml`, point de tête, nom de périphérique Windows), car l'arbre
-/// de la collection ne le montrerait pas. Renvoie le nom du fichier avec son extension.
-fn file_name(name: &str) -> Result<String, ImportError> {
-    let invalid = ImportError::InvalidName;
-    let trimmed = name.trim_matches(is_js_space);
-    if trimmed.is_empty() {
-        return Err(invalid("le nom est obligatoire".into()));
-    }
-    if trimmed.encode_utf16().count() > 255 {
-        return Err(invalid("le nom ne peut pas dépasser 255 caractères".into()));
-    }
-    let sanitized = sanitize_name(name);
-    let filename = sanitized.trim_matches(is_js_space);
-    if matches!(filename, "collection" | "folder") {
-        return Err(invalid(format!("les noms de fichier « collection » et « folder » sont réservés : {filename}")));
-    }
-    validate_name(filename).map_err(invalid)?;
-    let base = filename.replacen(REQUEST_EXT, "", 1);
-    validate_name(&base).map_err(invalid)?;
-    let file = fit(&base, "", REQUEST_EXT);
-    if is_hidden(&file, false) || is_device_name(&file) {
-        return Err(invalid(format!("le nom de fichier « {file} » est réservé ou caché")));
-    }
-    Ok(file)
-}
-
 /// `seq` d'une nouvelle requête : un de plus que le nombre de dossiers et de requêtes du dossier visé.
 fn next_seq(root: &Path, folder: &str) -> Result<usize, ImportError> {
     count_entries(root, folder)?.map(|count| count + 1).ok_or_else(|| ImportError::FolderNotFound(folder.to_owned()))
@@ -262,7 +234,7 @@ pub fn create_request_from_curl(root: &Path, folder: &str, name: &str, command: 
     if kind == "graphql-request" {
         request = request_from_curl_typed(command, kind).ok_or(ImportError::InvalidCurl)?;
     }
-    let file = file_name(name)?;
+    let file = request_file_name(name).map_err(ImportError::InvalidName)?;
     let folder = folder.trim_matches('/');
     let dir = resolve_path(root, folder)?;
     if !dir.is_dir() {

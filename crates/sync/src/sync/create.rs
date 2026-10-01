@@ -33,7 +33,7 @@ pub(super) struct Creator<'a> {
 
 /// Écrit des fichiers indépendants en parallèle : chaque écriture est synchronisée sur le disque, ce qui domine le
 /// temps d'une synchro qui touche des centaines de fichiers.
-pub(super) fn write_parallel<T: Sync>(
+pub(crate) fn write_parallel<T: Sync>(
     jobs: &[T],
     write: impl Fn(&T) -> Result<(), CoreError> + Sync,
 ) -> Result<(), CoreError> {

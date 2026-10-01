@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use serde::Serialize;
-use xc_core::collection::{resolve_visible_path, write_atomic};
+use xc_core::collection::{ignore_name, resolve_visible_path, write_atomic};
 use xc_core::request::{BLANK_BEFORE, HTTP_ORDER, TOP_ORDER};
 use xc_core::yaml::{emit, Map, Value};
 use xc_core::{Auth, Body, CoreError, RequestDoc};
@@ -13,7 +13,7 @@ use xc_core::{Auth, Body, CoreError, RequestDoc};
 use super::create::{write_parallel, Creator};
 use super::specs::{tree, Op, Ours};
 use super::{Decisions, Fate, OpStatus, Plan, SyncError};
-use crate::store::{self, Entry};
+use crate::store::{self, Entry, SYNC_DIR};
 
 /// Ce que l'application a fait : chemins relatifs des fichiers réécrits, créés et marqués retirés de la spec,
 /// clés des opérations désormais ignorées.
@@ -27,8 +27,9 @@ pub struct Report {
 
 impl Plan {
     /// Écrit le plan selon les décisions, dans cet ordre : fichiers modifiés, nouveaux fichiers, dernière version des
-    /// opérations retirées, copie brute de la spec, `source.yml`. Refuse, sans rien écrire, s'il reste un conflit sans
-    /// choix, si un fichier à réécrire a changé depuis le plan ou n'est pas une requête HTTP.
+    /// opérations retirées, `.oc-sync` dans la liste `ignore` de `opencollection.yml` (Bruno ne l'affiche pas), copie
+    /// brute de la spec, `source.yml`. Refuse, sans rien écrire, s'il reste un conflit sans choix, si un fichier à
+    /// réécrire a changé depuis le plan ou n'est pas une requête HTTP.
     pub fn apply(&self, decisions: &Decisions) -> Result<Report, SyncError> {
         let root = &self.state.root;
         let writes = self.rewrites(decisions)?;
@@ -53,6 +54,7 @@ impl Plan {
                 store::write_removed(root, &item.key, &base.text)?;
             }
         }
+        ignore_name(root, SYNC_DIR)?;
         store::write(root, &self.source, self.group_by, &entries, &self.state.spec_text)?;
         Ok(report)
     }

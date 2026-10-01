@@ -247,18 +247,31 @@ pub fn write(
     fs::create_dir_all(&dir).map_err(|e| CoreError::io(&dir, e))?;
     let (spec, content) = spec_copy(spec_text);
     write_if_changed(&dir.join(spec), &content)?;
+    write_if_changed(&dir.join(SOURCE_FILE), &source_document(source, group_by, spec, operations))?;
+    for stale in SPEC_FILES.iter().filter(|name| **name != spec) {
+        fs::remove_file(dir.join(stale)).ok();
+    }
+    prune_removed(root, operations);
+    Ok(())
+}
+
+/// Réécrit `source.yml` avec de nouvelles `operations` (renommage, déplacement ou suppression d'une requête suivie),
+/// sans toucher à la copie brute de la spec.
+pub fn write_operations(root: &Path, store: &Store, operations: &[Entry]) -> Result<(), CoreError> {
+    let document = source_document(&store.source, store.group_by, &store.spec, operations);
+    write_if_changed(&dir(root).join(SOURCE_FILE), &document)?;
+    prune_removed(root, operations);
+    Ok(())
+}
+
+fn source_document(source: &str, group_by: GroupBy, spec: &str, operations: &[Entry]) -> String {
     let document = Map(vec![
         ("source".into(), Value::str(source)),
         ("groupBy".into(), Value::str(group_by.as_str())),
         ("spec".into(), Value::str(spec)),
         ("operations".into(), Value::Seq(operations.iter().map(entry_value).collect())),
     ]);
-    write_if_changed(&dir.join(SOURCE_FILE), &emit(&Value::Map(document), &[]))?;
-    for stale in SPEC_FILES.iter().filter(|name| **name != spec) {
-        fs::remove_file(dir.join(stale)).ok();
-    }
-    prune_removed(root, operations);
-    Ok(())
+    emit(&Value::Map(document), &[])
 }
 
 fn entry_value(entry: &Entry) -> Value {

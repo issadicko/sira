@@ -1,0 +1,1 @@
+{ "opencollection": "1.0.0", "name": "Ma Collection", "type": "collection", "ignore": ["node_modules", ".git"] }

@@ -24,7 +24,7 @@ Partir de zéro et organiser une collection comme dans Bruno.
 Deux façons de créer :
 
 - `create_collection(parent, name)` crée un **nouveau** dossier `sanitizeName(name)` sous `parent`, comme « Nouvelle collection » dans Bruno.
-  - Si le dossier existe et est vide, il est réutilisé.
+  - Si le dossier existe et est vide (hors fichiers cachés du système, comme § 1), il est réutilisé.
   - S'il existe et n'est pas vide, on suffixe ` 1`, ` 2`… (FS:211).
 - `init_collection(dir, name)` crée la collection **dans** un dossier existant (classe `empty` ou `other`), pour « Créer une collection ici ».
   - Refus si `opencollection.yml` existe déjà.
@@ -104,7 +104,7 @@ request:
 
 **Renommer** une requête change à la fois le nom affiché et le nom du fichier, comme Bruno quand le nom de fichier suit le nom affiché.
 
-- Seule la ligne `info.name` est modifiée, via `RequestDoc::apply` ; le reste du fichier est intact.
+- Seule la ligne `info.name` est modifiée, par `xc_core::collection::with_info` (`RequestDoc::apply` n'écrit pas `info.seq` et ne sert pas à un `folder.yml`). L'arbre YAML est conservé, clés inconnues comprises, puis réécrit par l'émetteur : un fichier tel que Bruno ou l'application l'écrit ne change qu'à cette ligne, mais les commentaires et la mise en forme d'un fichier écrit à la main sont normalisés, comme à chaque enregistrement.
 - Le fichier est ensuite renommé de façon atomique, avec un suffixe ` n` si le nouveau nom est pris.
 - Si le nom de fichier assaini est inchangé, seul `info.name` change.
 - Pour un dossier : `info.name` de `folder.yml` (fichier créé, minimal, s'il manque, comme E:1188-1207), puis renommage du dossier.
@@ -113,16 +113,17 @@ request:
 
 - copie à l'octet du fichier, puis seules les lignes `info.name` et `info.seq` changent ;
 - nom proposé : « <nom> copie » ;
-- `seq` = fin de liste du dossier ;
+- `seq` = fin de liste du dossier : au-delà du plus grand `seq` et du nombre de frères, ce qui ne dépend pas des trous laissés par les suppressions ;
 - même dossier, nom de fichier suffixé si besoin.
 
-Pour un dossier : copie complète de l'arborescence, sans perte de fichier (Bruno ne recopie que les requêtes http/graphql/grpc), puis seules `info.name` et `info.seq` du `folder.yml` de la copie changent.
+Pour un dossier : copie complète de l'arborescence, sans perte de fichier (Bruno ne recopie que les requêtes http/graphql/grpc), puis seules `info.name` et `info.seq` du `folder.yml` de la copie changent. Un lien symbolique dans le dossier fait refuser la copie, qui ne lit jamais hors de la collection et ne perd rien en silence ; la copie incomplète est supprimée.
 
 **Supprimer** une requête ou un dossier :
 
 - toujours vers la **corbeille du système**, après confirmation dans l'interface ;
 - les frères ne sont pas renumérotés, les trous de `seq` sont tolérés par le tri ;
-- les onglets ouverts sur l'élément supprimé se ferment.
+- les onglets ouverts sur l'élément supprimé se ferment ;
+- sur macOS, par `NSFileManager` (`trashItemAtURL`) plutôt que par le Finder : aucune autorisation « contrôler le Finder » n'est demandée, un refus ne peut pas bloquer la suppression ; l'élément se récupère en le faisant glisser hors de la corbeille (le Finder ne propose pas toujours « Remettre »).
 
 ## 5. Réordonner et déplacer (glisser-déposer)
 
@@ -137,7 +138,7 @@ Position de dépôt : `before`, `after` (d'un frère) ou `inside` (d'un dossier)
   - renommage atomique du fichier ou du dossier entier ;
   - copie, vérification, puis suppression de la source seulement si les volumes diffèrent ;
   - suffixe ` n` si le nom est pris ;
-  - `inside` : `seq` = max des frères + 1 ;
+  - `inside` : `seq` en fin de liste, comme pour la copie (au-delà du plus grand `seq` et du nombre de frères), sans renuméroter les frères ; déposer dans son propre dossier met l'élément à la fin ;
   - `before` / `after` : renumérotation du dossier cible comme ci-dessus.
 - Déposer un dossier dans lui-même ou dans un de ses descendants est refusé.
 
@@ -150,7 +151,7 @@ Si `.oc-sync/openapi/source.yml` existe, chaque action le met à jour dans la m�
 - **Dupliquer** : la copie n'est pas suivie.
 - **Supprimer une requête suivie** : son entrée passe à `ignored: true`, sans `file`, car l'équipe ne la veut plus. Supprimer un dossier fait de même pour toutes ses entrées.
 
-En plus, connecter une collection à une spec (vue de synchro, première synchro) ajoute `.oc-sync` à `extensions.bruno.ignore` de `opencollection.yml`, comme l'import, pour que Bruno ne l'affiche pas. Seule cette liste change.
+En plus, connecter une collection à une spec (vue de synchro, première synchro) ajoute `.oc-sync` à `extensions.bruno.ignore` de `opencollection.yml`, comme l'import, pour que Bruno ne l'affiche pas. Seule cette liste change (`xc_core::collection::ignore_name`, appelée par `Plan::apply` avant l'écriture de `source.yml`, sans effet quand `.oc-sync` y figure déjà).
 
 ## 7. Écarts volontaires avec Bruno
 

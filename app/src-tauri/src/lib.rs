@@ -11,6 +11,7 @@ use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, Prepared, RequestDoc};
 use xc_engine::Timings;
 use xc_sync::import::{fetch_spec, OpenApiPreview};
+use xc_sync::manage::{self, DropPosition, FolderKind, ManageError};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
@@ -61,6 +62,11 @@ fn err(e: impl std::fmt::Display) -> String {
 
 fn root(path: &str) -> PathBuf {
     PathBuf::from(path)
+}
+
+/// Exécute une action de gestion de collection hors du fil principal.
+async fn managing<T: Send + 'static>(action: impl FnOnce() -> Result<T, ManageError> + Send + 'static) -> Reply<T> {
+    tokio::task::spawn_blocking(action).await.map_err(err)?.map_err(err)
 }
 
 #[derive(Serialize)]
@@ -211,6 +217,62 @@ async fn import_openapi(source: String, location: String, group_by: String) -> R
 }
 
 #[tauri::command]
+async fn inspect_folder(path: String) -> Reply<FolderKind> {
+    managing(move || manage::inspect_folder(Path::new(&path))).await
+}
+
+#[tauri::command]
+async fn create_collection(parent: String, name: String) -> Reply<String> {
+    managing(move || manage::create_collection(Path::new(&parent), &name).map(|root| root.display().to_string())).await
+}
+
+#[tauri::command]
+async fn init_collection(dir: String, name: String) -> Reply<String> {
+    managing(move || manage::init_collection(Path::new(&dir), &name).map(|root| root.display().to_string())).await
+}
+
+#[tauri::command]
+async fn create_request(root: String, folder: String, name: String) -> Reply<String> {
+    managing(move || manage::create_request(Path::new(&root), &folder, &name)).await
+}
+
+#[tauri::command]
+async fn create_folder(root: String, parent: String, name: String) -> Reply<String> {
+    managing(move || manage::create_folder(Path::new(&root), &parent, &name)).await
+}
+
+#[tauri::command]
+async fn rename_item(root: String, path: String, name: String) -> Reply<String> {
+    managing(move || manage::rename_item(Path::new(&root), &path, &name)).await
+}
+
+#[tauri::command]
+async fn clone_item(root: String, path: String, name: String) -> Reply<String> {
+    managing(move || manage::clone_item(Path::new(&root), &path, &name)).await
+}
+
+/// Envoie la requête ou le dossier à la corbeille du système.
+#[tauri::command]
+async fn delete_item(root: String, path: String) -> Reply<()> {
+    managing(move || manage::delete_item(Path::new(&root), &path, |item| trash_context().delete(item).map_err(err)))
+        .await
+}
+
+/// Sur macOS, `NSFileManager` plutôt que le Finder : aucune autorisation « contrôler le Finder » n'est demandée.
+fn trash_context() -> trash::TrashContext {
+    #[allow(unused_mut)]
+    let mut context = trash::TrashContext::default();
+    #[cfg(target_os = "macos")]
+    trash::macos::TrashContextExtMacos::set_delete_method(&mut context, trash::macos::DeleteMethod::NsFileManager);
+    context
+}
+
+#[tauri::command]
+async fn move_item(root: String, path: String, target: String, position: DropPosition) -> Reply<String> {
+    managing(move || manage::move_item(Path::new(&root), &path, &target, position)).await
+}
+
+#[tauri::command]
 fn sync_status(root: String) -> Reply<SyncStatus> {
     sync::status(Path::new(&root)).map_err(err)
 }
@@ -267,6 +329,15 @@ pub fn run() {
             create_request_from_curl,
             preview_openapi,
             import_openapi,
+            inspect_folder,
+            create_collection,
+            init_collection,
+            create_request,
+            create_folder,
+            rename_item,
+            clone_item,
+            delete_item,
+            move_item,
             sync_status,
             sync_plan,
             sync_op_view,
@@ -342,5 +413,48 @@ paths:
         assert!(fs::read_to_string(&file).unwrap().contains("method: POST"));
         assert!(plans.get(&id).unwrap_err().contains("plan introuvable"), "oublié après l'application");
         assert!(plans.apply(&id, &decisions).is_err());
+    }
+
+    #[tokio::test]
+    async fn ef_col_04_commands_create_a_collection_then_manage_its_items() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = dir.path().display().to_string();
+        assert_eq!(inspect_folder(parent.clone()).await.unwrap(), FolderKind::Empty);
+        let root = create_collection(parent, "Ma Collection".into()).await.unwrap();
+        assert_eq!(Path::new(&root), dir.path().join("Ma Collection"));
+        assert_eq!(inspect_folder(root.clone()).await.unwrap(), FolderKind::Collection);
+
+        let folder = create_folder(root.clone(), String::new(), "Commandes".into()).await.unwrap();
+        let request = create_request(root.clone(), folder, "Lister".into()).await.unwrap();
+        assert_eq!(request, "Commandes/Lister.yml");
+        let renamed = rename_item(root.clone(), request, "Détails".into()).await.unwrap();
+        assert_eq!(renamed, "Commandes/Détails.yml");
+        let copy = clone_item(root.clone(), renamed, "Détails copie".into()).await.unwrap();
+        let moved = move_item(root.clone(), copy, String::new(), DropPosition::Inside).await.unwrap();
+        assert_eq!(moved, "Détails copie.yml");
+        let info = xc_core::open_collection(Path::new(&root)).unwrap();
+        assert_eq!(info.request_count, 2);
+    }
+
+    #[tokio::test]
+    async fn ef_col_04_commands_report_errors_as_french_strings() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = create_collection(dir.path().display().to_string(), "Ma Collection".into()).await.unwrap();
+        let outside = rename_item(root.clone(), "../x.yml".into(), "a".into()).await.unwrap_err();
+        assert!(outside.contains("hors de la collection"), "{outside}");
+        let again = init_collection(root.clone(), "Autre".into()).await.unwrap_err();
+        assert!(again.contains("contient déjà une collection"), "{again}");
+        let reserved = create_folder(root.clone(), String::new(), "environments".into()).await.unwrap_err();
+        assert!(reserved.starts_with("nom invalide"), "{reserved}");
+        let missing = inspect_folder(dir.path().join("absent").display().to_string()).await.unwrap_err();
+        assert!(missing.starts_with("dossier introuvable"), "{missing}");
+    }
+
+    #[test]
+    fn ef_col_01_drop_positions_and_folder_kinds_use_the_names_of_the_interface() {
+        let positions: Vec<DropPosition> = serde_json::from_str(r#"["before","after","inside"]"#).unwrap();
+        assert_eq!(positions, [DropPosition::Before, DropPosition::After, DropPosition::Inside]);
+        assert!(serde_json::from_str::<DropPosition>(r#""Before""#).is_err());
+        assert_eq!(serde_json::to_string(&FolderKind::Bru).unwrap(), r#""bru""#);
     }
 }

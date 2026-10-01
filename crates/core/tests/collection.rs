@@ -3,9 +3,15 @@ use std::fs;
 use std::path::Path;
 
 use xc_core::assert::{evaluate, ResponseView};
-use xc_core::collection::{count_entries, is_hidden, resolve_path, resolve_visible_path, write_atomic, write_new};
+use xc_core::collection::{
+    count_entries, is_hidden, list_folder, resolve_path, resolve_visible_path, with_info, write_atomic, write_new,
+};
+use xc_core::request::BLANK_BEFORE;
 use xc_core::vars::{Context, Scope};
-use xc_core::{mark_deprecated, open_collection, prepare, read_request, save_request, Assertion, CoreError, TreeItem};
+use xc_core::yaml::Value;
+use xc_core::{
+    mark_deprecated, normalize, open_collection, prepare, read_request, save_request, Assertion, CoreError, TreeItem,
+};
 
 fn write(root: &Path, rel: &str, text: &str) {
     let path = root.join(rel);
@@ -389,4 +395,89 @@ fn ef_tst_02_declarative_assertions() {
     );
     let passed: Vec<bool> = results.iter().map(|r| r.passed).collect();
     assert_eq!(passed, [true, true, true, true, true, true, false, false]);
+}
+
+const CANONICAL: &str = "info:
+  name: Liste
+  type: http
+  seq: 1
+  x-owner: equipe-a
+
+http:
+  method: GET
+  url: \"{{baseUrl}}/liste\"
+  auth: inherit
+x-extension:
+  nested:
+    - a
+    - b
+";
+
+fn fields<const N: usize>(pairs: [(&'static str, Value); N]) -> [(&'static str, Value); N] {
+    pairs
+}
+
+#[test]
+fn ef_col_01_list_folder_lists_one_level_in_tree_order_without_children() {
+    let dir = sample();
+    let paths = |folder: &str| -> Vec<String> {
+        let items = list_folder(dir.path(), folder).unwrap().unwrap();
+        items.iter().map(|item| item.path().to_owned()).collect()
+    };
+    assert_eq!(paths(""), ["auth", "transactions"]);
+    assert_eq!(paths("transactions"), ["transactions/liste.yml", "transactions/detail.yml"]);
+    let items = list_folder(dir.path(), "").unwrap().unwrap();
+    let TreeItem::Folder { children, .. } = &items[1] else { panic!("dossier attendu") };
+    assert!(children.is_empty());
+    assert_eq!((items[1].name(), items[1].seq()), ("Transactions", Some(2)));
+    assert!(list_folder(dir.path(), "absent").unwrap().is_none());
+    assert!(list_folder(dir.path(), "transactions/liste.yml").unwrap().is_none());
+    assert!(list_folder(dir.path(), "node_modules").unwrap().is_none());
+}
+
+#[test]
+fn ef_col_04_with_info_changes_only_the_requested_info_fields() {
+    let path = Path::new("liste.yml");
+    assert_eq!(normalize(CANONICAL, BLANK_BEFORE).unwrap(), CANONICAL);
+    let renamed = with_info(path, CANONICAL, &fields([("name", Value::str("Toutes les listes"))])).unwrap();
+    assert_eq!(renamed, CANONICAL.replace("name: Liste", "name: Toutes les listes"));
+    let renumbered = with_info(path, CANONICAL, &fields([("seq", Value::Int(7))])).unwrap();
+    assert_eq!(renumbered, CANONICAL.replace("seq: 1", "seq: 7"));
+    let both = with_info(path, CANONICAL, &fields([("name", Value::str("Copie")), ("seq", Value::Int(4))])).unwrap();
+    assert_eq!(both, CANONICAL.replace("name: Liste", "name: Copie").replace("seq: 1", "seq: 4"));
+}
+
+#[test]
+fn ef_col_04_with_info_quotes_names_like_bruno_and_inserts_a_missing_seq_after_the_type() {
+    let path = Path::new("liste.yml");
+    let text = "info:\n  name: Liste\n  type: http\n\nhttp:\n  method: GET\n";
+    let numbered = with_info(path, text, &fields([("seq", Value::Int(2))])).unwrap();
+    assert_eq!(numbered, "info:\n  name: Liste\n  type: http\n  seq: 2\n\nhttp:\n  method: GET\n");
+    let quoted = with_info(path, text, &fields([("name", Value::str("API: v2 #1"))])).unwrap();
+    assert!(quoted.starts_with("info:\n  name: \"API: v2 #1\"\n  type: http\n"), "{quoted}");
+    let missing = with_info(path, "http:\n  method: GET\n", &fields([("name", Value::str("Liste"))])).unwrap();
+    assert!(missing.contains("info:\n  name: Liste\n"), "{missing}");
+}
+
+#[test]
+fn ef_col_04_with_info_returns_the_text_untouched_when_the_fields_already_have_their_value() {
+    let path = Path::new("liste.yml");
+    let hand_written = "# à la main\ninfo: {name: Liste, type: http, seq: 1}\nhttp:\n    method: GET\n";
+    let same = fields([("name", Value::str("Liste")), ("seq", Value::Int(1))]);
+    assert_eq!(with_info(path, hand_written, &same).unwrap(), hand_written);
+}
+
+#[test]
+fn ef_col_04_with_info_normalizes_comments_and_layout_of_hand_written_files() {
+    let path = Path::new("liste.yml");
+    let hand_written =
+        "# propriétaire : équipe A\ninfo:\n    name: Liste   # titre\n    type: http\nhttp:\n    method: GET\n";
+    let renamed = with_info(path, hand_written, &fields([("name", Value::str("Autre"))])).unwrap();
+    assert_eq!(renamed, "info:\n  name: Autre\n  type: http\n\nhttp:\n  method: GET\n");
+}
+
+#[test]
+fn ef_col_04_with_info_refuses_a_document_that_is_not_a_table() {
+    let error = with_info(Path::new("liste.yml"), "- a\n- b\n", &fields([("seq", Value::Int(1))])).unwrap_err();
+    assert!(matches!(error, CoreError::Yaml { .. }), "{error}");
 }

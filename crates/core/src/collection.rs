@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
 use serde::Serialize;
 
-use crate::request::{RequestDoc, BLANK_BEFORE};
+use crate::request::{RequestDoc, BLANK_BEFORE, INFO_ORDER, TOP_ORDER};
 use crate::yaml::{self, Map, Value};
 use crate::CoreError;
 
@@ -15,6 +15,8 @@ pub const COLLECTION_FILE: &str = "opencollection.yml";
 pub const FOLDER_FILE: &str = "folder.yml";
 pub const REQUEST_EXT: &str = ".yml";
 pub const ENV_DIR: &str = "environments";
+const COLLECTION_ORDER: &[&str] = &["opencollection", "info", "config", "request", "docs", "bundled", "extensions"];
+const BRUNO_ORDER: &[&str] = &["ignore", "presets", "scripts", "openapi"];
 const MOCKS_DIR: &str = "mocks";
 const NODE_MODULES: &str = "node_modules";
 
@@ -38,13 +40,20 @@ pub enum TreeItem {
 }
 
 impl TreeItem {
-    fn name(&self) -> &str {
+    pub fn path(&self) -> &str {
+        match self {
+            Self::Folder { path, .. } | Self::Request { path, .. } => path,
+        }
+    }
+
+    pub fn name(&self) -> &str {
         match self {
             Self::Folder { name, .. } | Self::Request { name, .. } => name,
         }
     }
 
-    fn seq(&self) -> Option<i64> {
+    /// `seq` s'il est strictement positif : les autres valeurs ne comptent pas pour le tri.
+    pub fn seq(&self) -> Option<i64> {
         match self {
             Self::Folder { seq, .. } | Self::Request { seq, .. } => seq.filter(|s| *s > 0),
         }
@@ -64,15 +73,15 @@ pub struct CollectionInfo {
 
 pub(crate) fn read_tree(path: &Path) -> Result<Map, CoreError> {
     let text = fs::read_to_string(path).map_err(|e| CoreError::io(path, e))?;
-    match yaml::parse(&text)
-        .map_err(|e| CoreError::Yaml { path: path.display().to_string(), message: e.to_string() })?
-    {
+    parse_tree(&text, path)
+}
+
+fn parse_tree(text: &str, path: &Path) -> Result<Map, CoreError> {
+    let invalid = |message: String| CoreError::Yaml { path: path.display().to_string(), message };
+    match yaml::parse(text).map_err(|e| invalid(e.to_string()))? {
         Value::Map(m) => Ok(m),
         Value::Null => Ok(Map::default()),
-        _ => Err(CoreError::Yaml {
-            path: path.display().to_string(),
-            message: "le document doit être une table".into(),
-        }),
+        _ => Err(invalid("le document doit être une table".into())),
     }
 }
 
@@ -131,7 +140,7 @@ pub fn open_collection(root: &Path) -> Result<CollectionInfo, CoreError> {
     let default_environment =
         bruno.and_then(|b| b.map("presets")).and_then(|p| p.str("defaultEnvironment")).map(str::to_owned);
 
-    let items = read_folder(root, root, &ignore)?;
+    let items = read_folder(root, root, &ignore, true)?;
     let mut count = 0;
     count_requests(&items, &mut count);
     let name = config
@@ -202,9 +211,9 @@ fn visible_entries(root: &Path, dir: &Path, ignore: &[String]) -> Result<Vec<Ent
         .collect())
 }
 
-/// Nombre de dossiers et de requêtes que l'arbre montre dans `folder` (`""` pour la racine), ou `None` quand ce
+/// Dossier `folder` (`""` pour la racine) et les noms que l'arbre ignore dans la collection, ou `None` quand ce
 /// dossier n'est pas lui-même montré.
-pub fn count_entries(root: &Path, folder: &str) -> Result<Option<usize>, CoreError> {
+fn find_folder(root: &Path, folder: &str) -> Result<Option<(PathBuf, Vec<String>)>, CoreError> {
     let config = read_config(root)?;
     let ignore = ignored(config.map("extensions").and_then(|e| e.map("bruno")));
     let mut dir = root.to_path_buf();
@@ -213,10 +222,24 @@ pub fn count_entries(root: &Path, folder: &str) -> Result<Option<usize>, CoreErr
         let Some(found) = found else { return Ok(None) };
         dir = found.path;
     }
+    Ok(Some((dir, ignore)))
+}
+
+/// Nombre de dossiers et de requêtes que l'arbre montre dans `folder` (`""` pour la racine), ou `None` quand ce
+/// dossier n'est pas lui-même montré.
+pub fn count_entries(root: &Path, folder: &str) -> Result<Option<usize>, CoreError> {
+    let Some((dir, ignore)) = find_folder(root, folder)? else { return Ok(None) };
     Ok(Some(visible_entries(root, &dir, &ignore)?.len()))
 }
 
-fn read_folder(root: &Path, dir: &Path, ignore: &[String]) -> Result<Vec<TreeItem>, CoreError> {
+/// Dossiers et requêtes que l'arbre montre dans `folder` (`""` pour la racine), dans l'ordre de l'arbre et sans leurs
+/// enfants, ou `None` quand ce dossier n'est pas lui-même montré.
+pub fn list_folder(root: &Path, folder: &str) -> Result<Option<Vec<TreeItem>>, CoreError> {
+    let Some((dir, ignore)) = find_folder(root, folder)? else { return Ok(None) };
+    read_folder(root, &dir, &ignore, false).map(Some)
+}
+
+fn read_folder(root: &Path, dir: &Path, ignore: &[String], deep: bool) -> Result<Vec<TreeItem>, CoreError> {
     let mut items = Vec::new();
     for Entry { name, path, is_dir } in visible_entries(root, dir, ignore)? {
         if !is_dir {
@@ -238,7 +261,7 @@ fn read_folder(root: &Path, dir: &Path, ignore: &[String]) -> Result<Vec<TreeIte
             path: relative(root, &path),
             name: folder_name,
             seq,
-            children: read_folder(root, &path, ignore)?,
+            children: if deep { read_folder(root, &path, ignore, true)? } else { Vec::new() },
         });
     }
     Ok(sort_by_name_then_sequence(items))
@@ -348,6 +371,39 @@ pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<boo
     }
     write_atomic(&path, &next)?;
     Ok(true)
+}
+
+/// Contenu du fichier `path` (requête ou `folder.yml`), dont `text` est le texte actuel, avec les champs `fields` de
+/// `info` pour seuls changements : le reste de l'arbre (clés inconnues comprises) est conservé, et `text` est rendu tel
+/// quel quand ces champs ont déjà leur valeur. Comme pour [`save_request`], le document est réécrit par l'émetteur : un
+/// fichier tel que Bruno ou l'application l'écrit ne change que sur les lignes concernées, mais les commentaires et la
+/// mise en forme d'un fichier écrit à la main sont normalisés.
+pub fn with_info(path: &Path, text: &str, fields: &[(&str, Value)]) -> Result<String, CoreError> {
+    let mut tree = parse_tree(text, path)?;
+    let info = tree.map_mut_or_insert("info", TOP_ORDER);
+    if fields.iter().all(|(key, value)| info.get(key) == Some(value)) {
+        return Ok(text.to_owned());
+    }
+    for (key, value) in fields {
+        info.set(key, value.clone(), INFO_ORDER);
+    }
+    Ok(yaml::emit(&Value::Map(tree), BLANK_BEFORE))
+}
+
+/// Ajoute `name` à `extensions.bruno.ignore` de `opencollection.yml`, la seule liste que le fichier change, pour que
+/// Bruno n'affiche pas ce dossier. Sans effet quand `name` y figure déjà.
+pub fn ignore_name(root: &Path, name: &str) -> Result<(), CoreError> {
+    let path = root.join(COLLECTION_FILE);
+    let text = fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))?;
+    let mut tree = parse_tree(&text, &path)?;
+    let bruno = tree.map_mut_or_insert("extensions", COLLECTION_ORDER).map_mut_or_insert("bruno", &[]);
+    let mut ignore = bruno.seq("ignore").to_vec();
+    if ignore.iter().any(|entry| entry.scalar().as_deref() == Some(name)) {
+        return Ok(());
+    }
+    ignore.push(Value::str(name));
+    bruno.set("ignore", Value::Seq(ignore), BRUNO_ORDER);
+    write_atomic(&path, &yaml::emit(&Value::Map(tree), BLANK_BEFORE))
 }
 
 /// Écrit via un fichier temporaire voisin, synchronisé sur le disque, puis renomme, sans jamais laisser un fichier

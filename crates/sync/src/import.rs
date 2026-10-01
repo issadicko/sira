@@ -27,7 +27,9 @@ use crate::curl::MAX_COMMAND_BYTES;
 use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSummary};
 
 pub use from_curl::{create_request_from_curl, request_doc_from_curl};
-pub(crate) use naming::{fit, is_device_name, stem, Directory, Slot};
+pub(crate) use naming::{
+    fit, folder_dir_name, is_device_name, request_file_name, sanitize_name, stem, validate_name, Directory, Slot,
+};
 pub use source::{fetch_spec, is_url, source_value};
 pub use write::write_collection;
 pub(crate) use write::{folder_file, REQUEST_TYPES};

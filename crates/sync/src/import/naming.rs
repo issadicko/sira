@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use xc_core::collection::is_hidden;
+use xc_core::collection::{is_hidden, REQUEST_EXT};
 use xc_core::yaml::is_js_space;
 
 const MAX_NAME: usize = 255;
@@ -66,6 +66,46 @@ pub fn stem(name: &str, ext: &str, fallback: &str) -> String {
         .map(|stem| stem.trim_start_matches(|c| c == '.' || c == '-' || is_js_space(c)))
         .filter(|stem| !stem.is_empty());
     visible.unwrap_or(fallback).to_owned()
+}
+
+/// Validation du formulaire de Bruno : nom obligatoire de 255 caractères au plus, nom de fichier `sanitizeName(nom)`
+/// valide et hors des noms réservés `collection` et `folder`. Écart avec Bruno : le fichier final ne peut être ni
+/// caché ni réservé (`folder.yml`, `opencollection.yml`, point de tête, nom de périphérique Windows, sans tenir compte
+/// de la casse), car l'arbre de la collection ne le montrerait pas. Renvoie le nom du fichier avec son extension.
+pub fn request_file_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim_matches(is_js_space);
+    if trimmed.is_empty() {
+        return Err("le nom est obligatoire".into());
+    }
+    if trimmed.encode_utf16().count() > MAX_NAME {
+        return Err(format!("le nom ne peut pas dépasser {MAX_NAME} caractères"));
+    }
+    let sanitized = sanitize_name(name);
+    let filename = sanitized.trim_matches(is_js_space);
+    if matches!(filename, "collection" | "folder") {
+        return Err(format!("les noms de fichier « collection » et « folder » sont réservés : {filename}"));
+    }
+    validate_name(filename)?;
+    let base = filename.replacen(REQUEST_EXT, "", 1);
+    validate_name(&base)?;
+    let file = fit(&base, "", REQUEST_EXT);
+    if is_hidden(&file.to_lowercase(), false) || is_device_name(&file) {
+        return Err(format!("le nom de fichier « {file} » est réservé ou caché"));
+    }
+    Ok(file)
+}
+
+/// Validation du nom d'un dossier (`renderer:new-folder` de Bruno) : `sanitizeName(nom)` valide. Écart avec Bruno : le
+/// dossier ne peut pas porter un nom que l'arbre cacherait (`.git`, `.oc-sync`, `node_modules`, et à la racine
+/// `environments` et `mocks`, sans tenir compte de la casse). Renvoie le nom du dossier.
+pub fn folder_dir_name(name: &str, at_root: bool) -> Result<String, String> {
+    let sanitized = sanitize_name(name);
+    validate_name(&sanitized)?;
+    let dir = fit(&sanitized, "", "");
+    if is_hidden(&dir.to_lowercase(), at_root) {
+        return Err(format!("le nom de dossier « {dir} » est réservé ou caché"));
+    }
+    Ok(dir)
 }
 
 /// Dossier de la collection nommée `title`, avec le nom qu'elle porte : `title`, puis `title - 1`, `title - 2`…

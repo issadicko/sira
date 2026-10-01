@@ -1,0 +1,33 @@
+{
+  "type": "http-request",
+  "name": "Obtenir: l'état #1",
+  "seq": 1,
+  "request": {
+    "method": "GET",
+    "url": "",
+    "headers": [],
+    "params": [],
+    "body": {
+      "mode": "none",
+      "json": null,
+      "text": null,
+      "xml": null,
+      "sparql": null,
+      "multipartForm": [],
+      "formUrlEncoded": [],
+      "file": []
+    },
+    "vars": {
+      "req": [],
+      "res": []
+    },
+    "assertions": [],
+    "auth": {
+      "mode": "inherit"
+    }
+  },
+  "settings": {
+    "encodeUrl": true,
+    "forwardAuthorizationHeader": false
+  }
+}

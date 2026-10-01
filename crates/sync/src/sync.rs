@@ -24,6 +24,7 @@ use pairing::Relinker;
 use specs::{load_ours, Op, Ours};
 
 pub use apply::Report;
+pub(crate) use create::write_parallel;
 pub use view::{Hunk, OpView};
 
 #[derive(Debug, thiserror::Error)]
