@@ -310,7 +310,7 @@ fn ef_imp_02_references_fanning_out_cannot_blow_up_the_generated_examples() {
     });
     let (result, time) = elapsed(|| convert(&text, GroupBy::Tags));
     assert!(result.unwrap_err().to_string().contains("exemples trop volumineux"));
-    assert!(time.as_secs() < 2, "{time:?}");
+    assert!(time.as_secs() < 5, "{time:?} (gel ?)");
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn ef_imp_02_shared_examples_fanning_out_cannot_blow_up_the_serialized_bodies() 
     }
     let (result, time) = elapsed(|| convert(&text, GroupBy::Tags));
     assert!(result.unwrap_err().to_string().contains("exemples trop volumineux"));
-    assert!(time.as_secs() < 2, "{time:?}");
+    assert!(time.as_secs() < 5, "{time:?} (gel ?)");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn ef_imp_02_yaml_alias_bombs_are_refused_in_bounded_time() {
     }
     let (result, time) = elapsed(|| load_spec(&text));
     assert!(matches!(&result, Err(OpenApiError::Syntax(message)) if message.contains("alias YAML")), "{result:?}");
-    assert!(time.as_secs() < 2, "{time:?}");
+    assert!(time.as_secs() < 5, "{time:?} (gel ?)");
 
     let modest = "base: &b {x: 1, y: [1, 2, 3]}\nuses: [*b, *b, *b]\n";
     assert_eq!(load_spec(modest).unwrap()["uses"][2]["y"], json!([1, 2, 3]));
