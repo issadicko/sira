@@ -3,14 +3,13 @@
 //! clés dupliquées refusées, dates non quotées réduites à `{}` comme après `resolveRefs`.
 
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 use serde_json::{Map, Value};
 use yaml_rust2::parser::{Event, EventReceiver, Parser, Tag};
 use yaml_rust2::scanner::TScalarStyle;
 
-use super::js::{js_order, number_to_string, number_value};
 use super::{OpenApiError, R};
+use crate::js::{js_order, number_value, parse_radix, string};
 
 pub fn load(text: &str) -> R<Value> {
     let mut builder = Builder::default();
@@ -83,7 +82,7 @@ impl Builder {
                     *key = Some(match value {
                         _ if plain && text == "<<" => Key::Merge,
                         Value::Object(_) => Key::Name(text),
-                        ref v => Key::Name(key_string(v)),
+                        ref v => Key::Name(string(v)),
                     });
                     if anchor > 0 {
                         self.anchors.insert(anchor, value);
@@ -124,7 +123,7 @@ impl Builder {
             None => self.docs.push(value),
             Some(Frame::Seq(items, _)) => items.push(value),
             Some(Frame::Map { map, overridable, key, .. }) => match key.take() {
-                None => *key = Some(Key::Name(key_string(&value))),
+                None => *key = Some(Key::Name(string(&value))),
                 Some(Key::Merge) => self.merged += merge(map, overridable, value, MAX_MERGED_KEYS - self.merged)?,
                 Some(Key::Name(k)) => {
                     if !overridable.remove(&k) && map.contains_key(&k) {
@@ -171,21 +170,7 @@ fn merge(
 }
 
 fn ordered(map: Map<String, Value>) -> Value {
-    let entries = js_order(map.into_iter().map(|(k, v)| (Rc::<str>::from(k), v)).collect());
-    Value::Object(entries.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
-}
-
-fn key_string(value: &Value) -> String {
-    match value {
-        Value::Null => "null".into(),
-        Value::Bool(b) => b.to_string(),
-        Value::Number(n) => number_to_string(n.as_f64().unwrap_or(f64::NAN)),
-        Value::String(s) => s.clone(),
-        Value::Array(items) => {
-            items.iter().map(|x| if x.is_null() { String::new() } else { key_string(x) }).collect::<Vec<_>>().join(",")
-        }
-        Value::Object(_) => "[object Object]".into(),
-    }
+    Value::Object(js_order(map.into_iter().collect()).into_iter().collect())
 }
 
 fn is_non_specific(tag: &Tag) -> bool {
@@ -267,14 +252,10 @@ fn integer(text: &str) -> Option<f64> {
     if body == "0" {
         return Some(0.0);
     }
-    let radix = |rest: &str, radix: u32| {
-        let ok = !rest.is_empty() && rest.chars().all(|c| c.is_digit(radix));
-        ok.then(|| rest.chars().fold(0.0, |acc, c| acc * f64::from(radix) + f64::from(c.to_digit(radix).unwrap_or(0))))
-    };
     let value = match body.strip_prefix('0').and_then(|r| r.chars().next().map(|c| (c, &r[1..]))) {
-        Some(('b', rest)) => radix(rest, 2)?,
-        Some(('x', rest)) => radix(rest, 16)?,
-        Some(('o', rest)) => radix(rest, 8)?,
+        Some(('b', rest)) => parse_radix(rest, 2)?,
+        Some(('x', rest)) => parse_radix(rest, 16)?,
+        Some(('o', rest)) => parse_radix(rest, 8)?,
         _ if digits(body) => body.parse::<f64>().ok()?,
         _ => return None,
     };

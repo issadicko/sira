@@ -1,10 +1,11 @@
 //! Environnements (`stringifyEnvironment.ts`).
 
 use serde_json::Value as Json;
-use xc_core::yaml::{is_js_space, Map, Value};
+use xc_core::yaml::{Map, Value};
 
+use super::access::{is_false, non_empty_array, or, yaml};
 use super::common::{map, put, put_some, typed_value, variable_value};
-use super::js::{is_false, non_empty_array, or, trim, truthy, yaml};
+use crate::js::{is_js_space, trim, truthy, utf16_len};
 
 pub fn environment(env: &Json) -> Map {
     let mut m = Map::default();
@@ -74,7 +75,7 @@ fn valid_name(reference: &str) -> Option<&str> {
             && upper.as_bytes()[3].is_ascii_digit());
     let first = name.chars().next()?;
     let last = name.chars().last()?;
-    let rejected = name.encode_utf16().count() > 255
+    let rejected = utf16_len(name) > 255
         || reserved
         || name.chars().any(invalid)
         || is_js_space(first)

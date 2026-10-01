@@ -3,10 +3,10 @@
 use serde_json::{json, Map, Value};
 
 use super::content_type::is_structured_content_type;
-use super::js::{JsError, JsObject};
 use super::parse::{parse_curl_command, Auth, ParsedCurl};
 use super::query::{build_query_string, query_string_parse, QsValue};
 use super::shell::Token;
+use crate::js::{JsError, JsObject};
 
 /// Objet renvoyé par `curlToJson`.
 #[derive(Clone, Debug)]

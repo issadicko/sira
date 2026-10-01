@@ -3,10 +3,10 @@
 
 use serde_json::{json, Map, Value};
 
-use super::js::{decode_uri_component, is_js_whitespace, is_line_terminator, js_trim, JsError, JsObject};
 use super::node_url;
 use super::query::{parse_query_params, QueryParam};
 use super::shell::{self, Token};
+use crate::js::{decode_uri_component, is_js_space, is_line_terminator, push_char, trim, JsError, JsObject};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum State {
@@ -289,7 +289,7 @@ fn handle_value(value: &Token, state: State, request: &mut ParsedCurl) -> Result
 pub(crate) fn split_header(value: &str) -> (String, Option<String>) {
     let chars: Vec<char> = value.chars().collect();
     for (colon, _) in chars.iter().enumerate().filter(|(_, &c)| c == ':') {
-        let spaces_end = colon + 1 + chars[colon + 1..].iter().take_while(|&&c| is_js_whitespace(c)).count();
+        let spaces_end = colon + 1 + chars[colon + 1..].iter().take_while(|&&c| is_js_space(c)).count();
         let start = (colon + 1..=spaces_end).rev().find(|&k| chars.get(k).is_some_and(|&c| !is_line_terminator(c)));
         if let Some(start) = start {
             let end = start + chars[start..].iter().take_while(|&&c| !is_line_terminator(c)).count();
@@ -434,7 +434,7 @@ pub(crate) fn is_url(arg: &str) -> Result<bool, JsError> {
 fn matches_domain_pattern(arg: &str) -> bool {
     let host_len = arg.find(|c: char| !(c.is_ascii_alphanumeric() || c == '.' || c == '-')).unwrap_or(arg.len());
     let (host, rest) = arg.split_at(host_len);
-    let rest_ok = rest.is_empty() || (rest.starts_with(['/', '?']) && !rest.chars().any(is_js_whitespace));
+    let rest_ok = rest.is_empty() || (rest.starts_with(['/', '?']) && !rest.chars().any(is_js_space));
     let labels: Vec<&str> = host.split('.').collect();
     let label_ok = |l: &&str| {
         (1..=63).contains(&l.len())
@@ -538,7 +538,7 @@ pub(crate) fn clean_curl_command(command: &str) -> String {
     let command = replace_ansi_c_quotes(command);
     let command = escape_single_quotes(&command);
     let command = fix_concatenated_methods(command);
-    js_trim(&command).to_owned()
+    trim(&command).to_owned()
 }
 
 fn replace_ansi_c_quotes(command: &str) -> String {
@@ -600,8 +600,7 @@ fn decode_ansi_escapes(value: &str) -> String {
                 continue;
             }
         }
-        let mut buf = [0u16; 2];
-        out.extend_from_slice(s[i].encode_utf16(&mut buf));
+        push_char(&mut out, s[i]);
         i += 1;
     }
     String::from_utf16_lossy(&out)

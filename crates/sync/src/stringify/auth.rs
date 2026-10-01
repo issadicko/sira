@@ -3,8 +3,9 @@
 use serde_json::Value as Json;
 use xc_core::yaml::{Map, Value};
 
+use super::access::{get, non_empty, non_empty_array, or, yaml};
 use super::common::{map, put, put_some};
-use super::js::{get, non_empty, non_empty_array, or, trim, truthy, yaml};
+use crate::js::{trim, truthy};
 
 pub fn auth(auth: Option<&Json>) -> Option<Value> {
     if !truthy(auth) {

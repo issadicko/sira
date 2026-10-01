@@ -2,7 +2,7 @@
 //! `slashesDenoteHost`), utilisée par `parse-curl.js`.
 
 use super::domain::to_ascii;
-use super::js::{decode_uri_component, is_js_whitespace, utf16_len, JsError};
+use crate::js::{decode_uri_component, is_js_space, utf16_len, JsError};
 
 const SLASHED_PROTOCOLS: [&str; 14] = [
     "http", "http:", "https", "https:", "ftp", "ftp:", "gopher", "gopher:", "file", "file:", "ws", "ws:", "wss", "wss:",
@@ -189,10 +189,10 @@ fn simple_path(rest: &[char]) -> Option<(String, Option<String>)> {
     if rest.first() != Some(&'/') || (rest.get(1) == Some(&'/') && rest.get(2) == Some(&'/')) {
         return None;
     }
-    let stop = rest.iter().position(|&c| c == '?' || is_js_whitespace(c));
+    let stop = rest.iter().position(|&c| c == '?' || is_js_space(c));
     match stop {
         None => Some((text(rest), None)),
-        Some(k) if rest[k] == '?' && !rest[k..].iter().any(|&c| is_js_whitespace(c)) => {
+        Some(k) if rest[k] == '?' && !rest[k..].iter().any(|&c| is_js_space(c)) => {
             Some((text(&rest[..k]), Some(text(&rest[k..]))))
         }
         _ => None,

@@ -5,7 +5,8 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use super::js::{array_index, Heap, Js};
+use super::heap::{Heap, Js};
+use crate::js::{array_index, js_order, truthy};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Flavor {
@@ -37,10 +38,6 @@ struct Resolver<'a> {
 impl<'a> Resolver<'a> {
     fn walk(&mut self, v: &'a Value) -> Js {
         match v {
-            Value::Null => Js::Null,
-            Value::Bool(b) => Js::Bool(*b),
-            Value::Number(n) => Js::Num(n.as_f64().unwrap_or(f64::NAN)),
-            Value::String(s) => Js::str(s),
             Value::Array(items) => {
                 let items = items.iter().map(|x| self.walk(x)).collect();
                 self.heap.arr(items)
@@ -65,12 +62,12 @@ impl<'a> Resolver<'a> {
                 }
                 let id = self.heap.reserve();
                 self.by_object.insert(key, Js::Obj(id));
-                let mut entries: Vec<_> = map.iter().map(|(k, x)| (k.as_str().into(), x)).collect();
-                entries = super::js::js_order(entries);
-                let entries = entries.into_iter().map(|(k, x)| (k, self.walk(x))).collect();
+                let entries: Vec<_> = map.iter().map(|(k, x)| (k.as_str().into(), x)).collect();
+                let entries = js_order(entries).into_iter().map(|(k, x)| (k, self.walk(x))).collect();
                 self.heap.fill(id, entries);
                 Js::Obj(id)
             }
+            scalar => self.heap.import(scalar),
         }
     }
 
@@ -87,7 +84,7 @@ impl<'a> Resolver<'a> {
         match self.flavor {
             Flavor::OpenApi => {
                 let path = reference.replacen("#/components/", "", 1);
-                path.split('/').try_fold(self.components?, |cur, key| child(cur, key).filter(|x| truthy(x)))
+                path.split('/').try_fold(self.components?, |cur, key| child(cur, key).filter(|x| truthy(*x)))
             }
             Flavor::Swagger => {
                 let path = reference.strip_prefix("#/")?;
@@ -96,7 +93,7 @@ impl<'a> Resolver<'a> {
                         self.root,
                         |cur, key| if cur.is_object() || cur.is_array() { child(cur, key) } else { None },
                     )
-                    .filter(|x| truthy(x))
+                    .filter(|x| truthy(*x))
             }
         }
     }
@@ -107,15 +104,5 @@ fn child<'v>(v: &'v Value, key: &str) -> Option<&'v Value> {
         Value::Object(map) => map.get(key),
         Value::Array(items) => array_index(key).and_then(|i| items.get(i)),
         _ => None,
-    }
-}
-
-fn truthy(v: &Value) -> bool {
-    match v {
-        Value::Null => false,
-        Value::Bool(b) => *b,
-        Value::Number(n) => n.as_f64().is_some_and(|x| x != 0.0),
-        Value::String(s) => !s.is_empty(),
-        _ => true,
     }
 }
