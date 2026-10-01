@@ -1,5 +1,6 @@
 import type { Api } from './api';
 import { createDemoSync } from './demo-sync';
+import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { CollectionInfo, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
@@ -107,6 +108,11 @@ const collection: CollectionInfo = {
   ],
 };
 
+const collections = new Map<string, DemoCollection>([[ROOT, { info: collection, files }]]);
+const PARENT = '~/démo';
+const picks = [ROOT, ...Object.keys(DEMO_FOLDERS)];
+let picked = 0;
+
 const envs: Record<string, Record<string, string>> = {
   dev: { baseUrl: 'https://api.dev.local/v1', txId: 'TX-2026-0042', canal: 'MOBILE' },
   prod: { baseUrl: 'https://api.paiements.example/v1', canal: 'MOBILE' },
@@ -175,15 +181,27 @@ const SPEC: OpenApiPreview = {
 
 const timers = new Map<string, () => void>();
 
+const demoSync = createDemoSync(files);
+
+/**
+ * Le sélecteur de dossier est simulé : « Ouvrir » propose tour à tour la collection de démo, un dossier vide, un dossier
+ * non vide et un dossier .bru, pour que chaque cas de l'ouverture soit atteignable ; le dossier parent d'une nouvelle collection est fixe.
+ */
 export const demoApi: Api = {
   demo: true,
-  pickFolder: async () => ROOT,
+  pickFolder: async (title) => (title ? PARENT : picks[picked++ % picks.length]),
   pickSpecFile: async () => '~/démo/petstore.yaml',
   pickFile: async () => `${ROOT}/pieces/recu-0043.pdf`,
-  openCollection: async () => structuredClone(collection),
-  readRequest: async (_root, path) => structuredClone(files[path]),
-  saveRequest: async (_root, path, d) => {
-    files[path] = structuredClone(d);
+  openCollection: async (root) => structuredClone(collectionAt(collections, root).info),
+  readRequest: async (root, path) => {
+    const doc = collectionAt(collections, root).files[path];
+    if (!doc) throw `Fichier introuvable : ${path}`;
+    return structuredClone(doc);
+  },
+  saveRequest: async (root, path, d) => {
+    const c = collectionAt(collections, root);
+    c.files[path] = structuredClone(d);
+    refreshItem(c, path, d);
     return true;
   },
   readEnvironment: async (_root, name) => [
@@ -235,5 +253,8 @@ export const demoApi: Api = {
   createRequestFromCurl: desktopOnly,
   previewOpenApi: async () => structuredClone(SPEC),
   importOpenApi: desktopOnly,
-  ...createDemoSync(files),
+  ...createDemoTree(collections),
+  ...demoSync,
+  syncStatus: async (root) =>
+    root === ROOT ? demoSync.syncStatus(root) : { connected: false, source: null, groupBy: null, operationCount: 0, removedCount: 0 },
 };

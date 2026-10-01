@@ -21,7 +21,8 @@
         "resizable": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "backgroundColor": "#0c0c0f"
+        "backgroundColor": "#0c0c0f",
+        "dragDropEnabled": false
       }
     ],
     "security": {

@@ -260,6 +260,12 @@ export class SyncStore {
     this.ws.notify("Synchro abandonnée : rien n'a été écrit sur le disque.");
   }
 
+  /** Abandonne la comparaison en cours quand un fichier qu'elle visait a changé de chemin ou disparu. */
+  invalidate() {
+    this.clear();
+    void this.refreshStatus();
+  }
+
   private clear() {
     this.planSeq++;
     this.viewSeq++;

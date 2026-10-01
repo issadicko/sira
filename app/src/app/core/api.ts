@@ -4,7 +4,9 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { demoApi } from './demo';
 import {
   CollectionInfo,
+  DropPosition,
   EnvVar,
+  FolderKind,
   GroupBy,
   OpenApiPreview,
   OpView,
@@ -22,7 +24,16 @@ export interface Api {
   pickFolder(title?: string): Promise<string | null>;
   pickSpecFile(): Promise<string | null>;
   pickFile(defaultDir?: string): Promise<string | null>;
+  inspectFolder(path: string): Promise<FolderKind>;
+  createCollection(parent: string, name: string): Promise<string>;
+  initCollection(dir: string, name: string): Promise<string>;
   openCollection(root: string): Promise<CollectionInfo>;
+  createRequest(root: string, folder: string, name: string): Promise<string>;
+  createFolder(root: string, parent: string, name: string): Promise<string>;
+  renameItem(root: string, path: string, name: string): Promise<string>;
+  cloneItem(root: string, path: string, name: string): Promise<string>;
+  deleteItem(root: string, path: string): Promise<void>;
+  moveItem(root: string, path: string, target: string, position: DropPosition): Promise<string>;
   readRequest(root: string, path: string): Promise<RequestDoc>;
   saveRequest(root: string, path: string, doc: RequestDoc): Promise<boolean>;
   readEnvironment(root: string, name: string): Promise<EnvVar[]>;
@@ -46,11 +57,20 @@ async function pick(options: Parameters<typeof open>[0]): Promise<string | null>
 
 const tauriApi: Api = {
   demo: false,
-  pickFolder: (title = 'Ouvrir une collection') => pick({ directory: true, title }),
+  pickFolder: (title = 'Ouvrir un dossier') => pick({ directory: true, title }),
   pickSpecFile: () =>
     pick({ title: 'Choisir une spécification OpenAPI', filters: [{ name: 'OpenAPI et Swagger', extensions: ['yaml', 'yml', 'json'] }] }),
   pickFile: (defaultDir) => pick({ title: 'Choisir un fichier à envoyer', defaultPath: defaultDir }),
+  inspectFolder: (path) => invoke('inspect_folder', { path }),
+  createCollection: (parent, name) => invoke('create_collection', { parent, name }),
+  initCollection: (dir, name) => invoke('init_collection', { dir, name }),
   openCollection: (root) => invoke('open_collection', { root }),
+  createRequest: (root, folder, name) => invoke('create_request', { root, folder, name }),
+  createFolder: (root, parent, name) => invoke('create_folder', { root, parent, name }),
+  renameItem: (root, path, name) => invoke('rename_item', { root, path, name }),
+  cloneItem: (root, path, name) => invoke('clone_item', { root, path, name }),
+  deleteItem: (root, path) => invoke('delete_item', { root, path }),
+  moveItem: (root, path, target, position) => invoke('move_item', { root, path, target, position }),
   readRequest: (root, path) => invoke('read_request', { root, path }),
   saveRequest: (root, path, doc) => invoke('save_request', { root, path, doc }),
   readEnvironment: (root, name) => invoke('read_environment', { root, name }),

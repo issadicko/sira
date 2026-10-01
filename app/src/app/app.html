@@ -80,13 +80,20 @@
         @if (ws.view() === 'collections') {
           <div class="pane-head">
             <span class="pane-title" [title]="c.root">{{ c.name }}</span>
+            <button class="icon-btn sm" (click)="togglePlusMenu($event)" aria-haspopup="menu" [attr.aria-expanded]="tree.menu()?.path === null" title="Nouvelle requête ou nouveau dossier" aria-label="Nouvelle requête ou nouveau dossier"><app-ic name="plus" [size]="15" /></button>
             <button class="icon-btn sm" (click)="ws.reload()" title="Relire le dossier" aria-label="Relire le dossier"><app-ic name="sync" [size]="15" /></button>
           </div>
           <label class="sb-filter"><app-ic name="filter" [size]="13" /><input #filter type="text" spellcheck="false" placeholder="Filtrer par nom ou chemin" [title]="'Filtrer les requêtes (' + key('mod+shift+f') + ')'" [value]="ws.filter()" (input)="ws.filter.set($any($event.target).value)" aria-label="Filtrer les requêtes" /></label>
-          <div class="sb-scroll" role="tree">
+          <div class="sb-scroll" role="tree" appTreeRoot aria-label="Requêtes de la collection">
             <app-tree [items]="c.items" />
-            @if (!c.items.length) {
-              <p class="pal-empty">Cette collection ne contient encore aucune requête.</p>
+            @if (!c.items.length && !tree.edit()) {
+              <div class="sb-empty">
+                <p>Cette collection ne contient encore aucune requête.</p>
+                <div class="actions">
+                  <button class="btn" (click)="tree.beginCreate('request')"><app-ic name="file" [size]="14" />Nouvelle requête</button>
+                  <button class="btn" (click)="tree.beginCreate('folder')"><app-ic name="folder" [size]="14" />Nouveau dossier</button>
+                </div>
+              </div>
             }
           </div>
           @if (ws.history().length) {
@@ -103,7 +110,7 @@
             </div>
           }
         } @else if (ws.view() === 'sync') {
-          <app-sync-sidebar />
+          @defer (on immediate) { <app-sync-sidebar /> }
         } @else {
           <div class="pane-head"><span class="pane-title">Environnements</span></div>
           <div class="sb-scroll">
@@ -123,9 +130,9 @@
       <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner la barre latérale" (pointerdown)="dragSidebar($event)"></div>
       <main class="island editor">
         @if (ws.view() === 'env') {
-          <app-env-view />
+          @defer (on immediate) { <app-env-view /> }
         } @else if (ws.view() === 'sync') {
-          <app-sync-view />
+          @defer (on immediate) { <app-sync-view /> }
         } @else {
           <app-editor />
         }
@@ -174,11 +181,16 @@
 <app-palette />
 @switch (ws.dialog()) {
   @case ('curl') {
-    <app-curl-dialog />
+    @defer (on immediate) { <app-curl-dialog /> }
   }
   @case ('openapi') {
-    <app-openapi-dialog />
+    @defer (on immediate) { <app-openapi-dialog /> }
+  }
+  @case ('collection') {
+    @defer (on immediate) { <app-collection-dialog /> }
   }
 }
+<app-delete-dialog />
+<app-tree-menu />
 <app-discard-dialog />
 <div class="toast" [class.show]="!!ws.toast()" [class.error]="ws.toastError()" role="status" aria-live="polite"><app-ic [name]="ws.toastError() ? 'alert' : 'check-circle'" [size]="15" /><span>{{ ws.toast() }}</span></div>

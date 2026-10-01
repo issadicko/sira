@@ -166,3 +166,12 @@ test('ef_syn_04_fleche_seule_ne_declenche_pas_la_navigation_entre_conflits', () 
   assert.ok(!matchesShortcut('alt+arrowdown', press('ArrowUp', { alt: true }), true));
   assert.ok(!matchesShortcut('alt+arrowdown', press('ArrowDown', { alt: true, meta: true }), true));
 });
+
+test('ef_col_04_raccourcis_de_larbre_affichent_f2_cmd_d_et_la_suppression', () => {
+  assert.equal(shortcutLabel('f2', true), 'F2');
+  assert.equal(shortcutLabel('f2', false), 'F2');
+  assert.equal(shortcutLabel('mod+d', true), '⌘D');
+  assert.equal(shortcutLabel('mod+d', false), 'Ctrl+D');
+  assert.equal(shortcutLabel('mod+backspace', true), '⌘⌫');
+  assert.equal(shortcutLabel('delete', false), 'Suppr');
+});

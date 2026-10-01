@@ -23,6 +23,8 @@ const LABELS: Record<string, [mac: string, other: string]> = {
   alt: ['⌥', 'Alt'],
   enter: ['↵', '↵'],
   esc: ['Échap', 'Échap'],
+  backspace: ['⌫', '⌫'],
+  delete: ['Suppr', 'Suppr'],
   arrowup: ['↑', '↑'],
   arrowdown: ['↓', '↓'],
 };

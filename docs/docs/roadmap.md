@@ -4,7 +4,7 @@
 
 Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé par une gate mesurable. Les dates supposent **deux développeurs à temps plein** (hypothèse non confirmée, voir § 9). Avec une seule personne, multiplier les durées par 1,8 environ.
 
-## 0. Avancement au 1er octobre 2026 (MVP-α, β et γ livrés, δ à faire)
+## 0. Avancement au 1er octobre 2026 (MVP-α, β et γ livrés, δ en cours)
 
 | Élément | État | Où |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | MVP-β β.1 Collage cURL et « Nouvelle requête depuis cURL… » | Fait ; analyse identique à Bruno (fixtures de son code et 113 000 commandes aléatoires) | `crates/sync/src/curl`, `app/src/app/ui/url-bar.ts` |
 | MVP-β β.2 Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL), tags ou chemins | Fait ; collection identique à l'octet à celle de Bruno (35 specs × 2 regroupements, 34 arbres d'import) | `crates/sync/src/openapi`, `crates/sync/src/import`, `xc import` |
 | MVP-β β.3 Base `.oc-sync/openapi/` | Fait : `source.yml` (source, regroupement, opérations) et copie brute de la spec, écrits en dernier (format revu au MVP-γ, `synchro-openapi.md` § 2) | `crates/sync/src/store.rs` |
-| MVP-δ δ.1 – δ.6 Gestion de collection (créer, renommer, dupliquer, supprimer, déplacer) | À faire, prochain lot | — |
+| MVP-δ δ.1 – δ.6 Gestion de collection (créer, renommer, dupliquer, supprimer, déplacer) | En cours : moteur Rust et interface en parallèle | — |
 | MVP-γ γ.1 – γ.8 Synchro OpenAPI à 3 voies | Fait : fusion champ par champ, connexion sans base, rapprochements, écran de fusion, `xc sync --check / --apply` ; 500 opérations en 1,21 s (ENF-PERF-07) | `crates/sync/src/{merge,sync}`, `app/src/app/ui/merge-editor.ts` |
 | MVP-β β.4 Palette ⌘K | Fait : requêtes, commandes (registre partagé avec les raccourcis), environnements | `app/src/app/ui/palette.ts` |
 | MVP-β β.5 CodeMirror 6 | Fait ; réponse JSON de 10 Mo affichée en 140 ms (Chrome, mode démo), formatage en Rust | `app/src/app/ui/code-editor.ts`, `crates/core/src/pretty.rs` |

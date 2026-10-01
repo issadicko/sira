@@ -85,7 +85,8 @@ export function createDemoSync(files: Record<string, RequestDoc>): Pick<Api, 'sy
   const plans = new Map<string, DemoPlan>();
   let counter = 0;
 
-  const doc = (path: string) => files[path];
+  const seed = structuredClone(files);
+  const doc = (path: string) => files[path] ?? seed[path];
   const op = (path: string, key: string, status: OpStatus, segments: Segment[], extra: Partial<DemoOp> = {}): DemoOp => ({
     key,
     name: doc(path).name,

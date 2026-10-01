@@ -5,7 +5,10 @@ import { isTauri } from './core/api';
 import { COMMANDS, isMac, shortcutLabel } from './core/commands';
 import { View, Workspace } from './core/store';
 import { SyncStore } from './core/sync-store';
+import { TreeStore } from './core/tree-store';
+import { CollectionDialog } from './ui/collection-dialog';
 import { CurlDialog } from './ui/curl-dialog';
+import { DeleteDialog } from './ui/delete-dialog';
 import { DiscardDialog } from './ui/discard-dialog';
 import { Editor } from './ui/editor';
 import { EnvView } from './ui/env-view';
@@ -16,19 +19,40 @@ import { Palette } from './ui/palette';
 import { SyncSidebar } from './ui/sync-sidebar';
 import { SyncView } from './ui/sync-view';
 import { Tree } from './ui/tree';
+import { TreeMenu } from './ui/tree-menu';
+import { TreeRoot } from './ui/tree-root';
 import { VarPopover } from './ui/var-popover';
 import { Welcome } from './ui/welcome';
 
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, Icon, Tree, Editor, EnvView, SyncSidebar, SyncView, Welcome, VarPopover, Palette, CurlDialog, OpenApiDialog, DiscardDialog],
+  imports: [
+    DecimalPipe,
+    Icon,
+    Tree,
+    TreeMenu,
+    TreeRoot,
+    Editor,
+    EnvView,
+    SyncSidebar,
+    SyncView,
+    Welcome,
+    VarPopover,
+    Palette,
+    CurlDialog,
+    OpenApiDialog,
+    CollectionDialog,
+    DeleteDialog,
+    DiscardDialog,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
   protected readonly ws = inject(Workspace);
   protected readonly sync = inject(SyncStore);
+  protected readonly tree = inject(TreeStore);
   private readonly commands = inject(COMMANDS);
   protected readonly key = shortcutLabel;
   protected readonly nativeLights = isTauri && isMac;
@@ -44,14 +68,22 @@ export class App {
   constructor() {
     const ws = this.ws;
     const opened = () => !!ws.collection();
+    const tree = this.tree;
+    const hasTarget = () => opened() && !!tree.target();
     const inConflicts = () => ws.view() === 'sync' && this.sync.refs().length > 0;
     this.commands.register(
       { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.send() },
       { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
+      { id: 'item.new-request', title: 'Nouvelle requête', group: 'Requête', icon: 'file', when: opened, run: () => tree.beginCreate('request') },
       { id: 'request.curl', title: 'Nouvelle requête depuis cURL…', group: 'Requête', icon: 'terminal', when: opened, run: () => ws.dialog.set('curl') },
       { id: 'request.save', title: 'Enregistrer la requête', group: 'Requête', icon: 'download', keys: 'mod+s', when: () => !!ws.active(), run: () => ws.save() },
       { id: 'tab.close', title: "Fermer l'onglet", group: 'Requête', icon: 'x', keys: 'mod+w', when: () => !!ws.activePath(), run: () => ws.closeTab(ws.activePath()!) },
       { id: 'collection.open', title: 'Ouvrir une collection…', group: 'Collection', icon: 'folder-open', keys: 'mod+o', run: () => ws.pickAndOpen() },
+      { id: 'collection.new', title: 'Nouvelle collection…', group: 'Collection', icon: 'plus', run: () => ws.newCollection() },
+      { id: 'item.new-folder', title: 'Nouveau dossier', group: 'Collection', icon: 'folder', when: opened, run: () => tree.beginCreate('folder') },
+      { id: 'item.rename', title: "Renommer l'élément actif", group: 'Collection', icon: 'pencil', when: hasTarget, run: () => tree.beginRename() },
+      { id: 'item.clone', title: "Dupliquer l'élément actif", group: 'Collection', icon: 'copy', when: hasTarget, run: () => tree.beginClone() },
+      { id: 'item.delete', title: "Supprimer l'élément actif", group: 'Collection', icon: 'trash', when: hasTarget, run: () => tree.requestDelete() },
       { id: 'collection.openapi', title: 'Importer une spec OpenAPI…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('openapi') },
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
       { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
@@ -71,6 +103,15 @@ export class App {
   protected toggleView(view: View) {
     if (this.ws.view() === view) this.ws.sidebar.update((v) => !v);
     else this.show(view);
+  }
+
+  protected togglePlusMenu(event: MouseEvent) {
+    if (this.tree.menu()?.path === null) {
+      this.tree.closeMenu();
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.tree.openMenu(rect.left, rect.bottom + 4, null);
   }
 
   protected openSync() {

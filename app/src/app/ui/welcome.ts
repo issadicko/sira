@@ -13,11 +13,12 @@ import { Icon } from './icon';
     <div class="welcome-body">
       <span class="mark big" aria-hidden="true"><app-ic name="bolt" [size]="22" /></span>
       <h1>Ouvre une collection</h1>
-      <p>Un dossier qui contient <span class="mono">opencollection.yml</span>. Les collections Bruno s'ouvrent telles quelles, sans import : même format, mêmes fichiers, même dépôt Git.</p>
+      <p>Un dossier qui contient <span class="mono">opencollection.yml</span>. Les collections Bruno s'ouvrent telles quelles, sans import : même format, mêmes fichiers, même dépôt Git. Dans un dossier vide, on te propose d'en créer une.</p>
       <div class="actions">
         <button class="btn-primary lg" (click)="ws.pickAndOpen()" [disabled]="ws.loading()">
           <app-ic name="folder-open" [size]="16" />{{ ws.loading() ? 'Ouverture…' : 'Ouvrir un dossier' }}
         </button>
+        <button class="btn lg" (click)="ws.newCollection()" [disabled]="ws.loading()"><app-ic name="plus" [size]="16" />Nouvelle collection…</button>
         <button class="btn lg" (click)="ws.dialog.set('openapi')" [disabled]="ws.loading()"><app-ic name="import" [size]="16" />Importer une spec OpenAPI…</button>
       </div>
       @if (ws.error(); as e) {
@@ -32,7 +33,7 @@ import { Icon } from './icon';
         </div>
       }
       @if (ws.demo) {
-        <p class="faint demo-note">Mode démo du navigateur : données synthétiques en mémoire. Lance l'application Tauri pour travailler sur tes fichiers.</p>
+        <p class="faint demo-note">Mode démo du navigateur : données synthétiques en mémoire. Le sélecteur de dossier est simulé : « Ouvrir un dossier » propose tour à tour la collection de démo, un dossier vide, un dossier non vide et un dossier .bru. Lance l'application Tauri pour travailler sur tes fichiers.</p>
       }
       <p class="faint principles"><app-ic name="search" [size]="13" /><span>Ouvrir, importer, changer de thème : tout passe par la palette de commandes <kbd class="kbd">{{ key('mod+k') }}</kbd></span></p>
       <p class="faint principles"><app-ic name="disk" [size]="13" />Tout reste sur ton disque. Aucun compte, aucun appel réseau tant que tu n'envoies pas de requête.</p>

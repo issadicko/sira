@@ -3,6 +3,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { api } from './api';
 import { withCurl } from './curl';
 import { CollectionInfo, EnvVar, RequestDoc, SendResult, TreeItem, VariableInfo } from './model';
+import { closeUnder, isUnder, remapPath, remapPaths, remapSet } from './tree-ops';
 import { withParams, withUrl } from './url';
 
 export interface Tab {
@@ -31,7 +32,15 @@ export interface Discard {
 }
 
 export type View = 'collections' | 'env' | 'sync';
-export type DialogKind = 'curl' | 'openapi';
+export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete';
+
+/** Dossier existant, vide ou non, où l'on propose de créer une collection. */
+export interface FolderTarget {
+  dir: string;
+  kind: 'empty' | 'other';
+}
+
+const BRU_MESSAGE = 'Collection au format .bru : lecture prévue en V1';
 
 const RECENT_KEY = 'xc-recent';
 
@@ -74,6 +83,8 @@ export class Workspace {
   readonly toast = signal<string | null>(null);
   readonly toastError = signal(false);
   readonly dialog = signal<DialogKind | null>(null);
+  /** Dossier du dialogue « Créer une collection ici » ; `null` pour « Nouvelle collection », où l'on choisit le dossier parent. */
+  readonly folderTarget = signal<FolderTarget | null>(null);
   /** Perte de modifications à confirmer ; `null` quand aucune confirmation n'est en attente. */
   readonly discard = signal<Discard | null>(null);
   readonly hover = signal<{ name: string; rect: DOMRect } | null>(null);
@@ -136,8 +147,36 @@ export class Workspace {
 
   async pickAndOpen() {
     if (!(await this.confirmReplace())) return;
-    const root = await api.pickFolder();
-    if (root) await this.open(root, true);
+    const dir = await api.pickFolder();
+    if (dir) await this.openFolder(dir);
+  }
+
+  /** Ouvre le dossier s'il contient une collection ; sinon propose d'en créer une ici, ou explique pourquoi on ne peut pas. */
+  private async openFolder(dir: string) {
+    try {
+      const kind = await api.inspectFolder(dir);
+      if (kind === 'collection') {
+        await this.open(dir, true);
+      } else if (kind === 'bru') {
+        this.refuse(BRU_MESSAGE);
+      } else {
+        this.folderTarget.set({ dir, kind });
+        this.dialog.set('collection');
+      }
+    } catch (e) {
+      this.refuse(String(e));
+    }
+  }
+
+  async newCollection() {
+    if (!(await this.confirmReplace())) return;
+    this.folderTarget.set(null);
+    this.dialog.set('collection');
+  }
+
+  private refuse(message: string) {
+    if (this.collection()) this.notify(message, true);
+    else this.error.set(message);
   }
 
   /** Ouvre une collection ; `confirmed` indique que la perte des onglets modifiés a déjà été acceptée. */
@@ -216,9 +255,48 @@ export class Workspace {
     await this.loadEnv();
   }
 
-  reveal(path: string) {
-    const folders = path.split('/').slice(0, -1);
+  /** Ouvre les dossiers qui mènent à `path` ; avec `folder`, `path` est un dossier à ouvrir lui aussi. */
+  reveal(path: string, folder = false) {
+    const parts = path.split('/');
+    const folders = folder ? parts : parts.slice(0, -1);
     this.openFolders.update((open) => new Set([...open, ...folders.map((_, i) => folders.slice(0, i + 1).join('/'))]));
+  }
+
+  /** Les onglets, l'historique et les dossiers ouverts suivent un fichier ou un dossier renommé ou déplacé. */
+  followPath(from: string, to: string) {
+    if (from === to) return;
+    this.tabs.update((tabs) => remapPaths(tabs, from, to));
+    this.history.update((history) => remapPaths(history, from, to));
+    this.openFolders.update((open) => remapSet(open, from, to));
+    this.activePath.update((active) => active && remapPath(active, from, to));
+    this.requested = remapPath(this.requested, from, to);
+  }
+
+  /** Ferme sans confirmation les onglets d'un élément supprimé et retire ses traces de l'historique. */
+  forgetPath(path: string) {
+    for (const tab of this.tabs()) if (tab.sendingId && isUnder(tab.path, path)) void api.cancel(tab.sendingId);
+    const rest = closeUnder(this.tabs(), this.activePath(), path);
+    this.tabs.set(rest.tabs);
+    this.activePath.set(rest.active);
+    this.history.update((history) => history.filter((h) => !isUnder(h.path, path)));
+    this.openFolders.update((open) => new Set([...open].filter((p) => !isUnder(p, path))));
+    this.refreshVars();
+  }
+
+  /** Reprend le nom et la position (`seq`) écrits sur le disque dans les onglets donnés, sans toucher au reste du brouillon. */
+  async refreshHeaders(paths: string[]) {
+    const c = this.collection();
+    if (!c) return;
+    await Promise.all(
+      paths.map(async (path) => {
+        const fresh = await api.readRequest(c.root, path).catch(() => null);
+        if (!fresh || this.collection()?.root !== c.root) return;
+        const header = { name: fresh.name, seq: fresh.seq };
+        this.tabs.update((tabs) =>
+          tabs.map((t) => (t.path === path ? { ...t, doc: { ...t.doc, ...header }, saved: JSON.stringify({ ...JSON.parse(t.saved), ...header }) } : t)),
+        );
+      }),
+    );
   }
 
   toggleFolder(path: string) {
@@ -344,20 +422,22 @@ export class Workspace {
     if (tab.sendingId) return this.cancel();
     const id = crypto.randomUUID();
     const started = performance.now();
+    const where = () => this.tabs().find((t) => t.sendingId === id)?.path ?? tab.path;
     this.patchTab(tab.path, { sendingId: id, error: undefined });
     try {
       const result = await api.send(id, c.root, tab.path, tab.doc, this.env());
-      this.patchTab(tab.path, { result, sendingId: undefined, sentAt: Date.now() });
+      const path = where();
+      this.patchTab(path, { result, sendingId: undefined, sentAt: Date.now() });
       if (this.collection()?.root === c.root) {
         this.history.update((h) => [
-          { path: tab.path, method: result.method, url: result.url, status: result.response.status, at: time() },
+          { path, method: result.method, url: result.url, status: result.response.status, at: time() },
           ...h,
         ].slice(0, 30));
       }
     } catch (e) {
       const elapsed = Math.round(performance.now() - started);
       const message = String(e);
-      this.patchTab(tab.path, {
+      this.patchTab(where(), {
         sendingId: undefined,
         result: undefined,
         error: message === 'Requête annulée' ? `Requête annulée après ${elapsed} ms. Rien n'a été enregistré.` : message,

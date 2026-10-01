@@ -1164,7 +1164,7 @@ button.sb-item:hover { background: var(--hover); color: var(--ink); }
 
 /* application : compléments à la maquette v2 */
 .tab-x .x { display: grid; place-items: center; }
-.row:disabled { opacity: .5; cursor: default; }
+.row:disabled, .row[aria-disabled="true"] { opacity: .5; cursor: default; }
 
 /* synchro OpenAPI : compléments à la maquette v2 */
 .row-fields { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
@@ -1181,3 +1181,34 @@ button.sb-item:hover { background: var(--hover); color: var(--ink); }
 .pair-keys .ic { color: var(--faint); flex-shrink: 0; }
 .pair-reason { color: var(--faint); font-size: 11.5px; }
 .island-foot .btn, .island-foot .btn-primary { flex-shrink: 0; }
+
+/* gestion de collection : saisie sur place, menu, glisser-déposer */
+.row { position: relative; }
+.row.edit, .row.edit:hover { background: transparent; cursor: text; }
+.row-input {
+  flex: 1; min-width: 0; height: 22px; padding: 0 6px;
+  border-radius: 4px; border: 1px solid var(--accent-line);
+  background: var(--sunken); color: var(--ink);
+  font-size: 13px; outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.row-input.is-bad { border-color: var(--bad-strong); box-shadow: 0 0 0 3px var(--bad-soft); }
+.row-error { margin: 2px 12px 6px; padding-left: calc(8px + var(--d, 0) * 14px + 20px); color: var(--bad); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.input.is-bad { border-color: var(--bad-strong); }
+.input.is-bad:focus { border-color: var(--bad-strong); box-shadow: 0 0 0 3px var(--bad-soft); }
+
+.row.drop-before::before, .row.drop-after::after {
+  content: ""; position: absolute; left: calc(8px + var(--d) * 14px); right: 4px; height: 2px;
+  border-radius: 2px; background: var(--accent); pointer-events: none;
+}
+.row.drop-before::before { top: -1px; }
+.row.drop-after::after { bottom: -1px; }
+.row.drop-inside, .row.drop-inside:hover { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.sb-scroll.drop-root { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); }
+
+.sb-empty { padding: 16px 14px; color: var(--muted); font-size: 12.5px; }
+.sb-empty p { margin: 0 0 10px; }
+.sb-empty .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ctx-menu .menu-item .ic { color: var(--muted); }
+.ctx-menu .menu-item:disabled { color: var(--faint); background: transparent; }

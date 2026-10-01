@@ -1,5 +1,8 @@
 export type ParamKind = 'query' | 'path';
 
+export type FolderKind = 'collection' | 'empty' | 'bru' | 'other';
+export type DropPosition = 'before' | 'after' | 'inside';
+
 export interface KeyValue {
   name: string;
   value: string;
@@ -23,7 +26,7 @@ export type Body =
   | { type: 'json' | 'text' | 'xml'; data: string }
   | { type: 'form-urlencoded'; fields: KeyValue[] }
   | { type: 'multipart-form'; fields: MultipartField[] }
-  | { type: 'other'; label: string };
+  | { type: 'other'; label: string; config?: string };
 
 export type Auth =
   | { type: 'inherit' }
@@ -31,7 +34,7 @@ export type Auth =
   | { type: 'bearer'; token: string }
   | { type: 'basic'; username: string; password: string }
   | { type: 'apikey'; key: string; value: string; placement: string }
-  | { type: 'other'; label: string };
+  | { type: 'other'; label: string; config?: string };
 
 export interface Assertion {
   expression: string;

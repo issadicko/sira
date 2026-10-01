@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signa
 
 import { COMMANDS } from '../core/commands';
 import { Workspace } from '../core/store';
+import { TreeStore } from '../core/tree-store';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
 import { RequestPane } from './request-pane';
@@ -65,6 +66,7 @@ import { UrlBar } from './url-bar';
         <h2>Aucune requête ouverte</h2>
         <p>Choisis une requête dans la collection, ou crée-en une.</p>
         <div class="actions">
+          <button class="btn" (click)="tree.beginCreate('request')"><app-ic name="plus" [size]="14" />Nouvelle requête</button>
           <button class="btn" (click)="ws.dialog.set('curl')"><app-ic name="terminal" [size]="14" />Nouvelle requête depuis cURL…</button>
           <button class="btn" (click)="ws.dialog.set('openapi')"><app-ic name="import" [size]="14" />Importer une spec OpenAPI…</button>
         </div>
@@ -83,6 +85,7 @@ import { UrlBar } from './url-bar';
 })
 export class Editor {
   protected readonly ws = inject(Workspace);
+  protected readonly tree = inject(TreeStore);
   private readonly commands = inject(COMMANDS);
   protected readonly methodClass = methodClass;
   protected readonly shortMethod = shortMethod;
