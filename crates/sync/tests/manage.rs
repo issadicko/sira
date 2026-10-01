@@ -1145,6 +1145,7 @@ fn ef_syn_01_hiding_oc_sync_changes_only_the_ignore_list_of_a_full_collection_fi
     );
 }
 
+#[cfg(unix)]
 fn core_symlink(error: &ManageError) -> bool {
     matches!(error, ManageError::Core(CoreError::Symlink(_))) && error.is_input()
 }
