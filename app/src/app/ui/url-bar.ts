@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
+import { isCurlCommand } from '../core/curl';
 import { Workspace } from '../core/store';
 import { segments } from '../core/url';
 import { Icon } from './icon';
@@ -49,6 +50,7 @@ import { METHODS } from './method';
             placeholder="https://api.exemple.test/ressource ou {{ '{{' }}baseUrl{{ '}}' }}/ressource"
             [value]="tab.doc.url"
             (input)="ws.setUrl($any($event.target).value)"
+            (paste)="paste($event)"
             (scroll)="syncScroll()"
             (keyup)="syncScroll()"
             (click)="syncScroll()"
@@ -99,6 +101,20 @@ export class UrlBar {
   protected setMethod(event: Event) {
     const method = (event.target as HTMLSelectElement).value;
     this.ws.edit((d) => ({ ...d, method }));
+  }
+
+  protected paste(event: ClipboardEvent) {
+    const text = event.clipboardData?.getData('text') ?? '';
+    if (this.ws.active()?.doc.requestType !== 'http' || !isCurlCommand(text)) return;
+    event.preventDefault();
+    const input = event.target as HTMLInputElement;
+    void this.ws.pasteCurl(text).then((applied) => {
+      if (!applied) return;
+      setTimeout(() => {
+        input.setSelectionRange(input.value.length, input.value.length);
+        this.syncScroll();
+      });
+    });
   }
 
   protected syncScroll() {

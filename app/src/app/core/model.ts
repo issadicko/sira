@@ -60,7 +60,7 @@ export interface RequestDoc {
 
 export type TreeItem =
   | { kind: 'folder'; path: string; name: string; seq?: number | null; children: TreeItem[] }
-  | { kind: 'request'; path: string; name: string; seq?: number | null; method: string; requestType: string; error?: string };
+  | { kind: 'request'; path: string; name: string; seq?: number | null; method: string; requestType: string; url: string; error?: string };
 
 export interface CollectionInfo {
   root: string;
@@ -129,4 +129,23 @@ export interface SendResult {
   unresolved: string[];
   response: ResponseDto;
   assertions: AssertionResult[];
+}
+
+export type GroupBy = 'tags' | 'path';
+
+export interface SpecSummary {
+  title: string;
+  version?: string | null;
+  /** `openapi` ou `swagger`. */
+  format: string;
+  formatVersion?: string | null;
+  operationCount: number;
+  tags: string[];
+  servers: string[];
+}
+
+export interface OpenApiPreview {
+  summary: SpecSummary;
+  /** Nom du dossier que l'import créerait. */
+  folderName: string;
 }

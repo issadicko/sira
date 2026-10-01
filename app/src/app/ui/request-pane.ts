@@ -1,11 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
-import { Assertion, Auth, Body, KeyValue, Param } from '../core/model';
+import { api } from '../core/api';
+import { switchBody, withFile } from '../core/body';
+import { Assertion, Auth, Body, KeyValue, MultipartField, Param } from '../core/model';
+import { relativeToRoot } from '../core/paths';
 import { Workspace } from '../core/store';
 import { prettyJson } from '../core/highlight';
 import { CodeEditor } from './code-editor';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
+import { MultipartTable } from './multipart-table';
 
 type Section = 'params' | 'body' | 'headers' | 'auth' | 'tests' | 'scripts' | 'docs';
 const OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'notContains', 'isNumber', 'isString', 'isBoolean', 'isArray', 'isJson', 'isNull', 'isDefined', 'isUndefined', 'isTruthy', 'isFalsy', 'isEmpty'];
@@ -15,7 +19,10 @@ const BODY_TYPES: { type: Body['type']; label: string }[] = [
   { type: 'json', label: 'JSON' },
   { type: 'text', label: 'Texte' },
   { type: 'xml', label: 'XML' },
+  { type: 'form-urlencoded', label: 'Formulaire' },
+  { type: 'multipart-form', label: 'Multipart' },
 ];
+const BODY_BADGES: Partial<Record<Body['type'], string>> = { 'form-urlencoded': 'FORM', 'multipart-form': 'MULTIPART' };
 const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
   { type: 'inherit', label: 'Hériter du parent' },
   { type: 'none', label: 'Aucune' },
@@ -24,10 +31,13 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
   { type: 'apikey', label: 'API Key' },
 ];
 
+const OUTSIDE_COLLECTION =
+  "Ce fichier est hors de la collection : le moteur n'envoie que des fichiers du dossier de la collection. Copie-le dedans, puis choisis-le à nouveau.";
+
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, CodeEditor],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor],
   host: { class: 'pane', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -64,8 +74,20 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
                 <button [attr.aria-pressed]="tab.doc.body.type === b.type" (click)="setBodyType(b.type)">{{ b.label }}</button>
               }
             </div>
-            @if (tab.doc.body.type === 'other' || tab.doc.body.type === 'form-urlencoded' || tab.doc.body.type === 'multipart-form') {
-              <div class="banner" style="margin-top: 12px"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label ?? tab.doc.body.type }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
+            @if (tab.doc.body.type === 'other') {
+              <div class="banner" style="margin-top: 12px"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
+            } @else if (tab.doc.body.type === 'form-urlencoded') {
+              <section class="sec body-sec">
+                <div class="sec-head"><span class="sec-title">Champs du formulaire</span><span class="sec-meta">application/x-www-form-urlencoded</span></div>
+                <app-kv-table [rows]="formFields()" keyLabel="Nom" addLabel="Ajouter un champ" [descriptions]="true" (rowsChange)="setFormFields($event)" />
+              </section>
+              <div class="note"><app-ic name="variable" [size]="14" /><span>Les valeurs sont encodées à l'envoi ; les variables {{ '{{…}}' }} sont résolues avant.</span></div>
+            } @else if (tab.doc.body.type === 'multipart-form') {
+              <section class="sec body-sec">
+                <div class="sec-head"><span class="sec-title">Champs multipart</span><span class="sec-meta">multipart/form-data</span></div>
+                <app-multipart-table [fields]="multipartFields()" (fieldsChange)="setMultipartFields($event)" (pick)="pickFile($event)" />
+              </section>
+              <div class="note"><app-ic name="shield" [size]="14" /><span>Les fichiers sont lus dans la collection : chemins relatifs, sans « .. » ni chemin absolu.</span></div>
             } @else if (tab.doc.body.type !== 'none') {
               <div class="body-tools">
                 <span class="faint">Les variables {{ '{{…}}' }} sont résolues à l'envoi.</span>
@@ -173,6 +195,7 @@ const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
     .code-input.docs { font-family: var(--font-ui); font-size: 13px; height: 100%; margin: 0; }
     .body-editor { height: calc(100% - 64px); min-height: 260px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); }
     .body-editor:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .body-sec { margin: 14px 0 12px; }
     .body-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 12px; }
     .field { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
     .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: 12.5px var(--font-mono); outline: 0; }
@@ -195,12 +218,20 @@ export class RequestPane {
 
   protected readonly query = computed(() => this.ws.active()?.doc.params.filter((p) => p.kind === 'query') ?? []);
   protected readonly path = computed(() => this.ws.active()?.doc.params.filter((p) => p.kind === 'path') ?? []);
+  protected readonly formFields = computed(() => {
+    const body = this.ws.active()?.doc.body;
+    return body?.type === 'form-urlencoded' ? body.fields : [];
+  });
+  protected readonly multipartFields = computed(() => {
+    const body = this.ws.active()?.doc.body;
+    return body?.type === 'multipart-form' ? body.fields : [];
+  });
   protected readonly sections = computed(() => {
     const d = this.ws.active()?.doc;
     if (!d) return [];
     return [
       { id: 'params' as const, label: 'Paramètres', count: d.params.filter((p) => p.enabled).length || '' },
-      { id: 'body' as const, label: 'Corps', count: d.body.type === 'none' ? '' : 'data' in d.body ? d.body.type.toUpperCase() : 'autre' },
+      { id: 'body' as const, label: 'Corps', count: d.body.type === 'none' ? '' : BODY_BADGES[d.body.type] ?? ('data' in d.body ? d.body.type.toUpperCase() : 'autre') },
       { id: 'headers' as const, label: 'En-têtes', count: d.headers.filter((h) => h.enabled).length || '' },
       { id: 'auth' as const, label: 'Auth', count: d.auth.type === 'inherit' ? 'hérité' : d.auth.type === 'none' ? '' : d.auth.type },
       { id: 'tests' as const, label: 'Tests', count: d.assertions.filter((a) => a.enabled).length || '' },
@@ -222,11 +253,29 @@ export class RequestPane {
   }
 
   protected setBodyType(type: Body['type']) {
-    this.ws.edit((d) => {
-      if (type !== 'json' && type !== 'text' && type !== 'xml') return { ...d, body: { type: 'none' } };
-      const data = 'data' in d.body ? d.body.data : type === 'json' ? '{\n  \n}' : '';
-      return { ...d, body: { type, data } };
-    });
+    this.ws.edit((d) => ({ ...d, body: switchBody(d.body, type) }));
+  }
+
+  protected setFormFields(fields: KeyValue[]) {
+    this.ws.edit((d) => ({ ...d, body: { type: 'form-urlencoded', fields } }));
+  }
+
+  protected setMultipartFields(fields: MultipartField[]) {
+    this.ws.edit((d) => ({ ...d, body: { type: 'multipart-form', fields } }));
+  }
+
+  protected async pickFile(index: number) {
+    const root = this.ws.collection()?.root;
+    const tab = this.ws.activePath();
+    if (!root || !tab) return;
+    const picked = await api.pickFile(root);
+    if (!picked) return;
+    const path = relativeToRoot(root, picked);
+    if (!path) {
+      this.ws.notify(OUTSIDE_COLLECTION, true);
+      return;
+    }
+    this.ws.edit((d) => (d.body.type === 'multipart-form' ? { ...d, body: { ...d.body, fields: withFile(d.body.fields, index, path) } } : d), tab);
   }
 
   protected setBodyData(data: string) {

@@ -62,15 +62,22 @@ import { UrlBar } from './url-bar';
       <div class="empty">
         <span class="empty-ic"><app-ic name="layers" [size]="20" /></span>
         <h2>Aucune requête ouverte</h2>
-        <p>Choisis une requête dans la collection.</p>
+        <p>Choisis une requête dans la collection, ou crée-en une.</p>
+        <div class="actions">
+          <button class="btn" (click)="ws.dialog.set('curl')"><app-ic name="terminal" [size]="14" />Nouvelle requête depuis cURL…</button>
+          <button class="btn" (click)="ws.dialog.set('openapi')"><app-ic name="import" [size]="14" />Importer une spec OpenAPI…</button>
+        </div>
         <div class="keys">
-          <span>Filtrer les requêtes</span><kbd class="kbd">{{ mod }}K</kbd>
+          <span>Rechercher une requête</span><kbd class="kbd">{{ mod }}K</kbd>
           <span>Envoyer</span><kbd class="kbd">{{ mod }}↵</kbd>
           <span>Enregistrer</span><kbd class="kbd">{{ mod }}S</kbd>
           <span>Masquer la barre latérale</span><kbd class="kbd">{{ mod }}B</kbd>
         </div>
       </div>
     }
+  `,
+  styles: `
+    .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
   `,
 })
 export class Editor {

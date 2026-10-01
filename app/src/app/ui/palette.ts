@@ -9,15 +9,12 @@ import {
   effect,
   inject,
   linkedSignal,
-  signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 
-import { api } from '../core/api';
 import { COMMANDS, shortcutLabel } from '../core/commands';
 import { Segment, rank, segments } from '../core/fuzzy';
-import { CollectionInfo, TreeItem } from '../core/model';
+import { TreeItem } from '../core/model';
 import { Workspace } from '../core/store';
 import { Icon } from './icon';
 import { methodClass, shortMethod } from './method';
@@ -139,9 +136,6 @@ export class Palette {
   private readonly injector = inject(Injector);
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
-  private readonly urls = signal(new Map<string, string>());
-  private readonly touched = new Set<string>();
-  private urlsOf: CollectionInfo | null = null;
   private previous: HTMLElement | null = null;
 
   protected readonly methodClass = methodClass;
@@ -167,11 +161,9 @@ export class Palette {
   protected readonly current = computed(() => Math.min(this.sel(), Math.max(0, this.count() - 1)));
 
   constructor() {
-    effect(() => this.ws.tabs().forEach((t) => this.touched.add(t.path)));
     effect(() => {
       if (this.open()) {
         this.previous = document.activeElement as HTMLElement | null;
-        untracked(() => void this.loadUrls());
         afterNextRender(() => this.focusInput(), { injector: this.injector });
       } else {
         this.previous?.focus();
@@ -227,8 +219,7 @@ export class Palette {
     const c = this.ws.collection();
     if (!c) return [];
     const tabs = new Map(this.ws.tabs().map((t) => [t.path, t.doc.url]));
-    const known = this.urls();
-    const all = requests(c.items).map((r) => ({ ...r, url: shortUrl(tabs.get(r.path) ?? known.get(r.path) ?? '') }));
+    const all = requests(c.items).map((r) => ({ ...r, url: shortUrl(tabs.get(r.path) ?? r.url) }));
     const byPath = new Map(all.map((r) => [r.path, r]));
     const recent = [...tabs.keys(), ...this.ws.history().map((h) => h.path)].flatMap((p) => byPath.get(p) ?? []);
     return rank(q ? all : [...new Set([...recent, ...all])], q, (r) => [r.name, r.url, r.path])
@@ -276,24 +267,5 @@ export class Palette {
       active: this.ws.env() === item,
       run: () => this.ws.setEnv(item),
     }));
-  }
-
-  private async loadUrls() {
-    const c = this.ws.collection();
-    if (!c) return;
-    if (this.urlsOf?.root !== c.root) this.urls.set(new Map());
-    const opened = new Set(this.ws.tabs().map((t) => t.path));
-    const stale = this.urlsOf !== c;
-    const paths = requests(c.items)
-      .map((r) => r.path)
-      .filter((p) => !opened.has(p) && (stale || this.touched.has(p)));
-    this.urlsOf = c;
-    paths.forEach((p) => this.touched.delete(p));
-    if (!paths.length) return;
-    const read = await Promise.all(
-      paths.map((p) => api.readRequest(c.root, p).then((d): [string, string] => [p, d.url], () => null)),
-    );
-    if (this.ws.collection() !== c) return;
-    this.urls.update((m) => new Map([...m, ...read.filter((r) => r !== null)]));
   }
 }
