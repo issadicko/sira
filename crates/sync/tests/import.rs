@@ -176,7 +176,7 @@ fn ef_imp_02_import_writes_the_tree_bruno_writes() {
 }
 
 #[test]
-fn ef_imp_02_snapshot_lists_every_request_with_its_base() {
+fn ef_imp_02_store_lists_every_request_and_keeps_a_raw_copy_of_the_spec() {
     for case in cases() {
         let label = format!("{} ({})", case.stem, case.group_by);
         let imported = import(&case);
@@ -188,23 +188,26 @@ fn ef_imp_02_snapshot_lists_every_request_with_its_base() {
         assert_eq!(document.str("source"), Some(format!("../../specs/{spec_name}").as_str()), "{label}");
         assert_eq!(document.str("groupBy"), Some(case.group_by.as_str()), "{label}");
 
+        let original = fs::read(spec_file(&case.stem)).unwrap();
+        let (name, copy) = match xc_core::pretty::pretty_json(utf8(&original)) {
+            Some(pretty) => ("spec.json", pretty.into_bytes()),
+            None => ("spec.yaml", original),
+        };
+        assert_eq!(document.str("spec"), Some(name), "{label}");
+        assert_eq!(files[&format!(".oc-sync/openapi/{name}")], copy, "{label} : copie brute de la spec");
+        let store_files: Vec<&String> = files.keys().filter(|p| p.starts_with(".oc-sync/")).collect();
+        assert_eq!(store_files.len(), 2, "{label} : source.yml et la copie brute seulement : {store_files:?}");
+
         let operations: Vec<&yaml::Map> = document.seq("operations").iter().filter_map(yaml::Value::as_map).collect();
         let keys: Vec<&str> = operations.iter().filter_map(|o| o.str("key")).collect();
         assert_eq!(keys, keys_of(&case), "{label} : clés d'opération dans l'ordre de la spec");
         let requests: Vec<&String> = files.keys().filter(|p| is_request_file(p)).collect();
         assert_eq!(operations.len(), requests.len(), "{label} : une entrée par requête");
-
-        let mut bases: Vec<&str> = Vec::new();
         for operation in &operations {
-            let (file, base) = (operation.str("file").unwrap(), operation.str("base").unwrap());
+            let file = operation.str("file").unwrap();
             assert!(files.contains_key(file), "{label} : {file} absent");
-            let base_file = format!(".oc-sync/openapi/base/{base}.yml");
-            assert_eq!(files.get(&base_file), files.get(file), "{label} : la base de {file} est le fichier écrit");
-            assert!(!bases.contains(&base), "{label} : base {base} en double");
-            bases.push(base);
+            assert!(operation.get("base").is_none() && operation.get("removed").is_none(), "{label} : {file}");
         }
-        let base_files = files.keys().filter(|p| p.starts_with(".oc-sync/openapi/base/")).count();
-        assert_eq!(base_files, operations.len(), "{label} : une base par opération");
 
         for (path, bytes) in &files {
             assert!(!utf8(bytes).contains("operationKey"), "{label} : operationKey dans {path}");
@@ -270,6 +273,8 @@ fn collection(name: &str, items: Vec<Value>, environments: Vec<Value>) -> Value 
     })
 }
 
+const SPEC: &str = "{\"openapi\":\"3.0.0\",\"paths\":{}}";
+
 fn location() -> tempfile::TempDir {
     tempfile::tempdir().unwrap()
 }
@@ -292,16 +297,17 @@ fn ef_imp_02_colliding_and_reserved_names_get_a_suffix_instead_of_overwriting() 
     let root = write_collection(
         &collection("Mini", items, vec![environment("Dev/1"), environment("Dev-1")]),
         dir.path(),
+        SPEC,
         "https://example.com/openapi.json",
         GroupBy::Tags,
     )
     .unwrap();
-    let files: Vec<String> =
-        files_under(&root).into_keys().filter(|p| !p.starts_with(".oc-sync/openapi/base/")).collect();
+    let files: Vec<String> = files_under(&root).into_keys().collect();
     assert_eq!(
         files,
         [
             ".oc-sync/openapi/source.yml",
+            ".oc-sync/openapi/spec.json",
             "A-B 2.yml",
             "Untitled Request.yml",
             "a-b 1.yml",
@@ -344,9 +350,9 @@ fn ef_imp_02_colliding_and_reserved_names_get_a_suffix_instead_of_overwriting() 
 fn ef_imp_02_an_existing_collection_folder_is_never_reused() {
     let dir = location();
     let collection = collection("Mini", vec![request("one", "GET /one")], vec![]);
-    let first = write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
-    let second = write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
-    let third = write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
+    let first = write_collection(&collection, dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap();
+    let second = write_collection(&collection, dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap();
+    let third = write_collection(&collection, dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap();
     let names: Vec<_> = [&first, &second, &third].iter().map(|p| p.file_name().unwrap().to_string_lossy()).collect();
     assert_eq!(names, ["Mini", "Mini - 1", "Mini - 2"]);
     let config = fs::read_to_string(second.join("opencollection.yml")).unwrap();
@@ -366,7 +372,8 @@ fn ef_imp_02_long_names_are_truncated_to_the_filesystem_limit() {
         folder(&"d".repeat(300), vec![request("inside", "GET /4")]),
     ];
     let dir = location();
-    let root = write_collection(&collection("Long", items, vec![]), dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
+    let root =
+        write_collection(&collection("Long", items, vec![]), dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap();
     let names: Vec<String> = fs::read_dir(&root)
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
@@ -387,9 +394,14 @@ fn ef_imp_02_long_names_are_truncated_to_the_filesystem_limit() {
 fn ef_imp_02_source_is_the_url_or_a_path_relative_to_the_collection() {
     let dir = location();
     let items = vec![request("one", "GET /one")];
-    let root =
-        write_collection(&collection("A", items.clone(), vec![]), dir.path(), " https://x.test/s.json ", GroupBy::Path)
-            .unwrap();
+    let root = write_collection(
+        &collection("A", items.clone(), vec![]),
+        dir.path(),
+        SPEC,
+        " https://x.test/s.json ",
+        GroupBy::Path,
+    )
+    .unwrap();
     let source = tree(&fs::read_to_string(root.join(".oc-sync/openapi/source.yml")).unwrap());
     assert_eq!(source.str("source"), Some("https://x.test/s.json"));
     assert_eq!(source.str("groupBy"), Some("path"));
@@ -398,7 +410,8 @@ fn ef_imp_02_source_is_the_url_or_a_path_relative_to_the_collection() {
     fs::create_dir_all(spec.parent().unwrap()).unwrap();
     fs::write(&spec, "openapi: 3.0.0\n").unwrap();
     let root =
-        write_collection(&collection("B", items, vec![]), dir.path(), spec.to_str().unwrap(), GroupBy::Tags).unwrap();
+        write_collection(&collection("B", items, vec![]), dir.path(), SPEC, spec.to_str().unwrap(), GroupBy::Tags)
+            .unwrap();
     let source = tree(&fs::read_to_string(root.join(".oc-sync/openapi/source.yml")).unwrap());
     assert_eq!(source.str("source"), Some("../specs/api.yaml"));
 }
@@ -408,7 +421,7 @@ fn ef_imp_02_errors_tell_the_input_from_the_import() {
     let dir = location();
     let missing = dir.path().join("absent");
     let items = collection("A", vec![], vec![]);
-    let error = write_collection(&items, &missing, "s", GroupBy::Tags).unwrap_err();
+    let error = write_collection(&items, &missing, SPEC, "s", GroupBy::Tags).unwrap_err();
     assert!(matches!(error, ImportError::Location(_)) && error.is_input(), "{error}");
 
     let error = import_spec("{{{ pas du yaml", "s", dir.path(), GroupBy::Tags).unwrap_err();
@@ -695,8 +708,9 @@ fn ef_imp_02_a_long_title_over_an_existing_folder_gets_a_suffix_instead_of_loopi
         let dir = location();
         let title = "x".repeat(300);
         let collection = collection(&title, vec![request("one", "GET /one")], vec![]);
-        let roots: Vec<PathBuf> =
-            (0..3).map(|_| write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap()).collect();
+        let roots: Vec<PathBuf> = (0..3)
+            .map(|_| write_collection(&collection, dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap())
+            .collect();
         sender.send((dir, roots)).ok();
     });
     let (_dir, roots) = receiver.recv_timeout(std::time::Duration::from_secs(10)).expect("l'import boucle");
@@ -717,12 +731,12 @@ fn ef_imp_02_a_failed_import_leaves_neither_a_collection_nor_a_staging_folder() 
     let dir = location();
     let items = [vec![request("before", "GET /before")], nested(150)].concat();
     let error =
-        write_collection(&collection("Deep", items, vec![]), dir.path(), "spec.yaml", GroupBy::Tags).unwrap_err();
+        write_collection(&collection("Deep", items, vec![]), dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap_err();
     assert!(matches!(error, ImportError::Core(_)), "{error}");
     assert_eq!(dir.path().read_dir().unwrap().count(), 0, "ni dossier final ni dossier de préparation");
 
     let collection = collection("Fine", vec![request("one", "GET /one")], vec![]);
-    let root = write_collection(&collection, dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
+    let root = write_collection(&collection, dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap();
     assert_eq!(dir.path().read_dir().unwrap().count(), 1, "le dossier de préparation est renommé, pas copié");
     assert!(root.join(".oc-sync/openapi/source.yml").is_file());
 }
@@ -740,16 +754,17 @@ fn ef_imp_02_items_the_collection_tree_would_hide_are_renamed_so_they_stay_liste
         folder("sub-mocks", vec![folder("mocks", vec![request("inner", "GET /inner")])]),
     ];
     let dir = location();
-    let root = write_collection(&collection("Hidden", items, vec![]), dir.path(), "spec.yaml", GroupBy::Tags).unwrap();
+    let root =
+        write_collection(&collection("Hidden", items, vec![]), dir.path(), SPEC, "spec.yaml", GroupBy::Tags).unwrap();
     let info = open_collection(&root).unwrap();
     assert_eq!(info.request_count, 9, "chaque requête écrite est montrée par l'arbre");
 
-    let files: Vec<String> =
-        files_under(&root).into_keys().filter(|p| !p.starts_with(".oc-sync/openapi/base/")).collect();
+    let files: Vec<String> = files_under(&root).into_keys().collect();
     assert_eq!(
         files,
         [
             ".oc-sync/openapi/source.yml",
+            ".oc-sync/openapi/spec.json",
             "Mocks/folder.yml",
             "Mocks/kept.yml",
             "hidden.yml",
@@ -781,9 +796,14 @@ fn ef_imp_02_windows_device_names_never_name_a_file_or_a_folder() {
     let mut items: Vec<Value> = names.iter().map(|n| request(n, &format!("GET /{n}"))).collect();
     items.push(folder("PRN", vec![request("in", "GET /in")]));
     let dir = location();
-    let root =
-        write_collection(&collection("Devices", items, vec![environment("NUL")]), dir.path(), "s.yaml", GroupBy::Tags)
-            .unwrap();
+    let root = write_collection(
+        &collection("Devices", items, vec![environment("NUL")]),
+        dir.path(),
+        SPEC,
+        "s.yaml",
+        GroupBy::Tags,
+    )
+    .unwrap();
     let files = files_under(&root);
     for path in files.keys() {
         for part in path.split('/') {
@@ -800,7 +820,7 @@ fn ef_imp_02_windows_device_names_never_name_a_file_or_a_folder() {
     for (title, folder) in [("CON", "CON - 1"), ("con.example", "con - 1.example"), ("com1", "com1 - 1")] {
         let dir = location();
         let created =
-            write_collection(&collection(title, vec![], vec![]), dir.path(), "s.yaml", GroupBy::Tags).unwrap();
+            write_collection(&collection(title, vec![], vec![]), dir.path(), SPEC, "s.yaml", GroupBy::Tags).unwrap();
         assert_eq!(created.file_name().unwrap().to_string_lossy(), folder);
     }
 }
@@ -810,7 +830,8 @@ fn enf_sec_01_snapshot_source_keeps_neither_url_credentials_nor_secret_parameter
     let dir = location();
     let items = vec![request("one", "GET /one")];
     let source = |url: &str| {
-        let root = write_collection(&collection("S", items.clone(), vec![]), dir.path(), url, GroupBy::Tags).unwrap();
+        let root =
+            write_collection(&collection("S", items.clone(), vec![]), dir.path(), SPEC, url, GroupBy::Tags).unwrap();
         let text = fs::read_to_string(root.join(".oc-sync/openapi/source.yml")).unwrap();
         for (path, bytes) in files_under(&root) {
             let content = utf8(&bytes);

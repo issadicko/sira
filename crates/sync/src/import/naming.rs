@@ -117,6 +117,14 @@ fn with_suffix(stem: &str, suffix: &str, ext: &str) -> String {
     }
 }
 
+/// Ce que le disque contient sous un nom candidat.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Slot {
+    Free,
+    Same,
+    Other,
+}
+
 /// Noms déjà pris dans un dossier, casse ignorée : sur un disque insensible à la casse, deux noms qui ne
 /// diffèrent que par elle seraient le même fichier.
 pub struct Directory {
@@ -139,12 +147,19 @@ impl Directory {
     /// Écart avec Bruno : un nom de périphérique Windows ou un nom que l'arbre cacherait (`node_modules`, `mocks` à la
     /// racine, `opencollection.yml`, `folder.yml`) reçoit aussi un suffixe.
     pub fn claim(&mut self, stem: &str, ext: &str) -> String {
+        self.claim_reusing(stem, ext, |_| Slot::Free)
+    }
+
+    /// Comme [`Directory::claim`], mais un nom déjà pris sur le disque est réutilisé quand `slot` le dit identique.
+    pub fn claim_reusing(&mut self, stem: &str, ext: &str, slot: impl Fn(&str) -> Slot) -> String {
         let mut counter = 0;
         loop {
             let suffix = if counter == 0 { String::new() } else { format!(" {counter}") };
             let name = with_suffix(stem, &suffix, ext);
             let hidden = self.listed_at_root.is_some_and(|at_root| is_hidden(&name, at_root));
-            if !is_device_name(&name) && !hidden && self.taken.insert(name.to_lowercase()) {
+            let lower = name.to_lowercase();
+            if !is_device_name(&name) && !hidden && !self.taken.contains(&lower) && slot(&name) != Slot::Other {
+                self.taken.insert(lower);
                 return name;
             }
             counter += 1;

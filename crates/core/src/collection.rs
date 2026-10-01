@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -30,6 +31,7 @@ pub enum TreeItem {
         method: String,
         url: String,
         request_type: String,
+        deprecated: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<String>,
     },
@@ -148,6 +150,16 @@ pub fn open_collection(root: &Path) -> Result<CollectionInfo, CoreError> {
     })
 }
 
+/// Marque comme dépréciées les requêtes dont le chemin relatif est dans `paths`.
+pub fn mark_deprecated(items: &mut [TreeItem], paths: &HashSet<String>) {
+    for item in items {
+        match item {
+            TreeItem::Folder { children, .. } => mark_deprecated(children, paths),
+            TreeItem::Request { path, deprecated, .. } => *deprecated = paths.contains(path.as_str()),
+        }
+    }
+}
+
 fn count_requests(items: &[TreeItem], count: &mut usize) {
     for item in items {
         match item {
@@ -244,6 +256,7 @@ fn read_request_item(root: &Path, path: &Path, file_name: &str) -> TreeItem {
                 method: doc.method.to_uppercase(),
                 url: doc.url,
                 request_type: doc.request_type,
+                deprecated: false,
                 error: None,
             }
         }
@@ -254,6 +267,7 @@ fn read_request_item(root: &Path, path: &Path, file_name: &str) -> TreeItem {
             method: String::new(),
             url: String::new(),
             request_type: "http".into(),
+            deprecated: false,
             error: Some(e.to_string()),
         },
     }

@@ -81,11 +81,12 @@ fn ef_imp_02_cli_import_creates_the_collection_and_prints_its_path() {
     assert_eq!(names(root), [".oc-sync", "Santé.yml", "environments", "opencollection.yml", "produits"]);
     assert_eq!(names(&root.join("produits")), ["Créer un produit.yml", "Lister les produits.yml", "folder.yml"]);
     let source = fs::read_to_string(root.join(".oc-sync/openapi/source.yml")).unwrap();
-    assert!(source.starts_with("source: ../../boutique.yaml\ngroupBy: tags\noperations:\n"), "{source}");
-    assert_eq!(
-        names(&root.join(".oc-sync/openapi/base")),
-        ["GET -sante.yml", "creerProduit.yml", "listerProduits.yml"]
+    assert!(
+        source.starts_with("source: ../../boutique.yaml\ngroupBy: tags\nspec: spec.yaml\noperations:\n"),
+        "{source}"
     );
+    assert_eq!(names(&root.join(".oc-sync/openapi")), ["source.yml", "spec.yaml"]);
+    assert_eq!(fs::read_to_string(root.join(".oc-sync/openapi/spec.yaml")).unwrap(), SPEC);
 
     let (code, checked, _) = xc(&["check", root.to_str().unwrap()]);
     assert_eq!(code, 0, "{checked}");

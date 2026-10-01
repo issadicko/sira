@@ -20,7 +20,7 @@ pub const BLANK_BEFORE: &[&str] = &[
     "request",
 ];
 const INFO_ORDER: &[&str] = &["name", "type", "seq", "tags", "description"];
-const HTTP_ORDER: &[&str] = &["method", "url", "headers", "params", "body", "auth"];
+pub const HTTP_ORDER: &[&str] = &["method", "url", "headers", "params", "body", "auth"];
 const RUNTIME_ORDER: &[&str] = &["variables", "scripts", "assertions", "actions"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

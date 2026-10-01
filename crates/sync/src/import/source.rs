@@ -1,4 +1,4 @@
-//! Source d'une spec OpenAPI : lecture d'un fichier ou téléchargement d'une URL, et référence stockée dans le snapshot.
+//! Source d'une spec OpenAPI : lecture d'un fichier ou téléchargement d'une URL, et référence stockée dans `source.yml`.
 
 use std::fs;
 use std::io::Read;
@@ -83,9 +83,9 @@ fn redirection(from: &Url, response: &HttpResponse) -> Result<Option<Url>, Impor
     }
 }
 
-/// Valeur de `source` du snapshot : l'URL sans identifiants ni paramètres qui ressemblent à des secrets (le reste
+/// Valeur de `source` de `source.yml` : l'URL sans identifiants ni paramètres qui ressemblent à des secrets (le reste
 /// tel quel), ou le chemin du fichier relatif à la racine de la collection, avec des `/` (absolu quand les deux
-/// chemins n'ont pas de racine commune, comme deux disques Windows).
+/// chemins ne partagent aucun dossier, par exemple `/tmp` et `/Users`, ou deux disques Windows).
 pub fn source_value(source: &str, root: &Path) -> String {
     let source = source.trim();
     if is_url(source) {
@@ -122,7 +122,7 @@ fn is_secret(pair: &str) -> bool {
 fn relative_path(base: &Path, target: &Path) -> std::path::PathBuf {
     let (base, target): (Vec<Component>, Vec<Component>) = (base.components().collect(), target.components().collect());
     let common = base.iter().zip(&target).take_while(|(a, b)| a == b).count();
-    if common == 0 {
+    if !base[..common].iter().any(|c| matches!(c, Component::Normal(_))) {
         return target.iter().collect();
     }
     let up = std::iter::repeat_n(Component::ParentDir, base.len() - common);
@@ -170,5 +170,16 @@ mod tests {
         ] {
             assert_eq!(follow(from, location).unwrap().unwrap().as_str(), to);
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ef_imp_02_spec_path_is_relative_only_when_a_folder_is_shared() {
+        let root = Path::new("/home/ada/api/collection");
+        assert_eq!(
+            relative_path(root, Path::new("/home/ada/api/specs/openapi.yaml")),
+            Path::new("../specs/openapi.yaml")
+        );
+        assert_eq!(relative_path(root, Path::new("/tmp/openapi.yaml")), Path::new("/tmp/openapi.yaml"));
     }
 }

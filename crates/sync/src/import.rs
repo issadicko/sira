@@ -1,5 +1,5 @@
 //! Imports vers une collection : écriture d'une collection OpenAPI convertie (gestionnaire
-//! `renderer:import-collection` de Bruno), snapshot `.oc-sync/openapi/` pour la future synchro,
+//! `renderer:import-collection` de Bruno) avec son stockage `.oc-sync/openapi/` (voir `store`),
 //! récupération de la spec (fichier ou URL) et requêtes créées depuis une commande cURL.
 //!
 //! Écarts voulus avec Bruno, tous au profit du principe « non destructif » : deux éléments dont les noms
@@ -9,7 +9,7 @@
 //! et les noms de périphériques Windows (`con`, `nul`, `com1`…) sont évités de même, et les noms trop longs sont
 //! tronqués aussi en octets. Un nom réduit à des caractères interdits devient `Untitled Request`, `Untitled Folder`,
 //! `Untitled Environment` ou `Untitled Collection`. L'import se construit dans un dossier de préparation caché,
-//! renommé à la fin ; le snapshot `.oc-sync/openapi/` ne contient ni identifiants d'URL ni paramètres secrets.
+//! renommé à la fin ; `source.yml` ne contient ni identifiants d'URL ni paramètres secrets.
 
 mod from_curl;
 mod naming;
@@ -27,8 +27,10 @@ use crate::curl::MAX_COMMAND_BYTES;
 use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSummary};
 
 pub use from_curl::{create_request_from_curl, request_doc_from_curl};
-pub use source::fetch_spec;
+pub(crate) use naming::{stem, Directory, Slot};
+pub use source::{fetch_spec, is_url, source_value};
 pub use write::write_collection;
+pub(crate) use write::{folder_file, REQUEST_TYPES};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
@@ -54,11 +56,11 @@ pub enum ImportError {
     Core(#[from] CoreError),
 }
 
-fn text<'a>(value: &'a Value, key: &str) -> &'a str {
+pub(crate) fn text<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or_default()
 }
 
-fn join(relative: &str, name: &str) -> String {
+pub(crate) fn join(relative: &str, name: &str) -> String {
     if relative.is_empty() {
         name.to_owned()
     } else {
@@ -103,7 +105,7 @@ impl FromStr for GroupBy {
 /// Convertit la spec puis écrit la collection dans un nouveau dossier de `location` ; renvoie sa racine.
 pub fn import_spec(text: &str, source: &str, location: &Path, group_by: GroupBy) -> Result<PathBuf, ImportError> {
     let collection = to_bruno(&load_spec(text)?, group_by)?;
-    write_collection(&collection, location, source, group_by)
+    write_collection(&collection, location, text, source, group_by)
 }
 
 /// Aperçu d'une spec avant import.

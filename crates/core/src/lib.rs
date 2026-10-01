@@ -9,8 +9,8 @@ pub mod yaml;
 use std::path::Path;
 
 pub use collection::{
-    list_environments, normalize, open_collection, read_environment, read_request, save_request, CollectionInfo,
-    EnvVar, TreeItem,
+    list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request, save_request,
+    CollectionInfo, EnvVar, TreeItem,
 };
 pub use prepare::{prepare, Prepared};
 pub use request::{Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, RequestDoc};

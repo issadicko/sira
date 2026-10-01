@@ -33,7 +33,8 @@ pub enum OpenApiError {
 
 type R<T> = Result<T, OpenApiError>;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum GroupBy {
     #[default]
     Tags,

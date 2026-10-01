@@ -3,13 +3,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::{normalize, open_collection, prepare, read_request, TreeItem};
 use xc_sync::import::{fetch_spec, import_spec};
+use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
+use xc_sync::sync::{self, Decisions, OpStatus, Plan, Report, SyncError};
 
 #[derive(Parser)]
 #[command(
@@ -52,6 +54,27 @@ enum Command {
         #[arg(long, default_value = "tags")]
         group_by: GroupBy,
     },
+    /// Compare la collection à la spec OpenAPI (fusion à 3 voies) : `--check` pour la CI, `--apply` pour écrire
+    #[command(group(ArgGroup::new("mode").required(true).args(["check", "apply"])))]
+    Sync {
+        /// Dossier de la collection (contient opencollection.yml)
+        collection: PathBuf,
+        /// Sort avec le code 1 si la spec a divergé de la base ; n'écrit rien
+        #[arg(long)]
+        check: bool,
+        /// Applique la synchro ; refuse s'il reste un conflit sans --keep-team ni --take-spec
+        #[arg(long)]
+        apply: bool,
+        /// Fichier ou URL de la spec ; par défaut, la source enregistrée dans .oc-sync
+        #[arg(long)]
+        source: Option<String>,
+        /// Avec --apply : garde la version de l'équipe pour tous les conflits
+        #[arg(long, conflicts_with = "take_spec")]
+        keep_team: bool,
+        /// Avec --apply : prend la version de la spec pour tous les conflits
+        #[arg(long)]
+        take_spec: bool,
+    },
 }
 
 fn parse_pair(s: &str) -> Result<(String, String), String> {
@@ -69,7 +92,118 @@ fn main() -> ExitCode {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(import(&source, &location, group_by))
         }
+        Command::Sync { collection, apply, source, keep_team, take_spec, .. } => {
+            if !apply && (keep_team || take_spec) {
+                eprintln!("erreur : --keep-team et --take-spec s'utilisent avec --apply");
+                return ExitCode::from(2);
+            }
+            let choice = if keep_team { Some(Choice::Team) } else { take_spec.then_some(Choice::Spec) };
+            let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
+            runtime.block_on(sync(&collection, apply, source.as_deref(), choice))
+        }
     }
+}
+
+async fn sync(root: &Path, apply: bool, source: Option<&str>, choice: Option<Choice>) -> ExitCode {
+    match run_sync(root, apply, source, choice).await {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("erreur : {e}");
+            ExitCode::from(if e.is_input() { 2 } else { 1 })
+        }
+    }
+}
+
+async fn run_sync(
+    root: &Path,
+    apply: bool,
+    source: Option<&str>,
+    choice: Option<Choice>,
+) -> Result<ExitCode, SyncError> {
+    let (text, recorded) = sync::read_source(root, source).await?;
+    let plan = sync::plan(root, &text, recorded, &[])?;
+    println!("{}", describe(&plan));
+    if !apply {
+        return Ok(if plan.diverged() { ExitCode::FAILURE } else { ExitCode::SUCCESS });
+    }
+    let decisions = choice.map(|choice| Decisions::uniform(&plan, choice)).unwrap_or_default();
+    if choice.is_none() && plan.summary.conflicts > 0 {
+        eprintln!(
+            "refus : {} conflit(s) à arbitrer, utiliser --keep-team ou --take-spec",
+            plan.summary.conflict_fields
+        );
+        for change in conflicts(&plan) {
+            eprintln!("  {}  {}", change.id, change.label);
+        }
+        return Ok(ExitCode::FAILURE);
+    }
+    println!("{}", applied(&plan.apply(&decisions)?));
+    Ok(ExitCode::SUCCESS)
+}
+
+fn conflicts(plan: &Plan) -> impl Iterator<Item = &xc_sync::merge::Change> {
+    plan.operations.iter().flat_map(|op| &op.changes).filter(|change| change.kind == Kind::Conflict)
+}
+
+fn status_label(status: OpStatus) -> &'static str {
+    match status {
+        OpStatus::Unchanged => "inchangée",
+        OpStatus::Updated => "mise à jour",
+        OpStatus::Kept => "conservée",
+        OpStatus::Merged => "fusionnée",
+        OpStatus::Conflict => "en conflit",
+        OpStatus::New => "nouvelle",
+        OpStatus::Removed => "retirée",
+        OpStatus::Restored => "restaurée",
+        OpStatus::Missing => "manquante",
+    }
+}
+
+fn describe(plan: &Plan) -> String {
+    let (title, version) = (&plan.to.title, &plan.to.version);
+    let mut out = match &plan.from {
+        Some(from) => format!("Spec : {title} {} → {version}\n", from.version),
+        None => format!("Spec : {title} {version} (collection non connectée, aucune base)\n"),
+    };
+    let s = &plan.summary;
+    out.push_str(&format!(
+        "{} inchangée(s), {} mise(s) à jour, {} conservée(s), {} fusionnée(s), {} en conflit ({} champ(s)), \
+         {} nouvelle(s), {} retirée(s), {} restaurée(s), {} manquante(s)",
+        s.unchanged,
+        s.updated,
+        s.kept,
+        s.merged,
+        s.conflicts,
+        s.conflict_fields,
+        s.created,
+        s.removed,
+        s.restored,
+        s.missing
+    ));
+    for op in plan.operations.iter().filter(|op| !matches!(op.status, OpStatus::Unchanged | OpStatus::Kept)) {
+        let file = op.file.as_deref().map(|f| format!(" ({f})")).unwrap_or_default();
+        out.push_str(&format!("\n  {:<11} {} {}{file}", status_label(op.status), op.method, op.path));
+        for change in op.changes.iter().filter(|c| c.kind == Kind::Conflict) {
+            out.push_str(&format!("\n      conflit : {} — {}", change.label, change.reason));
+        }
+    }
+    out
+}
+
+fn applied(report: &Report) -> String {
+    let mut out = format!(
+        "{} fichier(s) modifié(s), {} créé(s), {} marqué(s) retiré(s) de la spec, {} ignorée(s)",
+        report.written.len(),
+        report.created.len(),
+        report.removed.len(),
+        report.ignored.len()
+    );
+    for (label, files) in [("modifié", &report.written), ("créé", &report.created), ("retiré", &report.removed)] {
+        for file in files {
+            out.push_str(&format!("\n  {label:<8} {file}"));
+        }
+    }
+    out
 }
 
 async fn import(source: &str, location: &Path, group_by: GroupBy) -> ExitCode {

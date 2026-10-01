@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
 use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{count_entries, is_hidden, resolve_path, resolve_visible_path, write_atomic, write_new};
 use xc_core::vars::{Context, Scope};
-use xc_core::{open_collection, prepare, read_request, save_request, Assertion, CoreError, TreeItem};
+use xc_core::{mark_deprecated, open_collection, prepare, read_request, save_request, Assertion, CoreError, TreeItem};
 
 fn write(root: &Path, rel: &str, text: &str) {
     let path = root.join(rel);
@@ -54,6 +54,29 @@ fn ef_col_01_tree_follows_bruno_order() {
         (name.as_str(), path.as_str(), method.as_str()),
         ("Liste des transactions", "transactions/liste.yml", "GET")
     );
+}
+
+#[test]
+fn ef_syn_03_deprecated_requests_are_flagged_in_the_tree() {
+    let dir = sample();
+    let mut items = open_collection(dir.path()).unwrap().items;
+    let json = serde_json::to_value(&items).unwrap();
+    assert_eq!(json[1]["children"][0]["deprecated"], false, "le champ est toujours présent");
+    mark_deprecated(&mut items, &HashSet::from(["transactions/detail.yml".to_owned()]));
+    let json = serde_json::to_value(&items).unwrap();
+    let flags: Vec<_> = json[1]["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| (c["path"].as_str().unwrap(), c["deprecated"].as_bool().unwrap()))
+        .collect();
+    assert_eq!(flags, [("transactions/liste.yml", false), ("transactions/detail.yml", true)]);
+    mark_deprecated(&mut items, &HashSet::new());
+    assert!(serde_json::to_value(&items).unwrap()[1]["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|c| c["deprecated"] == false));
 }
 
 #[test]
