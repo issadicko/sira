@@ -123,6 +123,7 @@ Chaque exigence a un identifiant stable pour le suivi et les tests d'acceptation
 | EF-COL-01 | Collections | Arborescence de dossiers, glisser-déposer, ordre persisté, clonage de requête et de dossier |
 | EF-COL-02 | Collections | Plusieurs collections ouvertes, recherche plein texte sur nom, URL et body |
 | EF-COL-03 | Collections | Rechargement à chaud quand un fichier change sur disque (pull Git, éditeur externe) |
+| EF-COL-04 | Collections | Partir de zéro : créer une collection dans un dossier vide ; créer, renommer, dupliquer et supprimer (vers la corbeille du système) requêtes et dossiers, avec des fichiers identiques à ceux qu'écrit Bruno |
 | EF-VAR-01 | Variables | Portées globale, collection, environnement, dossier, requête, runtime, avec précédence documentée et identique à Bruno |
 | EF-VAR-02 | Variables | Variables typées (nombre, booléen, objet) et variables dynamiques (UUID, timestamp, aléatoires) |
 | EF-VAR-03 | Variables | Secrets hors fichiers : trousseau OS, `.env` local via `process.env`, HashiCorp Vault en V2 |
@@ -236,6 +237,7 @@ Le MVP couvre l'usage quotidien d'un développeur REST ; la V1 atteint la parit�
 | Requêtes REST, réponse, timeline réseau | Oui | Oui, timings bas niveau | MVP |
 | Environnements, variables, `.env` | Oui | Oui | MVP |
 | Auth Basic, Bearer, API Key | Oui | Oui | MVP |
+| Créer et organiser une collection (dossiers, requêtes, glisser-déposer) | Oui | Oui | MVP |
 | Import cURL et OpenAPI | Oui | Oui | MVP |
 | Synchro OpenAPI à 3 voies | Import (fusion à vérifier) | Oui, non destructive | MVP |
 | Lecture et conversion `.bru` | Oui | Oui | V1 |

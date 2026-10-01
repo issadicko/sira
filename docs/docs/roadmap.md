@@ -4,7 +4,7 @@
 
 Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé par une gate mesurable. Les dates supposent **deux développeurs à temps plein** (hypothèse non confirmée, voir § 9). Avec une seule personne, multiplier les durées par 1,8 environ.
 
-## 0. Avancement au 1er octobre 2026 (MVP complet : α, β, γ)
+## 0. Avancement au 1er octobre 2026 (MVP-α, β et γ livrés, δ à faire)
 
 | Élément | État | Où |
 | --- | --- | --- |
@@ -23,6 +23,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | MVP-β β.1 Collage cURL et « Nouvelle requête depuis cURL… » | Fait ; analyse identique à Bruno (fixtures de son code et 113 000 commandes aléatoires) | `crates/sync/src/curl`, `app/src/app/ui/url-bar.ts` |
 | MVP-β β.2 Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL), tags ou chemins | Fait ; collection identique à l'octet à celle de Bruno (35 specs × 2 regroupements, 34 arbres d'import) | `crates/sync/src/openapi`, `crates/sync/src/import`, `xc import` |
 | MVP-β β.3 Base `.oc-sync/openapi/` | Fait : `source.yml` (source, regroupement, opérations) et copie brute de la spec, écrits en dernier (format revu au MVP-γ, `synchro-openapi.md` § 2) | `crates/sync/src/store.rs` |
+| MVP-δ δ.1 – δ.6 Gestion de collection (créer, renommer, dupliquer, supprimer, déplacer) | À faire, prochain lot | — |
 | MVP-γ γ.1 – γ.8 Synchro OpenAPI à 3 voies | Fait : fusion champ par champ, connexion sans base, rapprochements, écran de fusion, `xc sync --check / --apply` ; 500 opérations en 1,21 s (ENF-PERF-07) | `crates/sync/src/{merge,sync}`, `app/src/app/ui/merge-editor.ts` |
 | MVP-β β.4 Palette ⌘K | Fait : requêtes, commandes (registre partagé avec les raccourcis), environnements | `app/src/app/ui/palette.ts` |
 | MVP-β β.5 CodeMirror 6 | Fait ; réponse JSON de 10 Mo affichée en 140 ms (Chrome, mode démo), formatage en Rust | `app/src/app/ui/code-editor.ts`, `crates/core/src/pretty.rs` |
@@ -46,9 +47,10 @@ gantt
     MVP-α · boucle requête testable    :ma, after l0, 3w
     MVP-β · import cURL et OpenAPI     :mb, after ma, 2w
     MVP-γ · synchro OpenAPI 3 voies    :mc, after mb, 3w
-    Gate 2 · perf + 10 bêta-testeurs   :milestone, g2, after mc, 0d
+    MVP-δ · gestion de collection      :md, after mc, 11d
+    Gate 2 · perf + 10 bêta-testeurs   :milestone, g2, after md, 0d
     section V1 parité Bruno
-    V1 · scripts, tests, runner, auth  :v1, after mc, 10w
+    V1 · scripts, tests, runner, auth  :v1, after md, 10w
     Gate 3 · scripts = bru run         :milestone, g3, after v1, 0d
     section V2
     V2 · WS, gRPC, Git, Vault          :v2, after v1, 10w
@@ -59,9 +61,10 @@ gantt
 | Lot 0 | 30 oct. 2026 | `cli run` exécute une requête Bruno réelle, timings DNS/TCP/TLS/TTFB, aller-retour YAML sans diff |
 | MVP-α | 20 nov. 2026 | L'app ouvre une collection Bruno, édite, envoie, affiche la réponse et la timeline, enregistre sans diff |
 | MVP-β | 4 déc. 2026 | Coller un cURL crée une requête ; importer une spec OpenAPI crée une collection |
-| MVP-γ (MVP complet) | 25 déc. 2026 | Resynchroniser une spec modifiée, arbitrer les conflits champ par champ |
-| V1 | 5 mars 2027 | Parité Bruno sur scripts, tests, runner, OAuth 2.0, GraphQL, CLI avec rapports |
-| V2 | 14 mai 2027 | WebSocket, gRPC, Git intégré, Vault, NTLM, docs |
+| MVP-γ | 25 déc. 2026 | Resynchroniser une spec modifiée, arbitrer les conflits champ par champ |
+| MVP-δ (MVP complet) | 5 janv. 2027 | Partir d'un dossier vide : créer la collection, ses dossiers et ses requêtes, les renommer, dupliquer, déplacer et supprimer comme dans Bruno |
+| V1 | 16 mars 2027 | Parité Bruno sur scripts, tests, runner, OAuth 2.0, GraphQL, CLI avec rapports |
+| V2 | 25 mai 2027 | WebSocket, gRPC, Git intégré, Vault, NTLM, docs |
 
 ## 2. Définition du MVP testable (MVP-α)
 
@@ -106,7 +109,7 @@ Synchro OpenAPI, imports, scripts JavaScript, auth autre que Bearer/Basic hérit
 
 **Gate 1** : le corpus est relu puis réécrit sans aucun diff. Sans elle, le MVP ne démarre pas.
 
-## 4. MVP (8 semaines)
+## 4. MVP (9,5 semaines)
 
 ### MVP-α — boucle requête (3 semaines)
 
@@ -144,6 +147,19 @@ Synchro OpenAPI, imports, scripts JavaScript, auth autre que Bearer/Basic hérit
 | γ.6 | Aperçu avant écriture, base réécrite en dernier, synchro interrompue rejouable | EF-SYN-05, EF-SYN-06 |
 | γ.7 | `cli sync --check` | EF-SYN-07 |
 | γ.8 | Tests des quatre issues de fusion (aucun changement, spec seule, équipe seule, conflit) | Critères § 9 |
+
+### MVP-δ — gestion de collection (1,5 semaine)
+
+Ajouté le 1er octobre 2026 : sans ce lot, on ne peut pas partir de zéro (ouvrir un dossier vide échoue, seule la création depuis cURL existe), ce qui bloque la Gate 2. Tout ce qui est écrit doit être identique à ce qu'écrit Bruno, vérifié par l'oracle `tools/oracle`.
+
+| # | Tâche | Exigences |
+| --- | --- | --- |
+| δ.1 | Ouvrir un dossier vide propose « Créer une collection ici » (nom, puis `opencollection.yml` comme Bruno) ; « Nouvelle collection… » depuis l'accueil et la palette | EF-COL-04 |
+| δ.2 | Nouvelle requête HTTP vierge et nouveau dossier (`folder.yml`) depuis l'arbre (bouton +, menu contextuel) et la palette, `seq` suivant | EF-COL-04 |
+| δ.3 | Renommer une requête ou un dossier (nom affiché et fichier), dupliquer (clonage) | EF-COL-01, EF-COL-04 |
+| δ.4 | Supprimer une requête ou un dossier vers la corbeille du système, après confirmation, jamais de suppression définitive | EF-COL-04 |
+| δ.5 | Glisser-déposer dans l'arbre : réordonner (réécriture des `seq` comme Bruno) et déplacer entre dossiers | EF-COL-01 |
+| δ.6 | Synchro OpenAPI : un fichier renommé ou déplacé par ces actions reste suivi (mise à jour de `.oc-sync/openapi/source.yml`) | EF-SYN-01 |
 
 **Gate 2** : budgets de perf ENF-PERF-01 à 08 tenus sur les trois OS, 10 bêta-testeurs actifs pendant deux semaines.
 
