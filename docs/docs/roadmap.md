@@ -10,7 +10,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | --- | --- | --- |
 | Maquette v2 (IDE, sombre d'abord) et `DESIGN.md` | Fait | `docs/design/maquette-v2/`, `DESIGN.md` |
 | 0.1 Workspace Cargo (`core`, `engine`, `sync`, `cli`, `app`) | Fait ; `script` sera créé à son lot (YAGNI) | `Cargo.toml` |
-| 0.2 CI build / fmt / clippy / tests sur 3 OS | Écrite, à activer sur le dépôt distant | `.github/workflows/ci.yml` |
+| 0.2 CI build / fmt / clippy / tests sur 3 OS | Active et verte sur `github.com/issadicko/sira` (Linux, macOS, Windows) | `.github/workflows/ci.yml` |
 | 0.3 Crate YAML | Décidé : parseur `yaml-rust2` + émetteur maison calqué sur celui de Bruno | `crates/core/src/yaml.rs` |
 | 0.4 – 0.6 Modèle, format, variables | Fait (requête HTTP, dossiers, collection, environnements, `.env`, variables dynamiques) | `crates/core` |
 | 0.7 Moteur HTTP avec timings et annulation | Fait (HTTP/1.1, TLS rustls + certificats du système) | `crates/engine` |
