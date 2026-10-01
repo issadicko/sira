@@ -37,6 +37,10 @@ Gate 1 à franchir avant le MVP : un corpus de collections Bruno publiques est r
 - Documentation, messages de commit et échanges en français.
 - Chaque exigence implémentée a au moins un test qui porte son identifiant (ex. `ef_req_01_...`).
 
+## Agents
+
+- Toute analyse ou étude confiée à des agents (exploration du code, revue, vérification, recherche) utilise en priorité des modèles légers, choisis selon la complexité de la tâche : **Haiku** pour les tâches simples (recherche de fichiers, lecture ciblée, vérifications mécaniques), **Sonnet 5.5** pour les tâches complexes (revue de code, analyse croisée, vérification adversariale). Un modèle plus lourd ne s'utilise que si ces deux-là ne suffisent pas, en le justifiant.
+
 ## Points ouverts
 
 - Nom du produit : non défini (`[NOM]` dans la maquette).
