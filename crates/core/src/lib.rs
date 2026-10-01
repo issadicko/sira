@@ -1,6 +1,7 @@
 pub mod assert;
 pub mod collection;
 pub mod prepare;
+pub mod pretty;
 pub mod request;
 pub mod vars;
 pub mod yaml;

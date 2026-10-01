@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use xc_core::assert::{evaluate, AssertionResult, ResponseView};
+use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, RequestDoc};
 use xc_engine::Timings;
@@ -34,6 +35,7 @@ struct ResponseDto {
     remote_addr: String,
     headers: Vec<(String, String)>,
     body: String,
+    pretty: Option<String>,
     size: usize,
     timings: Timings,
 }
@@ -110,6 +112,7 @@ async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendR
     };
     let assertions =
         evaluate(&args.doc.assertions, &ResponseView { status: res.status, headers: &res.headers, body: &res.body });
+    let body = String::from_utf8_lossy(&res.body).into_owned();
     Ok(SendResult {
         method: prepared.request.method,
         url: prepared.request.url,
@@ -121,7 +124,8 @@ async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendR
             http_version: res.http_version,
             remote_addr: res.remote_addr,
             size: res.body.len(),
-            body: String::from_utf8_lossy(&res.body).into_owned(),
+            pretty: pretty_json(&body),
+            body,
             headers: res.headers,
             timings: res.timings,
         },

@@ -108,6 +108,8 @@ export interface ResponseDto {
   remoteAddr: string;
   headers: [string, string][];
   body: string;
+  /** Corps ré-indenté par le moteur, jetons intacts ; `null` si ce n'est pas du JSON. */
+  pretty: string | null;
   size: number;
   timings: Timings;
 }
