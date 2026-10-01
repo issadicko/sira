@@ -74,7 +74,7 @@
           }
         </button>
         <span class="act-spacer"></span>
-        <button class="act" [attr.aria-current]="ws.view() === 'settings'" (click)="toggleSettings()" [title]="'Réglages (' + key('mod+,') + ')'" aria-label="Réglages"><app-ic name="settings" [size]="19" /></button>
+        <button class="act" id="act-settings" [attr.aria-current]="ws.view() === 'settings'" (click)="toggleSettings()" [title]="'Réglages (' + key('mod+,') + ')'" aria-label="Réglages"><app-ic name="settings" [size]="19" /></button>
       </nav>
       <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : 'Collection'">
         @if (ws.view() === 'collections') {

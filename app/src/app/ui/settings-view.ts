@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject
 
 import { Workspace } from '../core/store';
 import { AppearanceSettings } from './appearance-settings';
+import { restoreFocus } from './focus';
 import { Icon } from './icon';
 
 type SectionId = 'appearance';
@@ -18,7 +19,7 @@ const SECTIONS: { id: SectionId; label: string; icon: string }[] = [{ id: 'appea
     <div class="tabs" role="tablist" aria-label="Réglages ouverts">
       <div class="tab" role="tab" aria-selected="true">
         <app-ic name="settings" [size]="14" /><span class="tab-name">Réglages</span>
-        <button class="tab-x" (click)="ws.closeSettings()" aria-label="Fermer les réglages"><span class="x"><app-ic name="x" [size]="13" /></span></button>
+        <button class="tab-x" (click)="close()" aria-label="Fermer les réglages"><span class="x"><app-ic name="x" [size]="13" /></span></button>
       </div>
     </div>
     <div class="settings">
@@ -55,5 +56,10 @@ export class SettingsView {
   constructor() {
     const root = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     afterNextRender(() => root.querySelector<HTMLElement>('.nav-item[aria-current="true"]')?.focus());
+  }
+
+  protected close() {
+    this.ws.closeSettings();
+    setTimeout(() => restoreFocus(document.getElementById('act-settings')));
   }
 }
