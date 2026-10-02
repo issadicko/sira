@@ -130,7 +130,7 @@
         }
       </aside>
       <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner la barre latérale" (pointerdown)="dragSidebar($event)"></div>
-      <main class="island editor" (focusin)="tree.followEditor()">
+      <main class="editor" [class.island]="ws.view() !== 'collections'" [class.stack]="ws.view() === 'collections'" (focusin)="tree.followEditor()">
         @if (ws.view() === 'env') {
           @defer (on immediate) { <app-env-view /> }
         } @else if (ws.view() === 'sync') {

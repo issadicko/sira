@@ -211,7 +211,7 @@ components:
 
 # Design System: Sira · Client API desktop
 
-> Ce fichier décrit le monde visuel de la maquette v2 (`docs/design/maquette-v2/`). Pour tout nouveau travail, il **remplace** l'identité et les tokens v1 décrits dans `docs/design/README.md` (fond crème, cartes flottantes) ; ce README et la maquette v1 restent comme archive, non comme référence.
+> Ce fichier décrit le monde visuel de la maquette v2 (`docs/design/maquette-v2/`). Pour tout nouveau travail, il **remplace** l'identité et les tokens v1 décrits dans `docs/design/README.md` (fond crème, cartes flottantes) ; ce README et la maquette v1 restent comme archive, non comme référence. Depuis le 2 octobre 2026, l'application va plus loin que la maquette sur un point : la requête et la réponse sont deux îlots séparés, chacun avec sa barre d'outils et son puits d'éditeur (voir « Colonne éditeur ») ; en cas de désaccord, l'application fait foi.
 
 ## Overview
 
@@ -253,7 +253,7 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 - **Flottant** (pop) : palette, menus, popovers, toast.
 - **Relevé** (raised) : onglet sélectionné, en-têtes de tableaux, bouton secondaire, tête du volet Résultat.
 - **Survol** (hover) : fond de survol de toute ligne et de tout bouton fantôme.
-- **Creusé** (sunken) : champs de saisie, barre d'URL, filtre, blocs de code encadrés, pistes de timeline.
+- **Creusé** (sunken) : champs de saisie, barre d'URL, filtre, blocs de code encadrés, pistes de timeline, et le puits de chaque éditeur (corps de requête, réponse, volets de fusion).
 - **Filets** (line, line-strong) : séparateurs internes ; line-strong pour les bordures de champ et de surfaces flottantes.
 - **Encre / atténué / pâle** (ink, muted, faint) : trois niveaux de texte, pas un de plus.
 
@@ -297,7 +297,7 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 
 **Établi.** Colonnes : barre d'activité 44px (boutons de 36px, rayon 8px), îlot latéral 264px (redimensionnable), poignée de 6px, îlot éditeur flexible ; marge droite de 6px. Les îlots sont séparés par 6px de cadre visible.
 
-**Îlot éditeur.** Rangée d'onglets 38px (onglets de 28px), fil d'Ariane mono 30px, barre d'URL 36px avec marge basse 10px, puis split requête / réponse côte à côte (requête 46 %, minimum 280px ; réponse minimum 320px ; poignée 7px) ou empilé (bascule de mise en page). Sous-onglets 36px avec indicateur violet de 2px. Corps de volet : 14px de marge, sections espacées de 20px.
+**Colonne éditeur.** Trois îlots séparés par 6px de cadre. En tête, l'îlot de document : rangée d'onglets 38px (onglets de 28px), fil d'Ariane mono 30px, barre d'URL 36px avec marge basse 10px. En dessous, l'îlot Requête et l'îlot Réponse, côte à côte (requête 46 %, minimum 280px ; réponse minimum 320px) ou empilés (bascule de mise en page) ; la poignée est le cadre lui-même (6px, zone de prise 12px, trait accent de 2px au survol). Chaque volet s'organise en trois rangées : sous-onglets 36px avec indicateur violet de 2px, barre d'outils 38px (type de corps ou format, filtre JSONPath, Formater, retour à la ligne, copie), puis le contenu. Un éditeur de texte occupe tout le contenu en puits sunken, gouttière séparée par un filet line, ligne active teintée quand l'éditeur a le focus ; les autres sections gardent 14px de marge et 20px entre elles. Aucune requête ouverte : un seul îlot porte l'état vide.
 
 **Barre latérale.** Tête 38px, filtre 28px, lignes d'arbre de 26px, retrait de 14px par niveau, guide vertical d'indentation qui n'apparaît qu'au survol de la barre latérale. Sections repliables de 32px.
 
@@ -308,9 +308,13 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 **Responsive.** Fenêtre ≤ 1180px : colonne de résolution à 280px, libellé long de la pastille de spec masqué. Fenêtre ≤ 1100px : barre latérale à 220px, split resserré (260 / 300px), résolution des environnements empilée sous le tableau. Les volets requête et réponse sont des conteneurs (`container-type: inline-size`) : ≤ 620px les compteurs des sous-onglets disparaissent (sauf ok / ko) ; ≤ 560px la taille de réponse, la colonne description des kv et les descriptions de paramètres disparaissent, sous-onglets resserrés ; ≤ 480px le texte du statut et l'icône de durée disparaissent. On retire de l'information secondaire, on ne réarrange jamais l'ordre.
 
 ### Named Rules
-**The Visible Frame Rule.** Les îlots ne se touchent jamais : 6px de cadre les sépare toujours, et seul le cadre porte la barre de titre et la barre d'état.
+**The Visible Frame Rule.** Les îlots ne se touchent jamais : 6px de cadre les sépare toujours, y compris entre la requête et la réponse, et seul le cadre porte la barre de titre et la barre d'état.
 
 **The File Is Named Rule.** Tout éditeur affiche le chemin du fichier sur disque dans le fil d'Ariane mono, avec son état (enregistré / modifié).
+
+**The Tools Row Rule.** Un sélecteur (type de corps, format) ne partage jamais la rangée des sous-onglets : il a sa barre d'outils de 38px sous eux, à gauche, les actions du contenu à droite.
+
+**The Native Chrome Rule.** Le chrome se comporte comme une fenêtre native, pas comme une page : son texte (onglets, barres, libellés, lignes d'arbre, menus) ne se sélectionne pas, les boutons, onglets et lignes gardent le curseur flèche (la main est réservée aux liens, le I aux champs), le menu contextuel de la webview n'apparaît que sur un champ de saisie, et la fenêtre ne rebondit pas en bout de défilement. Le contenu (code, valeurs, réponses, erreurs) reste sélectionnable.
 
 ## Elevation & Depth
 
@@ -335,7 +339,7 @@ Des rayons doux et hiérarchisés selon la taille : 4px pour les petites marques
 - **Primary:** fond accent, texte on-accent, 600 ; survol accent-hi. Le bouton Envoyer est la variante large (min. 128px) avec son raccourci en kbd translucide ; pendant l'envoi il passe en raised avec spinner violet, sans changer de place.
 - **Secondary:** fond raised, bordure line-strong, 500 ; survol hover.
 - **Ghost:** transparent, texte muted ; survol hover + ink. Boutons icône 28px (24px en petit).
-- **Disabled:** texte faint, fond transparent ou raised, bordure line ; curseur interdit.
+- **Disabled:** texte faint, fond transparent ou raised, bordure line ; curseur flèche, comme un bouton natif.
 
 ### Chips
 - **Pastilles de variable `{{var}}`:** 21px, rayon 4px, 500, en ligne dans l'URL et le code. Quatre variantes : collection / requête (accent-soft + accent), dynamique (info-soft + info), environnement (good-soft + good), non résolue (bad-soft + bad, soulignée en vague bad-strong). Au survol ou en mise en avant : accent-line + ink, curseur aide, ouvre le popover de précédence.
@@ -353,6 +357,7 @@ Des rayons doux et hiérarchisés selon la taille : 4px pour les petites marques
 - **Focus:** bordure accent-line + halo `0 0 0 3px` accent-soft. Focus clavier global : contour 2px accent-line décalé de 1px.
 - **Error:** bordure bad-strong (JSONPath invalide).
 - **Case à cocher:** 14px, rayon 4px, bordure 1.5px line-strong ; cochée en accent avec coche on-accent.
+- **Éditeur (puits):** CodeMirror sur fond sunken occupant tout le contenu du volet, numéros de ligne faint tabulaires dans une gouttière fermée par un filet line, ligne active sur active-line (4 % d'encre) et son numéro en muted seulement quand l'éditeur a le focus ; pas de bordure propre, c'est le liseré de l'îlot qui passe à line-strong au focus. Même puits pour le corps de requête, la réponse et les volets de fusion.
 
 ### Navigation
 - **Barre d'activité:** icônes 36px en faint ; survol ink + hover ; vue courante : fond island avec liseré island-line (l'îlot « déborde » dans la barre). Badges 16px en pilule : accent pour un compte, ambre (on-warn) pour des conflits, détourés de 2px de frame.
@@ -377,7 +382,7 @@ Deux colonnes avec têtes collantes 30px. Suppressions sur bad-soft avec goutti�
 - **Toast:** centré à 40px du bas, rayon 9px, icône verte, `role="status"`.
 
 ### Réponse
-Barre 36px : sous-onglets, puis statut (pilule mono 600 22px, verte en 2xx, rouge en 4xx / 5xx) et métriques mono tabulaires. Pendant l'envoi : barre de progression violette de 2px en haut, contenu à .35. Timeline : pistes sunken de 10px, phases DNS faint, TCP muted, TLS info, attente accent, téléchargement good.
+Barre 36px : sous-onglets, puis statut (pilule mono 600 22px, verte en 2xx, rouge en 4xx / 5xx) et métriques mono tabulaires. Barre d'outils 38px sous le corps : segment de format (JSON / Brut), filtre JSONPath, retour à la ligne et copie à droite ; côté requête, la même barre porte le type de corps et Formater. Pendant l'envoi : barre de progression violette de 2px en haut, contenu à .35. Timeline : pistes sunken de 10px, phases DNS faint, TCP muted, TLS info, attente accent, téléchargement good.
 
 ## Do's and Don'ts
 
@@ -390,6 +395,8 @@ Barre 36px : sous-onglets, puis statut (pilule mono 600 22px, verte en 2xx, roug
 - **Do** garder le texte faint sur island, sunken ou pop, où il dépasse 4.5:1 (5.1:1 sur island sombre, 4.9:1 sur blanc).
 - **Do** retirer l'information secondaire quand un volet rétrécit (requêtes de conteneur 620 / 560 / 480px), sans réordonner.
 - **Do** dériver le thème clair rôle pour rôle depuis le sombre : mêmes noms de tokens, mêmes usages.
+- **Do** donner à un sélecteur de contenu sa barre d'outils sous les sous-onglets, et à tout éditeur un puits sunken qui occupe le volet.
+- **Do** garder le chrome non sélectionnable et sous curseur flèche ; seul le contenu se sélectionne.
 
 ### Don't:
 - **Don't** reprendre l'arrangement v1 : fond crème, carte flottante, gros en-tête, tuiles de KPI.
@@ -400,3 +407,5 @@ Barre 36px : sous-onglets, puis statut (pilule mono 600 22px, verte en 2xx, roug
 - **Don't** utiliser d'emoji ni de caractère décoratif comme icône ; les icônes sont des SVG au trait.
 - **Don't** poser du texte faint sur le cadre ou sur raised / hover en thème clair (3.9 à 4.5:1).
 - **Don't** écrire de libellé en capitales espacées ; les libellés restent en casse normale.
+- **Don't** mettre un sélecteur dans la rangée des sous-onglets, ni coller requête et réponse par un simple filet : ce sont deux îlots.
+- **Don't** afficher un curseur main sur un bouton ou un onglet, ni laisser le menu contextuel de la webview hors d'un champ.

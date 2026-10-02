@@ -6,7 +6,7 @@ import { xml } from '@codemirror/lang-xml';
 import { StreamLanguage, bracketMatching, codeFolding, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { search, searchKeymap } from '@codemirror/search';
 import { Annotation, Compartment, EditorState, Extension, Range, RangeSet, StateEffect, StateField } from '@codemirror/state';
-import { Decoration, DecorationSet, EditorView, GutterMarker, ViewUpdate, WidgetType, drawSelection, gutterLineClass, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view';
+import { Decoration, DecorationSet, EditorView, GutterMarker, ViewUpdate, WidgetType, drawSelection, gutterLineClass, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view';
 import { tagHighlighter, tags as t } from '@lezer/highlight';
 
 import type { FoldRange, Lens, LineMark } from '../core/sync';
@@ -79,9 +79,12 @@ const THEME = EditorView.theme({
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { font: 'var(--code-size)/1.6 var(--code-font)', fontVariantLigatures: 'none', fontFeatureSettings: '"calt" 0, "liga" 0' },
   '.cm-content': { padding: '6px 0 16px', caretColor: 'var(--accent)' },
-  '.cm-line': { padding: '0 20px 0 2px' },
-  '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--faint)', border: 'none' },
+  '.cm-line': { padding: '0 20px 0 6px' },
+  '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--faint)', border: 'none', borderRight: '1px solid var(--line)' },
   '.cm-lineNumbers .cm-gutterElement': { minWidth: '44px', padding: '0 0 0 8px', fontVariantNumeric: 'tabular-nums' },
+  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'transparent' },
+  '&.cm-focused .cm-activeLine': { backgroundColor: 'var(--active-line)' },
+  '&.cm-focused .cm-activeLineGutter': { color: 'var(--muted)' },
   '.cm-foldGutter .cm-gutterElement': { width: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   '.cm-fold-marker': { width: '16px', height: '18px', display: 'grid', placeItems: 'center', borderRadius: '4px', padding: '0', opacity: '0' },
   '&:hover .cm-fold-marker, .cm-fold-marker.is-folded': { opacity: '1' },
@@ -105,7 +108,7 @@ const THEME = EditorView.theme({
   '.cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label': { margin: '0' },
   '.cm-textfield': { flex: '1 1 140px', maxWidth: '280px', height: '26px', padding: '0 8px', border: '1px solid var(--line)', borderRadius: '6px', backgroundColor: 'var(--sunken)', color: 'var(--ink)', font: 'calc(12 * var(--px)) var(--font-mono)', fontVariantLigatures: 'none', outline: 'none' },
   '.cm-textfield:focus': { borderColor: 'var(--accent-line)', boxShadow: '0 0 0 3px var(--accent-soft)' },
-  '.cm-button, .cm-panel.cm-search [name=close]': { height: '24px', padding: '0 8px', border: 'none', borderRadius: '6px', backgroundImage: 'none', backgroundColor: 'transparent', color: 'var(--muted)', font: '500 calc(12 * var(--px)) var(--font-ui)', cursor: 'pointer' },
+  '.cm-button, .cm-panel.cm-search [name=close]': { height: '24px', padding: '0 8px', border: 'none', borderRadius: '6px', backgroundImage: 'none', backgroundColor: 'transparent', color: 'var(--muted)', font: '500 calc(12 * var(--px)) var(--font-ui)', cursor: 'default' },
   '.cm-button:hover, .cm-button:active, .cm-panel.cm-search [name=close]:hover': { backgroundImage: 'none', backgroundColor: 'var(--hover)', color: 'var(--ink)' },
   '.cm-panel.cm-search [name=next], .cm-panel.cm-search [name=prev], .cm-panel.cm-search [name=close]': { position: 'relative', width: '24px', padding: '0', fontSize: '0' },
   '.cm-panel.cm-search [name=next]::before, .cm-panel.cm-search [name=prev]::before, .cm-panel.cm-search [name=close]::before': { content: '""', position: 'absolute', inset: '0', backgroundColor: 'currentColor' },
@@ -113,7 +116,7 @@ const THEME = EditorView.theme({
   '.cm-panel.cm-search [name=prev]::before': { mask: ICONS.prev, WebkitMask: ICONS.prev },
   '.cm-panel.cm-search [name=close]::before': { mask: ICONS.close, WebkitMask: ICONS.close },
   '.cm-panel.cm-search [name=close]': { position: 'absolute', top: '7px', right: '8px' },
-  '.cm-panel.cm-search label': { position: 'relative', height: '24px', display: 'inline-flex', alignItems: 'center', padding: '0 7px', borderRadius: '6px', color: 'var(--muted)', fontSize: 'calc(12 * var(--px))', cursor: 'pointer' },
+  '.cm-panel.cm-search label': { position: 'relative', height: '24px', display: 'inline-flex', alignItems: 'center', padding: '0 7px', borderRadius: '6px', color: 'var(--muted)', fontSize: 'calc(12 * var(--px))', cursor: 'default', userSelect: 'none' },
   '.cm-panel.cm-search label:hover': { backgroundColor: 'var(--hover)', color: 'var(--ink)' },
   '.cm-panel.cm-search label:has(:checked)': { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' },
   '.cm-panel.cm-search label:has(:focus-visible)': { outline: '2px solid var(--accent-line)', outlineOffset: '1px' },
@@ -127,12 +130,12 @@ const THEME = EditorView.theme({
   '.cm-foldGutter .cm-gutterElement.r-b': { background: 'linear-gradient(var(--accent), var(--info)) center / 3px 100% no-repeat' },
   '.cm-foldGutter .cm-gutterElement.r-e': { background: 'linear-gradient(var(--good), var(--good)) center / 3px 100% no-repeat' },
   '.cm-foldGutter .cm-gutterElement.r-u': { background: 'linear-gradient(var(--warn), var(--warn)) center / 3px 100% no-repeat, var(--warn-soft)' },
-  '.cm-fold-row': { display: 'flex', alignItems: 'center', gap: '6px', minHeight: '20px', padding: '0 20px 0 8px', backgroundColor: 'var(--raised)', boxShadow: '-64px 0 0 var(--raised)', color: 'var(--faint)', fontStyle: 'italic', cursor: 'pointer' },
+  '.cm-fold-row': { display: 'flex', alignItems: 'center', gap: '6px', minHeight: '20px', padding: '0 20px 0 8px', backgroundColor: 'var(--raised)', boxShadow: '-64px 0 0 var(--raised)', color: 'var(--faint)', fontStyle: 'italic', cursor: 'default', userSelect: 'none' },
   '.cm-fold-row:hover': { color: 'var(--ink)' },
   '.cm-lens': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', minHeight: '26px', padding: '0 0 0 8px', font: 'calc(11.5 * var(--px)) var(--font-ui)', color: 'var(--faint)' },
   '.cm-lens-label': { marginRight: '6px', color: 'var(--muted)', fontWeight: '500' },
   '.cm-lens-label.is-open': { color: 'var(--warn)' },
-  '.cm-lens button': { padding: '2px 6px', borderRadius: '4px', color: 'var(--muted)', cursor: 'pointer' },
+  '.cm-lens button': { padding: '2px 6px', borderRadius: '4px', color: 'var(--muted)', cursor: 'default' },
   '.cm-lens button:hover': { color: 'var(--accent)', backgroundColor: 'var(--hover)' },
   '.cm-lens button[aria-pressed=true]': { color: 'var(--accent)', backgroundColor: 'var(--accent-soft)' },
   '.cm-lens i': { fontStyle: 'normal', color: 'var(--faint)' },
@@ -251,6 +254,8 @@ function foldPill(_view: EditorView, onclick: (event: Event) => void, hidden: nu
 
 const BASE: Extension = [
   lineNumbers(),
+  highlightActiveLine(),
+  highlightActiveLineGutter(),
   foldGutter({ markerDOM: foldMarker }),
   codeFolding({ placeholderDOM: foldPill, preparePlaceholder: (state, range) => state.doc.lineAt(range.to).number - state.doc.lineAt(range.from).number - 1 }),
   highlightSpecialChars(),
@@ -273,7 +278,7 @@ const BASE: Extension = [
   selector: 'app-code-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: '',
-  styles: ':host { display: block; min-height: 0; overflow: hidden; }',
+  styles: ':host { display: block; min-height: 0; overflow: hidden; background: var(--sunken); }',
 })
 export class CodeEditor {
   readonly value = input('');

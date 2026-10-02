@@ -79,7 +79,7 @@ import { METHODS } from './method';
     .url-mirror .var.bad { box-shadow: 0 0 0 2px var(--bad-soft); }
     .method-wrap { position: relative; height: 100%; display: flex; align-items: center; border-right: 1px solid var(--line); }
     .method-wrap app-ic, .method-wrap svg { position: absolute; right: 9px; pointer-events: none; opacity: .7; }
-    select.method-select { appearance: none; -webkit-appearance: none; height: 100%; min-width: 92px; background: transparent; border: 0; border-radius: 8px 0 0 8px; color: inherit; font: 600 calc(12 * var(--px)) var(--font-mono); cursor: pointer; padding: 0 28px 0 12px; outline-offset: -2px; }
+    select.method-select { appearance: none; -webkit-appearance: none; height: 100%; min-width: 92px; background: transparent; border: 0; border-radius: 8px 0 0 8px; color: inherit; font: 600 calc(12 * var(--px)) var(--font-mono); padding: 0 28px 0 12px; outline-offset: -2px; }
     select.method-select:hover { background: var(--hover); }
     select.method-select option { color: var(--ink); background: var(--pop); }
   `,

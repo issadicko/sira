@@ -13,7 +13,7 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
   selector: 'app-response-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, CodeEditor],
-  host: { class: 'pane', 'aria-label': 'Réponse' },
+  host: { class: 'pane island', 'aria-label': 'Réponse' },
   template: `
     @if (ws.active(); as tab) {
       <div class="res-bar">
@@ -37,7 +37,7 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
         }
       </div>
       @if (tab.result && section() === 'body') {
-        <div class="res-tools">
+        <div class="pane-tools">
           <div class="seg" role="group" aria-label="Format">
             <button [attr.aria-pressed]="!raw()" (click)="raw.set(false)">{{ formats[language()] }}</button>
             <button [attr.aria-pressed]="raw()" (click)="raw.set(true)">Brut</button>
@@ -139,7 +139,6 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
     :host { --code-font: var(--font-res); --code-size: var(--size-res); }
     .res-body { display: flex; flex-direction: column; }
     .res-code { flex: 1; }
-    .res-code:focus-within { box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 0 4px var(--accent-soft); }
     .is-sending > .res-code { opacity: 0.35; transition: opacity 0.2s; }
     .warn-banner { margin: 10px 12px 0; }
     .ok-ic { color: var(--good); display: grid; }

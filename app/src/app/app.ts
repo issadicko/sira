@@ -200,4 +200,11 @@ export class App {
   protected onClick(e: MouseEvent) {
     if (this.envMenu() && !(e.target as HTMLElement).closest('.env-wrap')) this.envMenu.set(false);
   }
+
+  /** Dans la fenêtre native, le menu contextuel de la webview n'apparaît que sur les champs de saisie. */
+  @HostListener('document:contextmenu', ['$event'])
+  protected onContextMenu(e: MouseEvent) {
+    if (!isTauri || (e.target as HTMLElement).closest('input, textarea, [contenteditable="true"]')) return;
+    e.preventDefault();
+  }
 }

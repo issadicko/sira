@@ -23,6 +23,7 @@ const BODY_TYPES: { type: Body['type']; label: string }[] = [
   { type: 'multipart-form', label: 'Multipart' },
 ];
 const BODY_BADGES: Partial<Record<Body['type'], string>> = { 'form-urlencoded': 'FORM', 'multipart-form': 'MULTIPART' };
+const TEXT_BODIES = new Set<Body['type']>(['json', 'text', 'xml']);
 const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
   { type: 'inherit', label: 'Hériter du parent' },
   { type: 'none', label: 'Aucune' },
@@ -38,7 +39,7 @@ const OUTSIDE_COLLECTION =
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, KvTable, MultipartTable, CodeEditor],
-  host: { class: 'pane', 'aria-label': 'Requête' },
+  host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
       <div class="subtabs" role="tablist" aria-label="Sections de la requête">
@@ -51,9 +52,9 @@ const OUTSIDE_COLLECTION =
           </button>
         }
       </div>
-      <div class="pane-body" [class.fill]="section() === 'body'">
-        @switch (section()) {
-          @case ('params') {
+      @switch (section()) {
+        @case ('params') {
+          <div class="pane-body">
             <section class="sec">
               <div class="sec-head"><span class="sec-title">Paramètres de requête</span><span class="sec-meta">synchronisés avec l'URL</span></div>
               <app-kv-table [rows]="query()" addLabel="Ajouter un paramètre" [descriptions]="true" [template]="{ kind: 'query' }" (rowsChange)="setQuery($event)" />
@@ -67,54 +68,69 @@ const OUTSIDE_COLLECTION =
             @if (tab.doc.auth.type === 'inherit') {
               <div class="note"><app-ic name="shield" [size]="14" /><span>Auth héritée du dossier ou de la collection.</span><a class="link" style="margin-left: auto" (click)="section.set('auth')">Voir</a></div>
             }
-          }
-          @case ('body') {
-            @if (tab.doc.body.type === 'other') {
+          </div>
+        }
+        @case ('body') {
+          @if (tab.doc.body.type === 'other') {
+            <div class="pane-body">
               <div class="banner"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
-            } @else {
+            </div>
+          } @else {
+            <div class="pane-tools">
               <div class="seg" role="group" aria-label="Type de corps">
                 @for (b of bodyTypes; track b.type) {
                   <button [attr.aria-pressed]="tab.doc.body.type === b.type" (click)="setBodyType(b.type)">{{ b.label }}</button>
                 }
               </div>
-              @if (tab.doc.body.type === 'form-urlencoded') {
+              @if (isText(tab.doc.body.type)) {
+                <span class="grow"></span>
+                <span class="tools-hint">Les variables {{ '{{…}}' }} sont résolues à l'envoi.</span>
+                @if (tab.doc.body.type === 'json') {
+                  <button class="btn ghost sm" (click)="formatBody()">Formater</button>
+                }
+              }
+            </div>
+            @if (tab.doc.body.type === 'form-urlencoded') {
+              <div class="pane-body">
                 <section class="sec body-sec">
                   <div class="sec-head"><span class="sec-title">Champs du formulaire</span><span class="sec-meta">application/x-www-form-urlencoded</span></div>
                   <app-kv-table [rows]="formFields()" keyLabel="Nom" addLabel="Ajouter un champ" [descriptions]="true" (rowsChange)="setFormFields($event)" />
                 </section>
                 <div class="note"><app-ic name="variable" [size]="14" /><span>Les valeurs sont encodées à l'envoi ; les variables {{ '{{…}}' }} sont résolues avant.</span></div>
-              } @else if (tab.doc.body.type === 'multipart-form') {
+              </div>
+            } @else if (tab.doc.body.type === 'multipart-form') {
+              <div class="pane-body">
                 <section class="sec body-sec">
                   <div class="sec-head"><span class="sec-title">Champs multipart</span><span class="sec-meta">multipart/form-data</span></div>
                   <app-multipart-table [fields]="multipartFields()" (fieldsChange)="setMultipartFields($event)" (pick)="pickFile($event)" />
                 </section>
                 <div class="note"><app-ic name="shield" [size]="14" /><span>Les fichiers sont lus dans la collection : chemins relatifs, sans « .. » ni chemin absolu.</span></div>
-              } @else if (tab.doc.body.type !== 'none') {
-                <div class="body-tools">
-                  <span class="faint">Les variables {{ '{{…}}' }} sont résolues à l'envoi.</span>
-                  @if (tab.doc.body.type === 'json') {
-                    <button class="btn ghost" style="height: 24px" (click)="formatBody()">Formater</button>
-                  }
-                </div>
-                @for (path of [tab.path]; track path) {
-                  <app-code-editor class="body-editor" [value]="$any(tab.doc.body).data" [language]="$any(tab.doc.body).type" label="Corps de la requête" (valueChange)="setBodyData($event)" />
-                }
-              } @else {
-                <div class="empty" style="min-height: 200px">
+              </div>
+            } @else if (isText(tab.doc.body.type)) {
+              @for (path of [tab.path]; track path) {
+                <app-code-editor class="pane-edit" [value]="$any(tab.doc.body).data" [language]="$any(tab.doc.body).type" label="Corps de la requête" (valueChange)="setBodyData($event)" />
+              }
+            } @else {
+              <div class="pane-body fill">
+                <div class="empty">
                   <span class="empty-ic"><app-ic name="file" [size]="18" /></span>
                   <h2>Pas de corps</h2>
-                  <p>Choisis un type au-dessus pour en ajouter un.</p>
+                  <p>Choisis un type dans la barre au-dessus pour en ajouter un.</p>
                 </div>
-              }
+              </div>
             }
           }
-          @case ('headers') {
+        }
+        @case ('headers') {
+          <div class="pane-body">
             <section class="sec">
               <div class="sec-head"><span class="sec-title">En-têtes</span><span class="sec-meta">ceux de la collection et des dossiers s'ajoutent à l'envoi</span></div>
               <app-kv-table [rows]="tab.doc.headers" keyLabel="Nom" addLabel="Ajouter un en-tête" (rowsChange)="setHeaders($event)" />
             </section>
-          }
-          @case ('auth') {
+          </div>
+        }
+        @case ('auth') {
+          <div class="pane-body">
             <section class="sec">
               <div class="sec-head"><span class="sec-title">Type</span></div>
               @if (tab.doc.auth.type === 'other') {
@@ -144,8 +160,10 @@ const OUTSIDE_COLLECTION =
               }
             }
             <p class="faint" style="font-size: calc(12 * var(--px)); margin: 12px 2px 0">Préfère une variable ({{ '{{token}}' }}, {{ '{{process.env.NOM}}' }}) à une valeur en clair : ce fichier est versionné.</p>
-          }
-          @case ('tests') {
+          </div>
+        }
+        @case ('tests') {
+          <div class="pane-body">
             <section class="sec">
               <div class="sec-head"><span class="sec-title">Assertions</span><span class="sec-meta">évaluées après chaque réponse, et par la CLI</span></div>
               <div class="kv asserts">
@@ -172,35 +190,33 @@ const OUTSIDE_COLLECTION =
               </div>
               <button class="btn ghost" style="margin-top: 8px" (click)="addAssertion()"><app-ic name="plus" [size]="14" />Ajouter une assertion</button>
             </section>
-          }
-          @case ('scripts') {
-            @if (tab.doc.scripts.length) {
-              @for (s of tab.doc.scripts; track $index) {
-                <section class="sec">
-                  <div class="sec-head"><span class="sec-title">{{ scriptLabel(s.kind) }}</span></div>
-                  <pre class="code boxed script">{{ s.code }}</pre>
-                </section>
-              }
+          </div>
+        }
+        @case ('scripts') {
+          <div class="pane-body">
+            @for (s of tab.doc.scripts; track $index) {
+              <section class="sec">
+                <div class="sec-head"><span class="sec-title">{{ scriptLabel(s.kind) }}</span></div>
+                <pre class="code boxed script">{{ s.code }}</pre>
+              </section>
             }
             <div class="note"><app-ic name="shield" [size]="14" /><span>Les scripts sont conservés dans le fichier. Leur exécution (sandbox QuickJS, API bru / req / res) arrive en V1.</span></div>
-          }
-          @case ('docs') {
-            <textarea class="docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
-          }
+          </div>
         }
-      </div>
+        @case ('docs') {
+          <div class="pane-body fill">
+            <textarea class="docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
+          </div>
+        }
+      }
     }
   `,
   styles: `
-    .docs { display: block; width: 100%; height: 100%; min-height: 260px; resize: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 1rem/calc(20 * var(--px)) var(--font-ui); font-variant-ligatures: none; tab-size: 2; outline: 0; }
+    .docs { display: block; width: 100%; flex: 1; min-height: 260px; resize: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 1rem/calc(20 * var(--px)) var(--font-ui); font-variant-ligatures: none; tab-size: 2; outline: 0; }
     .docs:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .pane-body.fill { display: flex; flex-direction: column; }
-    .pane-body.fill > .seg { align-self: flex-start; }
     .pane-body.fill > .empty { flex: 1; height: auto; }
-    .body-editor { flex: 1; min-height: 260px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); }
-    .body-editor:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
-    .body-sec { margin: 14px 0 12px; }
-    .body-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: calc(12 * var(--px)); }
+    .body-sec { margin-bottom: 12px; }
     .field { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: calc(12.5 * var(--px)); color: var(--muted); }
     .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: var(--code-size) var(--code-font); outline: 0; }
     .field input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -280,6 +296,10 @@ export class RequestPane {
       return;
     }
     this.ws.edit((d) => (d.body.type === 'multipart-form' ? { ...d, body: { ...d.body, fields: withFile(d.body.fields, index, path) } } : d), tab);
+  }
+
+  protected isText(type: Body['type']) {
+    return TEXT_BODIES.has(type);
   }
 
   protected setBodyData(data: string) {

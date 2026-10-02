@@ -16,6 +16,7 @@ import { UrlBar } from './url-bar';
   host: { style: 'display: contents' },
   template: `
     @if (ws.active(); as tab) {
+      <div class="island editor-head">
       <div class="tabs" role="tablist" aria-label="Requêtes ouvertes">
         @for (t of ws.tabs(); track t.path) {
           <div
@@ -58,12 +59,14 @@ import { UrlBar } from './url-bar';
         </span>
       </div>
       <app-url-bar />
+      </div>
       <div #split class="split" [class.vertical]="ws.stacked()" [style.--req.%]="reqPct()" [style.--reqh.%]="reqPct()">
         <app-request-pane />
         <div class="split-handle" role="separator" aria-label="Redimensionner requête et réponse" (pointerdown)="drag($event)"></div>
         <app-response-pane />
       </div>
     } @else {
+      <div class="island fill">
       <div class="empty">
         <span class="empty-ic"><app-ic name="layers" [size]="20" /></span>
         <h2>Aucune requête ouverte</h2>
@@ -79,6 +82,7 @@ import { UrlBar } from './url-bar';
           <span>Enregistrer</span><kbd class="kbd">{{ label('request.save') }}</kbd>
           <span>Masquer la barre latérale</span><kbd class="kbd">{{ label('view.sidebar') }}</kbd>
         </div>
+      </div>
       </div>
     }
   `,

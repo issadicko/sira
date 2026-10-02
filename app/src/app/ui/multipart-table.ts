@@ -52,7 +52,7 @@ import { Icon } from './icon';
   `,
   styles: `
     .multi .kv-row { grid-template-columns: 32px minmax(0, 1fr) 92px minmax(0, 2fr); }
-    .kind { width: 100%; height: 28px; border: 0; background: transparent; font: calc(12.5 * var(--px)) var(--font-ui); outline: 0; cursor: pointer; }
+    .kind { width: 100%; height: 28px; border: 0; background: transparent; font: calc(12.5 * var(--px)) var(--font-ui); outline: 0; }
     .kind option { background: var(--pop); }
     .value { flex-wrap: wrap; gap: 4px; padding-top: 3px; padding-bottom: 3px; }
     .value input[type='text'] { flex: 1; }
