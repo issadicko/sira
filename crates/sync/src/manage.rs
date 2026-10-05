@@ -1,6 +1,6 @@
 //! Gestion de collection (`docs/docs/gestion-collection.md`, EF-COL-01, EF-COL-04, EF-SYN-01) : ouvrir un dossier qui
 //! n'est pas une collection, créer une collection, une requête ou un dossier, renommer, dupliquer, supprimer, réordonner
-//! et déplacer.
+//! et déplacer, et gérer ses environnements (créer, renommer, dupliquer, supprimer).
 //!
 //! Les fichiers créés sont ceux de Bruno (`stringify`). Les fichiers modifiés ne changent que sur les lignes concernées
 //! (`info.name`, `info.seq`) : le reste de l'arbre YAML, clés inconnues comprises, est conservé, et seuls une requête
@@ -11,6 +11,7 @@
 
 mod collection;
 mod copy;
+mod environment;
 mod exclusive;
 mod info;
 mod item;
@@ -26,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use xc_core::CoreError;
 
 pub use collection::{create_collection, init_collection, inspect_folder};
+pub use environment::{clone_environment, create_environment, delete_environment, rename_environment};
 pub use item::{clone_item, create_folder, create_request, delete_item, rename_item};
 pub use place::move_item;
 
@@ -76,6 +78,8 @@ pub enum ManageError {
     Trash(String),
     #[error("{done}, mais .oc-sync/openapi/source.yml n'a pas pu être mis à jour : {message}")]
     SourceNotUpdated { done: String, message: String },
+    #[error("{done}, mais {what} : {message}")]
+    NotUpdated { done: String, what: String, message: String },
     #[error(transparent)]
     Core(#[from] CoreError),
 }
@@ -107,6 +111,7 @@ impl ManageError {
                         | CoreError::OutsideCollection(_)
                         | CoreError::HiddenPath(_)
                         | CoreError::Symlink(_)
+                        | CoreError::InvalidEnvironment(_)
                         | CoreError::Yaml { .. }
                 )
         )

@@ -47,7 +47,7 @@ export interface Discard {
 
 export type View = 'collections' | 'env' | 'sync' | 'settings';
 export type Theme = 'dark' | 'light';
-export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete' | 'move';
+export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete' | 'move' | 'env';
 
 /** Dossier existant, vide ou non, où l'on propose de créer une collection. */
 export interface FolderTarget {
@@ -88,6 +88,10 @@ export class Workspace {
   readonly activePath = signal<string | null>(null);
   readonly env = signal<string | null>(null);
   readonly envVars = signal<EnvVar[]>([]);
+  /** Pourquoi le fichier de l'environnement actif n'a pas pu être relu (YAML invalide…) ; `null` quand il l'a été. Les variables gardent alors la dernière lecture. */
+  readonly envError = signal<string | null>(null);
+  /** Le brouillon de l'environnement actif a des modifications non enregistrées (renseigné par `EnvStore`). */
+  readonly envDirty = signal(false);
   readonly vars = signal<VariableInfo[]>([]);
   readonly history = signal<HistoryEntry[]>([]);
   readonly openFolders = signal<Set<string>>(new Set());
@@ -115,6 +119,7 @@ export class Workspace {
   private varsTimer?: ReturnType<typeof setTimeout>;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private envSeq = 0;
+  private envLoaded: string | null = null;
   private varsSeq = 0;
   private requested = '';
   private viewBeforeSettings: View = 'collections';
@@ -195,8 +200,8 @@ export class Workspace {
     if (this.view() === 'settings') this.view.set(this.viewBeforeSettings);
   }
 
-  /** Demande de confirmer la perte des modifications non enregistrées ; `answerDiscard` répond. */
-  private confirmDiscard(message: string, action: string, heading?: string): Promise<boolean> {
+  /** Demande de confirmer une perte ou un écrasement ; `answerDiscard` répond. */
+  confirmDiscard(message: string, action: string, heading?: string): Promise<boolean> {
     this.discard()?.resolve(false);
     return new Promise((resolve) => this.discard.set({ heading, message, action, resolve }));
   }
@@ -209,10 +214,13 @@ export class Workspace {
   /** Vrai s'il n'y a aucun onglet modifié, ou si l'utilisateur accepte de les perdre en remplaçant la collection. */
   async confirmReplace(): Promise<boolean> {
     const count = this.tabs().filter((t) => this.isDirty(t)).length;
-    if (!count) return true;
-    const subject = count > 1 ? `${count} onglets contiennent` : 'Un onglet contient';
+    const env = this.envDirty();
+    if (!count && !env) return true;
+    const subject = count > 1 ? `${count} onglets contiennent` : count ? 'Un onglet contient' : "L'environnement actif contient";
+    const also = count && env ? " L'environnement actif a aussi des modifications non enregistrées." : '';
+    const closing = count ? 'ferme tous les onglets' : 'remplace les environnements';
     return this.confirmDiscard(
-      `${subject} des modifications non enregistrées. Ouvrir une autre collection ferme tous les onglets : elles seront perdues.`,
+      `${subject} des modifications non enregistrées.${also} Ouvrir une autre collection ${closing} : elles seront perdues.`,
       'Ouvrir sans enregistrer',
     );
   }
@@ -275,6 +283,7 @@ export class Workspace {
       this.openFolders.set(new Set(c.items.filter((i) => i.kind === 'folder').map((i) => i.path)));
       this.diskPending = null;
       this.env.set(initialEnv(c));
+      this.envLoaded = null;
       const recent = [root, ...this.recent().filter((r) => r !== root)].slice(0, 6);
       this.recent.set(recent);
       persist(RECENT_KEY, recent);
@@ -364,7 +373,7 @@ export class Workspace {
     const closed = before.filter((t) => !this.tabs().some((x) => x.path === t.path)).map((t) => t.doc.name || t.path);
     const refreshed = await this.refreshTabs(affectedTabs(change, this.tabs().map((t) => t.path)));
     const env = this.env();
-    if (env && !fresh.environments.includes(env)) this.env.set(initialEnv(fresh));
+    if (env && !fresh.environments.includes(env) && !this.envDirty()) this.env.set(initialEnv(fresh));
     if (touchesEnvironments(change)) await this.loadEnv();
     else this.refreshVars();
     const told = describeDiskChange({ closed, reloaded: refreshed.reloaded, stale: refreshed.stale });
@@ -399,13 +408,35 @@ export class Workspace {
     const seq = ++this.envSeq;
     const c = this.collection();
     const env = this.env();
-    const vars = c && env ? await api.readEnvironment(c.root, env).catch(() => []) : [];
+    let vars: EnvVar[] | null = [];
+    let error: string | null = null;
+    if (c && env) {
+      try {
+        vars = await api.readEnvironment(c.root, env);
+      } catch (e) {
+        [vars, error] = [null, String(e)];
+      }
+    }
     if (seq !== this.envSeq) return;
-    this.envVars.set(vars);
+    this.envError.set(error);
+    if (vars || this.envLoaded !== env) {
+      this.envVars.set(vars ?? []);
+      this.envLoaded = env;
+    }
     this.refreshVars();
   }
 
-  async setEnv(env: string | null) {
+  /** Change d'environnement actif ; des modifications non enregistrées de l'environnement actuel demandent confirmation. Faux si l'utilisateur renonce. */
+  async setEnv(env: string | null): Promise<boolean> {
+    if (env === this.env()) return true;
+    const lost = `Tes modifications de « ${this.env()} » ne sont pas enregistrées : changer d'environnement les perd.`;
+    if (this.envDirty() && !(await this.confirmDiscard(lost, 'Changer sans enregistrer'))) return false;
+    await this.useEnv(env);
+    return true;
+  }
+
+  /** Change d'environnement actif sans rien demander. */
+  async useEnv(env: string | null) {
     this.env.set(env);
     await this.loadEnv();
   }

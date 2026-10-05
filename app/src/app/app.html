@@ -66,7 +66,12 @@
     <div class="workbench" [class.no-sidebar]="!ws.sidebar() || ws.view() === 'settings'" [style.--sb.px]="sidebarWidth()">
       <nav class="activity" aria-label="Vues">
         <button class="act" [attr.aria-current]="ws.view() === 'collections'" (click)="toggleView('collections')" title="Collections" aria-label="Collections"><app-ic name="layers" [size]="20" /></button>
-        <button class="act" [attr.aria-current]="ws.view() === 'env'" (click)="toggleView('env')" title="Environnements et variables" aria-label="Environnements et variables"><app-ic name="variable" [size]="20" /></button>
+        <button class="act" [attr.aria-current]="ws.view() === 'env'" (click)="toggleView('env')" title="Environnements et variables" [attr.aria-label]="'Environnements et variables' + (ws.envDirty() ? ' (modifications non enregistrées)' : '')">
+          <app-ic name="variable" [size]="20" />
+          @if (ws.envDirty()) {
+            <span class="act-badge dot" title="Modifications non enregistrées"></span>
+          }
+        </button>
         <button class="act" [attr.aria-current]="ws.view() === 'sync'" (click)="toggleView('sync')" title="Synchro OpenAPI" [attr.aria-label]="'Synchro OpenAPI' + (sync.conflictsLeft() ? ' (' + sync.conflictsLeft() + ')' : '')">
           <app-ic name="merge" [size]="20" />
           @if (sync.conflictsLeft() > 0) {
@@ -114,19 +119,7 @@
         } @else if (ws.view() === 'sync') {
           @defer (on immediate) { <app-sync-sidebar /> }
         } @else if (ws.view() === 'env') {
-          <div class="pane-head"><span class="pane-title">Environnements</span></div>
-          <div class="sb-scroll">
-            @for (e of c.environments; track e) {
-              <button class="row env-row" [class.is-active]="ws.env() === e" style="--d: 0" (click)="ws.setEnv(e)">
-                <span class="env-dot" [class.prod]="e === 'prod'" style="margin: 0 4px"></span><span class="row-name">{{ e }}</span>
-                @if (ws.env() === e) {
-                  <span class="tag good">actif</span>
-                }
-              </button>
-            } @empty {
-              <p class="pal-empty">Aucun fichier dans environments/.</p>
-            }
-          </div>
+          @defer (on immediate) { <app-env-sidebar /> }
         }
       </aside>
       <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner la barre latérale" (pointerdown)="dragSidebar($event)"></div>
@@ -202,8 +195,14 @@
   @case ('move') {
     @defer (on immediate) { <app-move-dialog /> }
   }
+  @case ('env') {
+    @defer (on immediate) { <app-env-name-dialog /> }
+  }
 }
 <app-delete-dialog />
 <app-tree-menu />
+@if (envs.menu()) {
+  @defer (on immediate) { <app-env-menu /> }
+}
 <app-discard-dialog />
 <div class="toast" [class.show]="!!ws.toast()" [class.error]="ws.toastError()" role="status" aria-live="polite"><app-ic [name]="ws.toastError() ? 'alert' : 'check-circle'" [size]="15" /><span>{{ ws.toast() }}</span></div>

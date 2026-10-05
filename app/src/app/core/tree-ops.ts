@@ -151,6 +151,15 @@ export function cloneName(name: string): string {
   return `${name} copie`;
 }
 
+/** Nom que prendrait le fichier d'un environnement : le nom assaini, avec ` 1`, ` 2`… s'il est pris (la casse ne distingue pas deux noms). */
+export function envFileName(raw: string, taken: string[], except?: string): string {
+  const stem = sanitizeName(raw.trim()) || 'Environnement';
+  const used = new Set(taken.filter((name) => name !== except).map((name) => name.toLowerCase()));
+  let name = stem;
+  for (let n = 1; used.has(name.toLowerCase()); n++) name = `${stem} ${n}`;
+  return name;
+}
+
 export function findItem(items: TreeItem[], path: string): TreeItem | null {
   for (const item of items) {
     if (item.path === path) return item;

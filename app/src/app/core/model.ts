@@ -86,6 +86,9 @@ export interface EnvVar {
   value?: string | null;
   secret: boolean;
   enabled: boolean;
+  description?: string | null;
+  /** Type d'une valeur qui n'est pas du texte (`number`, `boolean`…) : conservé à l'enregistrement. */
+  dataType?: string | null;
 }
 
 export interface Rung {

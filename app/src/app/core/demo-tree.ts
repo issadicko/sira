@@ -1,11 +1,12 @@
 import type { Api } from './api';
-import { CollectionInfo, FolderKind, RequestDoc, TreeItem } from './model';
+import { CollectionInfo, EnvVar, FolderKind, RequestDoc, TreeItem } from './model';
 import { dirname, joinPath } from './paths';
 import { canDrop, endSeq, findItem, sanitizeName, validateName } from './tree-ops';
 
 export interface DemoCollection {
   info: CollectionInfo;
   files: Record<string, RequestDoc>;
+  environments: Record<string, EnvVar[]>;
 }
 
 type DemoTree = Pick<
@@ -45,7 +46,7 @@ const blank = (name: string, seq: number): RequestDoc => ({
 });
 
 export function createDemoCollection(root: string, name: string): DemoCollection {
-  return { info: { root, name, items: [], environments: [], defaultEnvironment: null, requestCount: 0 }, files: {} };
+  return { info: { root, name, items: [], environments: [], defaultEnvironment: null, requestCount: 0 }, files: {}, environments: {} };
 }
 
 export function collectionAt(collections: Map<string, DemoCollection>, root: string): DemoCollection {

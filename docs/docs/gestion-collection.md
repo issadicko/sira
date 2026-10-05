@@ -280,3 +280,37 @@ Un `git pull`, un `git checkout` ou un éditeur externe écrit dans la collectio
 - Sous Linux, inotify pose une surveillance par dossier, y compris sous `.git/` et `node_modules/` que l'on ignore ensuite : une très grosse arborescence peut atteindre la limite du système (`ENOSPC`). Le message « le système a atteint sa limite de fichiers surveillés » est alors affiché, sans bloquer l'ouverture, et « Relire le dossier » (↻) reste disponible.
 - Les limites de `notify` s'appliquent : sous Windows, le tampon du système (16 Kio) peut déborder sans qu'une relecture complète soit signalée, d'où la relecture au retour de la fenêtre ; sous macOS, FSEvents peut perdre des événements en rafale, d'où les lots `truncated`.
 
+
+## 11. Environnements : création, édition, renommage, suppression (EF-VAR-01)
+
+Un environnement est un fichier `environments/<nom>.yml`. Le nom de l'environnement est le nom du fichier sans `.yml`.
+
+**Commandes IPC.**
+
+| Commande | Rôle |
+| --- | --- |
+| `save_environment(root, name, vars) -> bool` | Enregistre les variables ; crée le fichier s'il n'existe plus ; `false` : rien n'a changé |
+| `create_environment(root, name) -> string` | Crée `name.yml` (juste `name:`), crée `environments/` s'il manque ; renvoie le nom retenu |
+| `rename_environment(root, from, name) -> string` | Renomme le fichier, met à jour sa clé `name` et suit l'environnement par défaut |
+| `clone_environment(root, from, name) -> string` | Copie le fichier sous un autre nom |
+| `delete_environment(root, name) -> void` | Vers la corbeille ; retire l'environnement par défaut s'il le nommait |
+| `set_default_environment(root, name \| null) -> void` | `extensions.bruno.presets.defaultEnvironment` de `opencollection.yml` |
+
+Elles prennent le même verrou d'écriture que les commandes de l'arbre (§ 8).
+
+**Noms.** Ceux d'une requête : caractères interdits remplacés par `-`, ni caché, ni nom de périphérique Windows, ni plus de 255 caractères. Un nom pris reçoit ` 1`, ` 2`… sans jamais remplacer un fichier, la casse ne distinguant pas deux noms. Le nom reçu par `read_environment` et `save_environment` est un nom simple, jamais un chemin (`..`, `/`, `\`, point de tête refusés). Un lien symbolique, pour `environments/` comme pour un environnement, n'est ni suivi, ni renommé, ni copié.
+
+**Fichier fidèle.** Enregistrer ne change que ce qui a changé. Chaque variable reprend sa table du fichier, repérée par son nom : les clés inconnues, l'ordre, la forme des valeurs, `extends`, `color` et `externalSecrets` sont conservés, ainsi que le BOM et les fins de ligne CRLF. Rien n'est écrit, ni normalisé, quand les variables n'ont pas changé. Une variable renommée garde sa description et son type ; une valeur typée (`number`, `boolean`…) garde son type quand son texte est modifié. Retirer toutes les variables retire la clé `variables`, comme Bruno.
+
+**Secrets (ENF-SEC-01).** Une variable `secret: true` n'a jamais de valeur dans le fichier, même si l'appelant en fournit une. Elle s'affiche « hors fichier », sans valeur saisissable : la saisie dans le trousseau est prévue en V1 (`{{process.env.NOM}}` lit déjà le fichier `.env`). Elle peut être renommée, désactivée et supprimée ; on ne peut pas en créer ni en convertir une.
+
+**Interface.**
+
+- **Barre latérale** : la liste des environnements, un bouton `+`, un menu contextuel par ligne (clic droit, touche menu, Maj+F10) : Renommer…, Dupliquer…, Ouvrir par défaut / Ne plus ouvrir par défaut, Supprimer…. L'environnement qui s'ouvre par défaut porte « par défaut ».
+- **Zone éditeur** : un tableau de variables (case d'activation, nom, valeur, suppression, ligne fantôme pour en ajouter une), avec l'état du fichier (« Enregistré sur le disque », « Non enregistré », « Modifié sur le disque », « Fichier introuvable »), Enregistrer (⌘S), Annuler les modifications et le même menu que la barre latérale. Un point sur l'onglet et sur le bouton Environnements de la barre d'activité signale un brouillon.
+- **Contrôles** : une variable sans nom, ou dont le nom est déjà pris plus haut, empêche d'enregistrer ; un nom nouveau n'accepte que lettres, chiffres, `_`, `-` et `.` comme dans Bruno (un fichier écrit à la main garde ses noms).
+- **Palette** : Nouvel environnement…, Renommer, Dupliquer, Supprimer l'environnement actif, Ouvrir l'environnement actif par défaut.
+
+**Brouillon.** L'édition travaille sur un brouillon qui n'agit sur aucune requête tant qu'il n'est pas enregistré : l'envoi et les variables lisent le disque. Comme pour un onglet (§ 10), le disque se compare à ce que Rust a lu (`base`), jamais au document de l'interface : un fichier changé sans brouillon est adopté, avec un brouillon l'environnement passe à « Modifié sur le disque » (Recharger), et enregistrer redemande confirmation. Un fichier supprimé avec un brouillon reste affiché, « Fichier introuvable » : enregistrer le recrée. Changer d'environnement actif, ou ouvrir une autre collection, avec un brouillon demande confirmation ; renommer l'environnement garde le brouillon.
+
+**Mode démo.** Les mêmes règles s'appliquent à la collection gardée en mémoire (`demo-env.ts`).

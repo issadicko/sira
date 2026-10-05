@@ -2,7 +2,7 @@
 
 Client API compatible avec les collections Bruno (OpenCollection YAML) : un dossier, un fichier par requête, versionné avec Git, sans compte ni cloud. Moteur en Rust, fenêtre Tauri 2, interface Angular.
 
-État : **MVP complet** (α boucle requête et rechargement à chaud, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies, δ gestion de collection). Voir `docs/docs/roadmap.md`.
+État : **MVP complet** (α boucle requête et rechargement à chaud, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies, δ gestion de collection, gestion des environnements). Voir `docs/docs/roadmap.md`.
 
 ## Structure
 
@@ -105,6 +105,15 @@ Un `git pull`, un `git checkout` ou un éditeur externe qui modifie la collectio
 - Un fichier supprimé ferme son onglet propre ; un onglet avec brouillon reste ouvert, barré, pour ne pas perdre le travail.
 - `.git/`, `.oc-sync/`, `node_modules/` et les fichiers temporaires d'éditeur sont ignorés. Si le système ne peut plus surveiller le dossier, un message l'indique et « Relire le dossier » (↻) reste disponible.
 - L'enregistrement relit le fichier avant d'écrire : un changement que la surveillance aurait manqué demande la même confirmation. Au retour de la fenêtre au premier plan, les onglets ouverts sont relus.
+
+## Environnements
+
+La vue **Environnements** (barre d'activité) liste les fichiers de `environments/` et permet de les gérer sans quitter l'application.
+
+- **Créer, renommer, dupliquer, supprimer** : le bouton `+` de l'en-tête, ou le menu contextuel d'une ligne (clic droit, touche menu, Maj+F10). Un nom pris reçoit un suffixe au lieu de remplacer un fichier ; la suppression passe par la corbeille du système. **Ouvrir par défaut** choisit l'environnement que la collection ouvre au démarrage (`opencollection.yml`), qui suit un renommage et se vide à la suppression.
+- **Variables** : un tableau éditable (activer, nom, valeur, supprimer, ajouter). Enregistrer (⌘S) ne change que ce qui a changé : types de valeurs, descriptions, `extends`, `color` et clés inconnues du fichier restent tels quels, comme le BOM et les fins de ligne. Un nom manquant ou en double empêche d'enregistrer.
+- **Secrets** : une variable `secret: true` n'a jamais sa valeur dans le fichier ; elle s'affiche « hors fichier ». La saisie dans le trousseau est prévue en V1 ; `{{process.env.NOM}}` lit déjà le fichier `.env`.
+- **Brouillon** : les modifications n'agissent sur aucune requête tant qu'elles ne sont pas enregistrées (un point sur l'onglet et sur la barre d'activité les signale). Changer d'environnement ou ouvrir une autre collection les fait confirmer ; un fichier modifié sur le disque entre-temps ne sera écrasé qu'après confirmation (voir « Rechargement à chaud »).
 
 ## Importer
 

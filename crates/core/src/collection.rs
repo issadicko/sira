@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
@@ -10,6 +9,13 @@ use serde::Serialize;
 use crate::request::{RequestDoc, BLANK_BEFORE, INFO_ORDER, TOP_ORDER};
 use crate::yaml::{self, Map, Value};
 use crate::CoreError;
+
+mod environment;
+
+pub use environment::{
+    default_environment, environment_file, list_environments, read_environment, save_environment,
+    set_default_environment, with_environment_name, EnvVar,
+};
 
 pub const COLLECTION_FILE: &str = "opencollection.yml";
 pub const FOLDER_FILE: &str = "folder.yml";
@@ -379,48 +385,6 @@ fn sort_by_name_then_sequence(items: Vec<TreeItem>) -> Vec<TreeItem> {
         result.insert(at, item);
     }
     result
-}
-
-pub fn list_environments(root: &Path) -> Result<Vec<String>, CoreError> {
-    let dir = root.join(ENV_DIR);
-    if !dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    let mut names: Vec<String> = fs::read_dir(&dir)
-        .map_err(|e| CoreError::io(&dir, e))?
-        .flatten()
-        .filter_map(|e| e.file_name().to_string_lossy().strip_suffix(REQUEST_EXT).map(str::to_owned))
-        .collect();
-    names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()).then(Ordering::Equal));
-    Ok(names)
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct EnvVar {
-    pub name: String,
-    pub value: Option<String>,
-    pub secret: bool,
-    pub enabled: bool,
-}
-
-pub fn read_environment(root: &Path, name: &str) -> Result<Vec<EnvVar>, CoreError> {
-    let path = resolve_path(root, &format!("{ENV_DIR}/{name}{REQUEST_EXT}"))?;
-    let tree = read_tree(&path)?;
-    Ok(tree
-        .seq("variables")
-        .iter()
-        .filter_map(Value::as_map)
-        .map(|m| {
-            let secret = m.get("secret").is_some_and(Value::is_true);
-            EnvVar {
-                name: crate::request::text(m.get("name")),
-                value: if secret { None } else { m.get("value").map(|v| crate::request::text(Some(v))) },
-                secret,
-                enabled: !m.get("disabled").is_some_and(Value::is_true),
-            }
-        })
-        .collect())
 }
 
 pub fn read_request(root: &Path, relative: &str) -> Result<RequestDoc, CoreError> {

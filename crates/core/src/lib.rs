@@ -10,8 +10,8 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 pub use collection::{
-    list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request, save_request,
-    CollectionInfo, EnvVar, TreeItem,
+    list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request, save_environment,
+    save_request, set_default_environment, CollectionInfo, EnvVar, TreeItem,
 };
 pub use prepare::{prepare, Prepared};
 pub use request::{Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, RequestDoc};
@@ -36,6 +36,8 @@ pub enum CoreError {
     UnsupportedRequestType(String),
     #[error("{path} n'est pas une requête : {reason}")]
     NotARequest { path: String, reason: String },
+    #[error("nom d'environnement invalide : {0}")]
+    InvalidEnvironment(String),
 }
 
 impl CoreError {

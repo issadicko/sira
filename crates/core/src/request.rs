@@ -172,18 +172,18 @@ pub(crate) fn text(v: Option<&Value>) -> String {
     }
 }
 
-fn opt_text(m: &Map, key: &str) -> Option<String> {
+pub(crate) fn opt_text(m: &Map, key: &str) -> Option<String> {
     m.get(key).and_then(Value::scalar)
 }
 
-fn is_enabled(m: &Map) -> bool {
+pub(crate) fn is_enabled(m: &Map) -> bool {
     !m.get("disabled").is_some_and(Value::is_true)
 }
 
 /// Élément d'une liste du fichier (en-tête, paramètre, champ de formulaire, assertion), lu et écrit sous forme de
 /// table YAML. À l'écriture, la table existante du même élément est modifiée au lieu d'être reconstruite : ses clés
 /// inconnues, son ordre et la forme de ses scalaires inchangés sont conservés.
-trait Entry: Sized {
+pub(crate) trait Entry: Sized {
     const ORDER: &'static [&'static str];
 
     fn read(m: &Map) -> Self;
@@ -192,11 +192,11 @@ trait Entry: Sized {
     fn ident(&self) -> String;
 }
 
-fn table(pairs: Vec<(&str, Value)>) -> Map {
+pub(crate) fn table(pairs: Vec<(&str, Value)>) -> Map {
     Map(pairs.into_iter().map(|(k, v)| (k.to_owned(), v)).collect())
 }
 
-fn non_blank(v: &Option<String>) -> Option<&str> {
+pub(crate) fn non_blank(v: &Option<String>) -> Option<&str> {
     v.as_deref().filter(|v| !v.trim().is_empty())
 }
 
@@ -509,7 +509,7 @@ fn merge_entries<T: Entry>(existing: &[Value], items: &[T]) -> Vec<Value> {
     table.map(Value::Map).collect()
 }
 
-fn set_list<T: Entry>(map: &mut Map, key: &str, items: &[T], order: &[&str]) {
+pub(crate) fn set_list<T: Entry>(map: &mut Map, key: &str, items: &[T], order: &[&str]) {
     if items.is_empty() {
         map.remove(key);
     } else {

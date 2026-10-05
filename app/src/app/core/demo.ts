@@ -1,7 +1,8 @@
 import type { Api } from './api';
 import { createDemoSync } from './demo-sync';
+import { createDemoEnvironments } from './demo-env';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
-import { CollectionInfo, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -108,26 +109,33 @@ const collection: CollectionInfo = {
   ],
 };
 
-const collections = new Map<string, DemoCollection>([[ROOT, { info: collection, files }]]);
+const variable = (name: string, value: string): EnvVar => ({ name, value, secret: false, enabled: true, description: null, dataType: null });
+const secret = (name: string): EnvVar => ({ name, value: null, secret: true, enabled: true, description: null, dataType: null });
+
+const environments: Record<string, EnvVar[]> = {
+  dev: [variable('baseUrl', 'https://api.dev.local/v1'), variable('txId', 'TX-2026-0042'), variable('canal', 'MOBILE'), secret('token')],
+  prod: [variable('baseUrl', 'https://api.paiements.example/v1'), variable('canal', 'MOBILE'), secret('token')],
+};
+
+const collections = new Map<string, DemoCollection>([[ROOT, { info: collection, files, environments }]]);
 const PARENT = '~/démo';
 const picks = [ROOT, ...Object.keys(DEMO_FOLDERS)];
 let picked = 0;
 
-const envs: Record<string, Record<string, string>> = {
-  dev: { baseUrl: 'https://api.dev.local/v1', txId: 'TX-2026-0042', canal: 'MOBILE' },
-  prod: { baseUrl: 'https://api.paiements.example/v1', canal: 'MOBILE' },
-};
+/** Valeur d'une variable activée de l'environnement `env`, telle que l'enregistrement l'a laissée. */
+const envValue = (env: string | null, name: string): string | null =>
+  (env && environments[env]?.find((v) => v.name === name && v.enabled && !v.secret)?.value) || null;
 const collectionVars: Record<string, string> = { baseUrl: 'https://api.paiements.test/v1' };
 const folderVars: Record<string, string> = { canal: 'USSD' };
 
 function variables(path: string, env: string | null): VariableInfo[] {
-  const names = new Set([...Object.keys(envs['dev']), ...Object.keys(collectionVars), ...Object.keys(folderVars), 'token']);
+  const names = new Set([...environments['dev'].map((v) => v.name), ...Object.keys(collectionVars), ...Object.keys(folderVars), 'token']);
   return [...names].sort().map((name) => {
     const rungs: Rung[] = [
       { level: 'Runtime', source: 'bru.setVar()', value: null },
       { level: 'Requête', source: path, value: null },
       { level: 'Dossier Transactions', source: 'transactions/folder.yml', value: path.startsWith('transactions/') ? folderVars[name] ?? null : null },
-      { level: `Environnement ${env ?? '(aucun)'}`, source: `environments/${env}.yml`, value: env ? envs[env]?.[name] ?? null : null },
+      { level: `Environnement ${env ?? '(aucun)'}`, source: `environments/${env}.yml`, value: envValue(env, name) },
       { level: 'Collection', source: 'opencollection.yml', value: collectionVars[name] ?? null },
     ];
     const win = rungs.find((r) => r.value != null);
@@ -206,10 +214,6 @@ export const demoApi: Api = {
     refreshItem(c, path, d);
     return true;
   },
-  readEnvironment: async (_root, name) => [
-    ...Object.entries(envs[name] ?? {}).map(([n, value]) => ({ name: n, value, secret: false, enabled: true })),
-    { name: 'token', value: null, secret: true, enabled: true },
-  ],
   variables: async (_root, path, _doc, env) => variables(path, env),
   send: (id, _root, path, d, env) =>
     new Promise<SendResult>((resolve, reject) => {
@@ -256,6 +260,7 @@ export const demoApi: Api = {
   previewOpenApi: async () => structuredClone(SPEC),
   importOpenApi: desktopOnly,
   ...createDemoTree(collections),
+  ...createDemoEnvironments(collections),
   ...demoSync,
   syncStatus: async (root) =>
     root === ROOT ? demoSync.syncStatus(root) : { connected: false, source: null, groupBy: null, operationCount: 0, removedCount: 0 },

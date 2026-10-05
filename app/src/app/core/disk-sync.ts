@@ -1,4 +1,4 @@
-import type { DiskChange } from './model';
+import type { DiskChange, EnvVar } from './model';
 
 export type TabVerdict = 'unchanged' | 'adopt' | 'stale';
 
@@ -50,4 +50,47 @@ export function describeDiskChange(outcome: { closed: string[]; reloaded: number
     );
   }
   return parts.length ? parts.join(' ') : null;
+}
+
+function canonical(v: EnvVar) {
+  return {
+    name: v.name,
+    value: v.secret ? null : (v.value ?? ''),
+    secret: v.secret,
+    enabled: v.enabled,
+    description: v.description?.trim() ? v.description : null,
+    dataType: v.dataType ?? null,
+  };
+}
+
+/** Forme comparable de variables : une valeur absente et une valeur vide sont la même, un secret n'a pas de valeur. */
+export function varsKey(vars: EnvVar[]): string {
+  return JSON.stringify(vars.map(canonical));
+}
+
+export function sameVars(a: EnvVar[], b: EnvVar[]): boolean {
+  return varsKey(a) === varsKey(b);
+}
+
+/** Brouillon d'un environnement : ses variables, ce que Rust a lu du fichier (`base`), et si le fichier a changé depuis. */
+export interface EnvDraft {
+  base: EnvVar[];
+  draft: EnvVar[];
+  stale: boolean;
+}
+
+/**
+ * Accorde le brouillon à `disk`, le fichier tel que Rust vient de le lire. Il adopte le disque quand il n'y a rien à perdre (brouillon intact, ou
+ * déjà égal au disque) ; sinon il garde les modifications et devient périmé. Un disque inchangé retire l'état périmé.
+ */
+export function reconciled(state: EnvDraft, disk: EnvVar[]): EnvDraft {
+  const [base, draft, now] = [varsKey(state.base), varsKey(state.draft), varsKey(disk)];
+  switch (verdictFor(base, base, draft, now)) {
+    case 'adopt':
+      return { base: disk, draft: draft === now ? state.draft : structuredClone(disk), stale: false };
+    case 'stale':
+      return { ...state, stale: true };
+    case 'unchanged':
+      return { ...state, stale: false };
+  }
 }

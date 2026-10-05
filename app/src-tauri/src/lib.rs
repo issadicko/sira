@@ -177,6 +177,42 @@ fn read_environment(root: String, name: String) -> Reply<Vec<EnvVar>> {
     xc_core::read_environment(Path::new(&root), &name).map_err(err)
 }
 
+/// Enregistre les variables de l'environnement ; un environnement absent est créé. `false` : rien n'a changé.
+#[tauri::command]
+async fn save_environment(state: State<'_, AppState>, root: String, name: String, vars: Vec<EnvVar>) -> Reply<bool> {
+    writing(&state, move || xc_core::save_environment(Path::new(&root), &name, &vars)).await
+}
+
+#[tauri::command]
+async fn create_environment(state: State<'_, AppState>, root: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::create_environment(Path::new(&root), &name)).await
+}
+
+#[tauri::command]
+async fn rename_environment(state: State<'_, AppState>, root: String, from: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::rename_environment(Path::new(&root), &from, &name)).await
+}
+
+#[tauri::command]
+async fn clone_environment(state: State<'_, AppState>, root: String, from: String, name: String) -> Reply<String> {
+    writing(&state, move || manage::clone_environment(Path::new(&root), &from, &name)).await
+}
+
+/// Envoie l'environnement à la corbeille du système.
+#[tauri::command]
+async fn delete_environment(state: State<'_, AppState>, root: String, name: String) -> Reply<()> {
+    writing(&state, move || {
+        manage::delete_environment(Path::new(&root), &name, |file| trash_context().delete(file).map_err(trash_message))
+    })
+    .await
+}
+
+/// Environnement que la collection ouvre par défaut ; `None` pour n'en choisir aucun.
+#[tauri::command]
+async fn set_default_environment(state: State<'_, AppState>, root: String, name: Option<String>) -> Reply<()> {
+    writing(&state, move || xc_core::set_default_environment(Path::new(&root), name.as_deref())).await
+}
+
 #[tauri::command]
 fn variables(
     state: State<'_, AppState>,
@@ -401,6 +437,12 @@ pub fn run() {
             read_request,
             save_request,
             read_environment,
+            save_environment,
+            create_environment,
+            rename_environment,
+            clone_environment,
+            delete_environment,
+            set_default_environment,
             variables,
             send_request,
             cancel_request,
@@ -522,6 +564,34 @@ paths:
         assert_eq!(moved, "Détails copie.yml");
         let info = xc_core::open_collection(Path::new(&root)).unwrap();
         assert_eq!(info.request_count, 2);
+    }
+
+    #[tokio::test]
+    async fn ef_var_01_commands_create_edit_rename_and_duplicate_an_environment() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let root = create_collection(state(), dir.path().display().to_string(), "Démo".into()).await.unwrap();
+        assert_eq!(create_environment(state(), root.clone(), "Dev".into()).await.unwrap(), "Dev");
+
+        let vars: Vec<EnvVar> = serde_json::from_str(
+            r#"[{"name":"host","value":"http://d","secret":false,"enabled":true,"description":null,"dataType":null},
+                {"name":"vide","enabled":false}]"#,
+        )
+        .unwrap();
+        assert!(save_environment(state(), root.clone(), "Dev".into(), vars.clone()).await.unwrap());
+        assert!(!save_environment(state(), root.clone(), "Dev".into(), vars).await.unwrap());
+        let read = read_environment(root.clone(), "Dev".into()).unwrap();
+        assert_eq!((read.len(), read[1].enabled), (2, false));
+        assert_eq!(serde_json::to_value(&read[0]).unwrap()["dataType"], serde_json::Value::Null);
+
+        let renamed = rename_environment(state(), root.clone(), "Dev".into(), "Local".into()).await.unwrap();
+        let copy = clone_environment(state(), root.clone(), renamed, "Local copie".into()).await.unwrap();
+        set_default_environment(state(), root.clone(), Some(copy)).await.unwrap();
+        let info = xc_core::open_collection(Path::new(&root)).unwrap();
+        assert_eq!(info.environments, ["Local", "Local copie"]);
+        assert_eq!(info.default_environment.as_deref(), Some("Local copie"));
+        set_default_environment(state(), root, None).await.unwrap();
     }
 
     #[tokio::test]

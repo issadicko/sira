@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
-import { demoApi } from './demo';
 import {
   CollectionInfo,
   DiskChange,
@@ -42,6 +41,14 @@ export interface Api {
   readRequest(root: string, path: string): Promise<RequestDoc>;
   saveRequest(root: string, path: string, doc: RequestDoc): Promise<boolean>;
   readEnvironment(root: string, name: string): Promise<EnvVar[]>;
+  /** Enregistre les variables de l'environnement (créé s'il n'existe plus) ; `false` : rien n'a changé. */
+  saveEnvironment(root: string, name: string, vars: EnvVar[]): Promise<boolean>;
+  createEnvironment(root: string, name: string): Promise<string>;
+  renameEnvironment(root: string, from: string, name: string): Promise<string>;
+  cloneEnvironment(root: string, from: string, name: string): Promise<string>;
+  deleteEnvironment(root: string, name: string): Promise<void>;
+  /** Environnement que la collection ouvre par défaut ; `null` pour n'en choisir aucun. */
+  setDefaultEnvironment(root: string, name: string | null): Promise<void>;
   variables(root: string, path: string, doc: RequestDoc, env: string | null): Promise<VariableInfo[]>;
   send(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<SendResult>;
   cancel(id: string): Promise<boolean>;
@@ -84,6 +91,12 @@ const tauriApi: Api = {
   readRequest: (root, path) => invoke('read_request', { root, path }),
   saveRequest: (root, path, doc) => invoke('save_request', { root, path, doc }),
   readEnvironment: (root, name) => invoke('read_environment', { root, name }),
+  saveEnvironment: (root, name, vars) => invoke('save_environment', { root, name, vars }),
+  createEnvironment: (root, name) => invoke('create_environment', { root, name }),
+  renameEnvironment: (root, from, name) => invoke('rename_environment', { root, from, name }),
+  cloneEnvironment: (root, from, name) => invoke('clone_environment', { root, from, name }),
+  deleteEnvironment: (root, name) => invoke('delete_environment', { root, name }),
+  setDefaultEnvironment: (root, name) => invoke('set_default_environment', { root, name }),
   variables: (root, path, doc, env) => invoke('variables', { root, path, doc, env }),
   send: (id, root, path, doc, env) => invoke('send_request', { args: { id, root, path, doc, env } }),
   cancel: (id) => invoke('cancel_request', { id }),
@@ -96,6 +109,18 @@ const tauriApi: Api = {
   syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),
   syncApply: (planId, decisions) => invoke('sync_apply', { planId, decisions }),
 };
+
+type Call = (...args: unknown[]) => unknown;
+
+/** Le mode démo n'est chargé qu'au premier appel, dans le navigateur : l'application desktop n'embarque pas son code au démarrage. */
+const demoApi: Api = new Proxy({ demo: true } as Api, {
+  get: (target, key) =>
+    typeof key !== 'string' || key === 'then'
+      ? undefined
+      : key === 'demo'
+        ? target.demo
+        : (...args: unknown[]) => import('./demo').then((m) => (m.demoApi as unknown as Record<string, Call>)[key](...args)),
+});
 
 export const isTauri = '__TAURI_INTERNALS__' in window;
 export const api: Api = isTauri ? tauriApi : demoApi;

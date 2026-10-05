@@ -241,7 +241,7 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 - **Ambre de conflit** (warn) : exclusivement les conflits de synchro OpenAPI et ce qui y mène (pastille « Spec OpenAPI : n conflits », badge d'activité, lignes non arbitrées du Résultat, état « à arbitrer »).
 - **Rouge d'alerte** (bad) : erreurs (statut 4xx/5xx, test échoué, JSONPath invalide), variable non résolue, environnement de production, suppressions de diff, méthode DELETE.
 - **Vert de réussite** (good) : statut 2xx, tests passés, ajouts de diff, variables d'environnement, environnement dev, état « arbitré ».
-- **Bleu d'information** (info) : variables dynamiques, éléments issus de la spec (tag « spec », volet Spec de la fusion), environnement de recette, fichier Git modifié, fichier modifié sur le disque pendant que l'onglet a un brouillon.
+- **Bleu d'information** (info) : variables dynamiques, éléments issus de la spec (tag « spec », volet Spec de la fusion), environnement de recette, fichier Git modifié, fichier modifié sur le disque pendant que l'onglet ou l'environnement a un brouillon.
 
 ### Tertiary
 - **Teintes de méthode** : GET vert (m-get), POST violet clair (m-post), PUT bleu (m-put), PATCH turquoise (m-patch), DELETE rouge (m-delete), toujours en mono 600, abrégé `DEL` dans l'arbre.
@@ -301,7 +301,7 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 
 **Barre latérale.** Tête 38px, filtre 28px, lignes d'arbre de 26px, retrait de 14px par niveau, guide vertical d'indentation qui n'apparaît qu'au survol de la barre latérale. Sections repliables de 32px.
 
-**Vues.** En-tête de vue minimum 52px. Environnements : tableau + colonne de résolution de 340px. Fusion : volets Équipe / Spec (et Base optionnelle) au-dessus, Résultat en dessous (1 : 1.1), pied d'îlot 52px portant l'action d'application.
+**Vues.** En-tête de vue minimum 52px. Environnements : en-tête portant le nom, la pastille « par défaut », l'état du fichier (comme le fil d'Ariane d'un onglet), Annuler les modifications, Enregistrer et le menu ⋯ ; puis le tableau kv éditable (case, nom, valeur ; un secret montre « hors fichier » avec un cadenas, sans champ) + colonne de résolution de 340px. Le brouillon se signale par le point de l'onglet et par un point sur le bouton Environnements de la barre d'activité ; une ligne en erreur souligne son nom en bad. Fusion : volets Équipe / Spec (et Base optionnelle) au-dessus, Résultat en dessous (1 : 1.1), pied d'îlot 52px portant l'action d'application.
 
 **Rythme.** Pas de 2, 4, 6, 8, 10, 12, 14px ; 6px est le pas structurel (écart entre îlots, marges de lignes, gaps de contrôles).
 

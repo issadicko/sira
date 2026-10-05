@@ -64,6 +64,20 @@ pub(super) fn plan(file: &Path, kind: Kind, fields: &[(&str, Value)], created: O
     }
 }
 
+/// Prépare la réécriture de `file` par `change`, qui reçoit son texte ; `None` quand le texte ne change pas. Un lien
+/// symbolique est refusé, comme par [`plan`].
+pub(super) fn rewrite_file(
+    file: &Path,
+    change: impl FnOnce(&str) -> Result<String, CoreError>,
+) -> Result<Option<Edit>, ManageError> {
+    if fs::symlink_metadata(file).is_ok_and(|meta| meta.is_symlink()) {
+        return Err(symlink_error(file));
+    }
+    let text = fs::read_to_string(file).map_err(|e| CoreError::io(file, e))?;
+    let after = change(&text)?;
+    Ok((after != text).then(|| Edit { file: file.to_path_buf(), before: Some(text), after }))
+}
+
 impl Edit {
     pub fn into_text(self) -> String {
         self.after
