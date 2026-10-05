@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
-use xc_core::assert::{evaluate, AssertionResult, ResponseView};
+use xc_core::assert::AssertionResult;
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
-use xc_core::{CollectionInfo, EnvVar, Prepared, RequestDoc};
+use xc_core::{CollectionInfo, EnvVar, RequestDoc};
 use xc_engine::Timings;
+use xc_runner::{PhaseReport, Request, RunError, Session};
 use xc_sync::import::{fetch_spec, OpenApiPreview};
 use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
@@ -17,12 +18,18 @@ use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
 #[derive(Default)]
 struct AppState {
-    runtime: Mutex<HashMap<String, HashMap<String, String>>>,
-    inflight: Mutex<HashMap<String, tokio::task::AbortHandle>>,
+    sessions: Mutex<HashMap<String, Session>>,
+    inflight: Mutex<HashMap<String, Inflight>>,
     plans: Arc<Plans>,
     writes: tokio::sync::Mutex<()>,
     watching: tokio::sync::Mutex<()>,
     watch: Mutex<Option<xc_watch::Watch>>,
+}
+
+/// Une requête en cours d'envoi : sa tâche et le drapeau qui interrompt ses scripts.
+struct Inflight {
+    task: tokio::task::AbortHandle,
+    cancel: Arc<AtomicBool>,
 }
 
 /// Plans de synchro en cours, sous un identifiant ; un plan par collection au plus.
@@ -108,8 +115,19 @@ struct SendResult {
     method: String,
     url: String,
     unresolved: Vec<String>,
-    response: ResponseDto,
+    /// Absente quand la requête n'est pas partie (script pré-requête en erreur ou qui l'ignore) ou n'a pas abouti.
+    response: Option<ResponseDto>,
     assertions: Vec<AssertionResult>,
+    scripts: ScriptsDto,
+    error: Option<RunError>,
+    skipped: bool,
+}
+
+#[derive(Serialize)]
+struct ScriptsDto {
+    pre: PhaseReport,
+    post: PhaseReport,
+    tests: PhaseReport,
 }
 
 #[derive(Deserialize)]
@@ -229,37 +247,46 @@ fn variables(
     env: Option<String>,
 ) -> Reply<Vec<VariableInfo>> {
     let dir = Path::new(&root);
-    let runtime = state.runtime.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
+    let session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
     let ctx = Context::load(dir, &path).map_err(err)?;
-    let scope = Scope::build(dir, &ctx, &path, &doc, env.as_deref(), &runtime).map_err(err)?;
-    Ok(scope.infos())
+    let scope = Scope::build(dir, &ctx, &path, &doc, env.as_deref(), &session.runtime_strings()).map_err(err)?;
+    Ok(scope.with_overrides(session.overrides(env.as_deref())).infos())
 }
 
 #[tauri::command]
 async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendResult> {
-    let runtime = state.runtime.lock().map_err(err)?.get(&args.root).cloned().unwrap_or_default();
-    let Prepared { request, unresolved } =
-        xc_core::prepare(&root(&args.root), &args.path, &args.doc, args.env.as_deref(), &runtime).map_err(err)?;
-    let (method, url) = (request.method.clone(), request.url.clone());
-    let task = tokio::spawn(async move { xc_engine::send(request).await });
-    state.inflight.lock().map_err(err)?.insert(args.id.clone(), task.abort_handle());
-    let outcome = task.await;
-    state.inflight.lock().map_err(err)?.remove(&args.id);
-    let res = match outcome {
-        Ok(result) => result.map_err(err)?,
+    let SendArgs { id, root: root_path, path, doc, env } = args;
+    let mut session = state.sessions.lock().map_err(err)?.get(&root_path).cloned().unwrap_or_default();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let (dir, flag) = (root(&root_path), Arc::clone(&cancel));
+    let task = tokio::spawn(async move {
+        let collection_name = xc_core::collection_name(&dir).unwrap_or_default();
+        let request = Request {
+            root: &dir,
+            path: &path,
+            doc: &doc,
+            env: env.as_deref(),
+            collection_name: &collection_name,
+            execution_mode: "standalone",
+            cancel: flag,
+        };
+        let outcome = xc_runner::run_request(request, &mut session).await;
+        (outcome, session)
+    });
+    state.inflight.lock().map_err(err)?.insert(id.clone(), Inflight { task: task.abort_handle(), cancel });
+    let joined = task.await;
+    state.inflight.lock().map_err(err)?.remove(&id);
+    let (outcome, session) = match joined {
+        Ok(done) => done,
         Err(e) if e.is_cancelled() => return Err("Requête annulée".into()),
         Err(e) => return Err(err(e)),
     };
-    let assertions =
-        evaluate(&args.doc.assertions, &ResponseView { status: res.status, headers: &res.headers, body: &res.body });
-    let size = res.body.len();
-    let body = xc_engine::lossy_text(res.body);
-    Ok(SendResult {
-        method,
-        url,
-        unresolved,
-        assertions,
-        response: ResponseDto {
+    state.sessions.lock().map_err(err)?.insert(root_path, session);
+
+    let response = outcome.response.map(|res| {
+        let size = res.body.len();
+        let body = xc_engine::lossy_text(res.body);
+        ResponseDto {
             status: res.status,
             reason: res.reason,
             http_version: res.http_version,
@@ -269,13 +296,29 @@ async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendR
             body,
             headers: res.headers,
             timings: res.timings,
-        },
+        }
+    });
+    Ok(SendResult {
+        method: outcome.method,
+        url: outcome.url,
+        unresolved: outcome.unresolved,
+        response,
+        assertions: outcome.assertions,
+        scripts: ScriptsDto { pre: outcome.pre, post: outcome.post, tests: outcome.tests },
+        error: outcome.error,
+        skipped: outcome.skipped,
     })
 }
 
 #[tauri::command]
 fn cancel_request(state: State<'_, AppState>, id: String) -> Reply<bool> {
-    Ok(state.inflight.lock().map_err(err)?.remove(&id).map(|h| h.abort()).is_some())
+    let inflight = state.inflight.lock().map_err(err)?.remove(&id);
+    Ok(inflight
+        .map(|running| {
+            running.cancel.store(true, Ordering::Relaxed);
+            running.task.abort();
+        })
+        .is_some())
 }
 
 #[tauri::command]
@@ -599,6 +642,71 @@ paths:
         assert_eq!(info.environments, ["Local", "Local copie"]);
         assert_eq!(info.default_environment.as_deref(), Some("Local copie"));
         set_default_environment(state(), root, None).await.unwrap();
+    }
+
+    fn serve_json() -> String {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for stream in listener.incoming().take(2) {
+                let mut stream = stream.unwrap();
+                let _ = stream.read(&mut [0u8; 4096]).unwrap();
+                let body = r#"{"id":7}"#;
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+            }
+        });
+        base
+    }
+
+    fn send_args(root: &str, path: &str, id: &str) -> SendArgs {
+        let doc = xc_core::read_request(Path::new(root), path).unwrap();
+        SendArgs { id: id.into(), root: root.into(), path: path.into(), doc, env: None }
+    }
+
+    #[tokio::test]
+    async fn ef_scr_01_send_request_runs_scripts_and_keeps_their_variables_between_sends() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        let base = serve_json();
+        let dir = tempfile::tempdir().unwrap();
+        let root = create_collection(state(), dir.path().display().to_string(), "Démo".into()).await.unwrap();
+        let config = Path::new(&root).join("opencollection.yml");
+        let text = fs::read_to_string(&config).unwrap();
+        fs::write(
+            &config,
+            text.replacen("\n", &format!("\n\nrequest:\n  variables:\n    - name: base\n      value: {base}\n\n"), 1),
+        )
+        .unwrap();
+        let script = |name: &str, code: &str| {
+            format!("info:\n  name: {name}\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: \"{{{{base}}}}/x\"\n\nruntime:\n  scripts:\n{code}")
+        };
+        fs::write(
+            Path::new(&root).join("login.yml"),
+            script("login", "    - type: after-response\n      code: bru.setVar('token', res.body.id);\n    - type: tests\n      code: |-\n        console.log('seen', res.status);\n        test('ok', () => expect(res.status).to.equal(200));\n"),
+        )
+        .unwrap();
+        fs::write(
+            Path::new(&root).join("next.yml"),
+            script(
+                "next",
+                "    - type: tests\n      code: test('token kept', () => expect(bru.getVar('token')).to.equal(7));\n",
+            ),
+        )
+        .unwrap();
+
+        let first = send_request(state(), send_args(&root, "login.yml", "a")).await.unwrap();
+        assert_eq!(first.response.as_ref().map(|r| r.status), Some(200));
+        assert_eq!(first.scripts.tests.results.len(), 1);
+        assert_eq!(first.scripts.tests.logs[0].args, serde_json::json!(["seen", 200]));
+        let second = send_request(state(), send_args(&root, "next.yml", "b")).await.unwrap();
+        assert!(second.error.is_none(), "{:?}", second.error.map(|e| e.message));
+        assert_eq!(second.scripts.tests.results[0].status, "pass");
     }
 
     #[tokio::test]

@@ -3,16 +3,18 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { formatSize, hasLongLine, jsonPath } from '../core/highlight';
 import { Timings } from '../core/model';
 import { Workspace } from '../core/store';
+import { emptyReport, tally } from '../core/scripts';
 import { CodeEditor, CodeLanguage } from './code-editor';
 import { Icon } from './icon';
+import { ScriptReportView } from './script-report';
 
 type Section = 'body' | 'headers' | 'timeline' | 'tests';
-const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 'YAML', text: 'Texte' };
+const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 'YAML', javascript: 'JavaScript', text: 'Texte' };
 
 @Component({
   selector: 'app-response-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, CodeEditor],
+  imports: [Icon, CodeEditor, ScriptReportView],
   host: { class: 'pane island', 'aria-label': 'Réponse' },
   template: `
     @if (ws.active(); as tab) {
@@ -23,8 +25,10 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
           <button class="subtab" role="tab" [attr.aria-selected]="section() === 'timeline'" (click)="section.set('timeline')">Timeline</button>
           <button class="subtab" role="tab" [attr.aria-selected]="section() === 'tests'" (click)="section.set('tests')">
             Tests
-            @if (tab.result?.assertions?.length) {
-              <span class="n"><span [class]="passed() === tab.result!.assertions.length ? 'ok' : 'ko'">{{ passed() }}/{{ tab.result!.assertions.length }}</span></span>
+            @if (count(); as n) {
+              @if (n.total) {
+                <span class="n"><span [class]="n.passed === n.total ? 'ok' : 'ko'">{{ n.passed }}/{{ n.total }}</span></span>
+              }
             }
           </button>
         </div>
@@ -96,22 +100,7 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
             }
             @case ('tests') {
               <div class="pane-body">
-                @if (r.assertions.length) {
-                  <div class="tests-sum">
-                    <span class="badge-ic" [class.ko]="passed() !== r.assertions.length"><app-ic [name]="passed() === r.assertions.length ? 'check' : 'x'" [size]="15" /></span>
-                    <span style="font-weight: 600">{{ passed() }} sur {{ r.assertions.length }} {{ passed() > 1 ? 'passent' : 'passe' }}</span>
-                    <span class="muted">{{ passed() === r.assertions.length ? 'Tout est vert, beau travail.' : 'La valeur reçue est à droite de chaque échec.' }}</span>
-                  </div>
-                  @for (a of r.assertions; track $index) {
-                    <div class="test-row">
-                      <span [class]="a.passed ? 'ok-ic' : 'ko-ic'"><app-ic [name]="a.passed ? 'check-circle' : 'x-circle'" [size]="15" /></span>
-                      <span class="mono">{{ a.expression }} {{ a.operator }} {{ a.expected ?? '' }}</span>
-                      <span class="src">{{ a.error ?? (a.passed ? '' : 'reçu ' + a.actual) }}</span>
-                    </div>
-                  }
-                } @else {
-                  <div class="empty"><h2>Aucune assertion</h2><p>Ajoute des assertions dans l'onglet Tests de la requête : elles sont évaluées ici et par la CLI.</p></div>
-                }
+                <app-script-report [report]="tab.report ?? emptyReport" [assertions]="r.assertions" />
               </div>
             }
           }
@@ -122,6 +111,9 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
             <p class="mono" style="font-size: calc(12 * var(--px))">{{ tab.error }}</p>
             <button class="btn" style="margin-top: 6px" (click)="ws.send()"><app-ic name="sync" [size]="14" />Renvoyer</button>
           </div>
+          @if (tab.report) {
+            <div class="pane-body"><app-script-report [report]="tab.report" /></div>
+          }
         } @else if (tab.sendingId) {
           <div class="empty"><span class="spinner"></span><h2>Envoi en cours…</h2><p>Échap pour annuler.</p></div>
         } @else {
@@ -155,7 +147,11 @@ export class ResponsePane {
   protected readonly filter = signal('');
 
   private readonly response = computed(() => this.ws.active()?.result?.response ?? null);
-  protected readonly passed = computed(() => this.ws.active()?.result?.assertions.filter((a) => a.passed).length ?? 0);
+  protected readonly emptyReport = emptyReport();
+  protected readonly count = computed(() => {
+    const tab = this.ws.active();
+    return tab ? tally(tab.report ?? emptyReport(), tab.result?.assertions ?? []) : { passed: 0, total: 0 };
+  });
   protected readonly size = computed(() => formatSize(this.response()?.size ?? 0));
   protected readonly isJson = computed(() => this.response()?.pretty != null);
   protected readonly language = computed<CodeLanguage>(() => {

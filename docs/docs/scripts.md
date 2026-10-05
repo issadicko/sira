@@ -21,12 +21,22 @@ Le crate `xc-script` exécute les scripts d'une requête dans un sandbox QuickJS
 | Bibliothèques | `chai`, `moment`, `crypto-js`, `uuid`, `nanoid`, `tv4`, `ajv`, `ajv-formats`, `buffer` / `Buffer`, `btoa`, `atob`, `path.resolve`, `crypto.randomBytes / getRandomValues` ; chargées à la demande |
 | Modules locaux | `require('./lib/x')` relatif à la racine de la collection, `.js` ajouté, refusé hors de la collection (liens suivis) |
 
+## 3. Dans l'application et en CLI
+
+- **Onglet Scripts de la requête** : trois éditeurs (avant la requête, après la réponse, tests) écrits dans `runtime.scripts` du fichier, sans toucher aux autres clés. Un code vide retire le script.
+- **Envoi** : `xc-runner` enchaîne script pré-requête (collection, dossiers, requête), envoi, script post-réponse, assertions et tests, dans l'ordre de Bruno (`sandwich` par défaut, `sequential` selon `extensions.bruno.scripts.flow`). Une erreur avant l'envoi l'annule ; après, assertions et tests s'exécutent quand même.
+- **Réponse, onglet Tests** : résumé (assertions et tests de script comptés ensemble), résultats par phase avec « attendu · reçu », erreurs de script, console. Un script qui ignore la requête (`bru.runner.skipRequest()`) ou qui échoue avant l'envoi affiche tout de même sa console et ses tests.
+- **Variables** : ce que les scripts écrivent (`bru.setVar`, `setEnvVar`, `setGlobalEnvVar`, variables de collection) reste en mémoire pour les requêtes suivantes de la collection, et apparaît dans la résolution des variables. Rien n'est écrit dans les fichiers : Bruno CLI réécrit l'environnement et la collection, ce n'est pas repris ici.
+- **`xc run`** affiche la console, les tests et les erreurs de script de chaque requête, suit `bru.setNextRequest(nom)` (garde de 10 000 sauts), `bru.runner.skipRequest()` et `bru.runner.stopExecution()` ; le code de sortie est 1 si une requête, un test ou une assertion échoue.
+
+## 4. Ce qui reste
+
 Pas encore : `bru.runRequest`, `bru.sendRequest`, `axios`, `jwt`, `bru.cookies` (ils demandent le moteur HTTP et le runner), `headerList`, `req.onFail` (absent aussi du sandbox de Bruno).
 
-## 3. Sandbox (ENF-SEC-02)
+## 5. Sandbox (ENF-SEC-02)
 
 Aucun accès au disque, au réseau ni aux processus hors des fonctions que l'hôte pose (variables, journal, `require` local borné à la collection). Contrairement à Bruno, qui n'a aucune limite en production, le sandbox plafonne : 256 Mio de mémoire, 8 Mio de pile (Ajv en demande plus d'1) et 30 s de **calcul** (l'attente d'un `sleep` ou d'une requête ne compte pas). Une boucle infinie est coupée au lieu de figer l'application ; l'annulation de la requête interrompt aussi le script.
 
-## 4. Bibliothèques embarquées
+## 6. Bibliothèques embarquées
 
 Les bibliothèques de `crates/script/js/libs/` sont construites par `tools/scripts-bundle` (`npm install && npm run build`, esbuild) et **commitées** : ni Node ni réseau ne sont requis pour compiler Sira. Leur reconstruction est la seule raison de rouvrir ce dossier.

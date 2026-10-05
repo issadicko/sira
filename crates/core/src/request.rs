@@ -335,6 +335,22 @@ impl Entry for Assertion {
     }
 }
 
+impl Entry for Script {
+    const ORDER: &'static [&'static str] = &["type", "code"];
+
+    fn read(m: &Map) -> Self {
+        Self { kind: text(m.get("type")), code: text(m.get("code")) }
+    }
+
+    fn build(&self) -> Map {
+        table(vec![("type", Value::str(&self.kind)), ("code", Value::str(&self.code))])
+    }
+
+    fn ident(&self) -> String {
+        self.kind.clone()
+    }
+}
+
 fn read_list<T: Entry>(items: &[Value]) -> Vec<T> {
     items.iter().filter_map(Value::as_map).map(T::read).collect()
 }
@@ -410,12 +426,7 @@ impl RequestDoc {
         let runtime = root.map("runtime").unwrap_or(&empty);
         let settings = root.map("settings").unwrap_or(&empty);
 
-        let scripts = runtime
-            .seq("scripts")
-            .iter()
-            .filter_map(Value::as_map)
-            .map(|m| Script { kind: text(m.get("type")), code: text(m.get("code")) })
-            .collect();
+        let scripts = read_list(runtime.seq("scripts"));
 
         Self {
             name: info.str("name").unwrap_or_default().to_owned(),
@@ -469,9 +480,15 @@ impl RequestDoc {
                 write_auth(http, &self.auth);
             }
         }
-        if self.assertions != previous.assertions {
+        if self.assertions != previous.assertions || self.scripts != previous.scripts {
             let runtime = root.map_mut_or_insert("runtime", TOP_ORDER);
-            set_list(runtime, "assertions", &self.assertions, RUNTIME_ORDER);
+            if self.scripts != previous.scripts {
+                let written: Vec<Script> = self.scripts.iter().filter(|s| !s.code.trim().is_empty()).cloned().collect();
+                set_list(runtime, "scripts", &written, RUNTIME_ORDER);
+            }
+            if self.assertions != previous.assertions {
+                set_list(runtime, "assertions", &self.assertions, RUNTIME_ORDER);
+            }
             if runtime.is_empty() {
                 root.remove("runtime");
             }

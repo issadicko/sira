@@ -56,7 +56,7 @@ export interface RequestDoc {
   auth: Auth;
   assertions: Assertion[];
   variables: KeyValue[];
-  scripts: { kind: string; code: string }[];
+  scripts: Script[];
   docs?: string | null;
   timeoutMs?: number | null;
 }
@@ -136,13 +136,57 @@ export interface AssertionResult {
   error?: string | null;
 }
 
+export interface Script {
+  /** `before-request`, `after-response` ou `tests`. */
+  kind: string;
+  code: string;
+}
+
+export interface TestResult {
+  description: string;
+  status: string;
+  error?: string | null;
+  actual?: unknown;
+  expected?: unknown;
+}
+
+export interface LogLine {
+  level: string;
+  args: unknown[];
+}
+
+/** Ce que les scripts d'une phase ont produit. */
+export interface PhaseReport {
+  results: TestResult[];
+  logs: LogLine[];
+  error?: string | null;
+}
+
+export interface ScriptsReport {
+  pre: PhaseReport;
+  post: PhaseReport;
+  tests: PhaseReport;
+}
+
+export interface RunError {
+  stage: 'prepare' | 'preRequestScript' | 'send';
+  message: string;
+}
+
 export interface SendResult {
   method: string;
   url: string;
   unresolved: string[];
-  response: ResponseDto;
+  /** Absente quand la requête n'est pas partie ou n'a pas abouti. */
+  response: ResponseDto | null;
   assertions: AssertionResult[];
+  scripts: ScriptsReport;
+  error?: RunError | null;
+  skipped: boolean;
 }
+
+/** Un envoi qui a abouti : la réponse est là. */
+export type Sent = SendResult & { response: ResponseDto };
 
 export type GroupBy = 'tags' | 'path';
 

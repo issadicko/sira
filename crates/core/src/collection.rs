@@ -194,6 +194,19 @@ pub fn ignored_names(root: &Path) -> Result<Vec<String>, CoreError> {
     Ok(ignored(config.map("extensions").and_then(|e| e.map("bruno"))))
 }
 
+fn name_of(config: &Map, root: &Path) -> String {
+    config
+        .map("info")
+        .and_then(|i| i.str("name"))
+        .map(str::to_owned)
+        .unwrap_or_else(|| root.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())
+}
+
+/// Nom de la collection (`info.name`, sinon le nom du dossier), sans parcourir ses fichiers.
+pub fn collection_name(root: &Path) -> Result<String, CoreError> {
+    Ok(name_of(&read_config(root)?, root))
+}
+
 pub fn open_collection(root: &Path) -> Result<CollectionInfo, CoreError> {
     let config = read_config(root)?;
     let bruno = config.map("extensions").and_then(|e| e.map("bruno"));
@@ -204,11 +217,7 @@ pub fn open_collection(root: &Path) -> Result<CollectionInfo, CoreError> {
     let items = read_folder(root, root, &ignore, true)?;
     let mut count = 0;
     count_requests(&items, &mut count);
-    let name = config
-        .map("info")
-        .and_then(|i| i.str("name"))
-        .map(str::to_owned)
-        .unwrap_or_else(|| root.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+    let name = name_of(&config, root);
 
     Ok(CollectionInfo {
         root: root.display().to_string(),

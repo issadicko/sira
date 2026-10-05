@@ -11,7 +11,7 @@ import { tagHighlighter, tags as t } from '@lezer/highlight';
 
 import type { FoldRange, Lens, LineMark } from '../core/sync';
 
-export type CodeLanguage = 'json' | 'xml' | 'yaml' | 'text';
+export type CodeLanguage = 'json' | 'xml' | 'yaml' | 'javascript' | 'text';
 
 const YAML = StreamLanguage.define({
   name: 'yaml',
@@ -28,7 +28,43 @@ const YAML = StreamLanguage.define({
   },
 });
 
-const LANGUAGES: Record<CodeLanguage, Extension> = { json: json(), xml: xml(), yaml: YAML, text: [] };
+const JS_KEYWORDS = new Set([
+  'async', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'default', 'delete', 'do', 'else', 'export', 'extends',
+  'false', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'let', 'new', 'null', 'of', 'return', 'switch', 'this',
+  'throw', 'true', 'try', 'typeof', 'undefined', 'var', 'while', 'yield',
+]);
+
+/** Coloration légère des scripts : mots-clés, chaînes, nombres, commentaires. */
+const JAVASCRIPT = StreamLanguage.define<{ block: boolean }>({
+  name: 'javascript',
+  startState: () => ({ block: false }),
+  token(stream, state) {
+    if (state.block) {
+      if (stream.match(/^.*?\*\//)) state.block = false;
+      else stream.skipToEnd();
+      return 'comment';
+    }
+    if (stream.eatSpace()) return null;
+    if (stream.match('//')) {
+      stream.skipToEnd();
+      return 'comment';
+    }
+    if (stream.match('/*')) {
+      if (!stream.match(/^.*?\*\//)) {
+        state.block = true;
+        stream.skipToEnd();
+      }
+      return 'comment';
+    }
+    if (stream.match(/^"(?:[^"\\]|\\.)*"?/) || stream.match(/^'(?:[^'\\]|\\.)*'?/) || stream.match(/^`(?:[^`\\]|\\.)*`?/)) return 'string';
+    if (stream.match(/^\d[\d_]*(?:\.\d+)?/)) return 'number';
+    if (stream.match(/^[A-Za-z_$][\w$]*/)) return JS_KEYWORDS.has(stream.current()) ? 'keyword' : null;
+    stream.next();
+    return null;
+  },
+});
+
+const LANGUAGES: Record<CodeLanguage, Extension> = { json: json(), xml: xml(), yaml: YAML, javascript: JAVASCRIPT, text: [] };
 /** Raccourcis globaux de l'application (⌘↵ envoie) que l'éditeur ne doit pas capturer. */
 const APP_SHORTCUTS = new Set(['Mod-Enter']);
 const external = Annotation.define<boolean>();

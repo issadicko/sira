@@ -4,6 +4,7 @@ import { api } from '../core/api';
 import { switchBody, withFile } from '../core/body';
 import { Assertion, Auth, Body, KeyValue, MultipartField, Param } from '../core/model';
 import { relativeToRoot } from '../core/paths';
+import { SCRIPT_KINDS, scriptCode, withScript } from '../core/scripts';
 import { Workspace } from '../core/store';
 import { prettyJson } from '../core/highlight';
 import { CodeEditor } from './code-editor';
@@ -194,13 +195,15 @@ const OUTSIDE_COLLECTION =
         }
         @case ('scripts') {
           <div class="pane-body">
-            @for (s of tab.doc.scripts; track $index) {
-              <section class="sec">
-                <div class="sec-head"><span class="sec-title">{{ scriptLabel(s.kind) }}</span></div>
-                <pre class="code boxed script">{{ s.code }}</pre>
-              </section>
+            @for (path of [tab.path]; track path) {
+              @for (k of scriptKinds; track k.kind) {
+                <section class="sec">
+                  <div class="sec-head wrap"><span class="sec-title">{{ k.label }}</span><span class="sec-meta">{{ k.hint }}</span></div>
+                  <app-code-editor class="script-edit" [value]="code(k.kind)" language="javascript" [label]="k.label" (valueChange)="setScript(k.kind, $event)" />
+                </section>
+              }
             }
-            <div class="note"><app-ic name="shield" [size]="14" /><span>Les scripts sont conservés dans le fichier. Leur exécution (sandbox QuickJS, API bru / req / res) arrive en V1.</span></div>
+            <div class="note"><app-ic name="shield" [size]="14" /><span>Les scripts tournent dans un sandbox sans accès au disque ni au réseau, avec l'API de Bruno (<span class="mono">bru</span>, <span class="mono">req</span>, <span class="mono">res</span>). Ceux de la collection et des dossiers s'exécutent aussi : avant celui-ci à l'aller, après lui au retour.</span></div>
           </div>
         }
         @case ('docs') {
@@ -225,7 +228,10 @@ const OUTSIDE_COLLECTION =
     .op option { background: var(--pop); }
     .row-x { opacity: 0; margin-left: auto; }
     .kv-row:hover .row-x { opacity: 1; }
-    .script { margin: 0; padding: 10px 12px; white-space: pre-wrap; }
+    .sec-head.wrap { flex-wrap: wrap; row-gap: 2px; }
+    .sec-head.wrap .sec-title { white-space: nowrap; }
+    .script-edit { display: block; height: 180px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); overflow: hidden; }
+    .script-edit:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
   `,
 })
 export class RequestPane {
@@ -234,6 +240,7 @@ export class RequestPane {
   protected readonly bodyTypes = BODY_TYPES;
   protected readonly authTypes = AUTH_TYPES;
   protected readonly operators = OPERATORS;
+  protected readonly scriptKinds = SCRIPT_KINDS;
   protected readonly lockAll = () => true;
 
   protected readonly query = computed(() => this.ws.active()?.doc.params.filter((p) => p.kind === 'query') ?? []);
@@ -353,7 +360,11 @@ export class RequestPane {
     this.ws.edit((d) => ({ ...d, docs: docs || null }));
   }
 
-  protected scriptLabel(kind: string) {
-    return { 'before-request': 'Avant la requête', 'after-response': 'Après la réponse', tests: 'Tests' }[kind] ?? kind;
+  protected code(kind: string) {
+    return scriptCode(this.ws.active()?.doc.scripts ?? [], kind);
+  }
+
+  protected setScript(kind: string, code: string) {
+    this.ws.edit((d) => ({ ...d, scripts: withScript(d.scripts, kind, code) }));
   }
 }

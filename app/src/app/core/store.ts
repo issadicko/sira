@@ -3,7 +3,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { api } from './api';
 import { withCurl } from './curl';
 import { affectedTabs, describeDiskChange, mergeChanges, touchesEnvironments, verdictFor } from './disk-sync';
-import { CollectionInfo, DiskChange, EnvVar, RequestDoc, SendResult, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, DiskChange, EnvVar, RequestDoc, ScriptsReport, Sent, TreeItem, VariableInfo } from './model';
 import { closeUnder, isUnder, missingPaths, remapPath, remapPaths, remapSet } from './tree-ops';
 import { withParams, withUrl } from './url';
 
@@ -14,7 +14,10 @@ export interface Tab {
   /** Le fichier tel que Rust l'a lu la dernière fois (ouverture, enregistrement, relecture) : ce à quoi on compare le disque. */
   base: string;
   preview: boolean;
-  result?: SendResult;
+  result?: Sent;
+  /** Ce que les scripts ont produit au dernier envoi, même quand la requête n'a pas abouti. */
+  report?: ScriptsReport;
+  skipped?: boolean;
   error?: string;
   sendingId?: string;
   sentAt?: number;
@@ -655,14 +658,20 @@ export class Workspace {
     const where = () => this.tabs().find((t) => t.sendingId === id)?.path ?? tab.path;
     this.patchTab(tab.path, { sendingId: id, error: undefined });
     try {
-      const result = await api.send(id, c.root, tab.path, tab.doc, this.env());
+      const run = await api.send(id, c.root, tab.path, tab.doc, this.env());
       const path = where();
-      this.patchTab(path, { result, sendingId: undefined, sentAt: Date.now() });
-      if (this.collection()?.root === c.root) {
-        this.history.update((h) => [
-          { path, method: result.method, url: result.url, status: result.response.status, at: time() },
-          ...h,
-        ].slice(0, 30));
+      const { response, scripts: report, skipped } = run;
+      const failure = skipped ? "Requête ignorée par un script (bru.runner.skipRequest())." : run.error?.message;
+      this.patchTab(path, {
+        result: response ? (run as Sent) : undefined,
+        report,
+        skipped,
+        error: response ? undefined : (failure ?? 'La requête a échoué'),
+        sendingId: undefined,
+        sentAt: Date.now(),
+      });
+      if (response && this.collection()?.root === c.root) {
+        this.history.update((h) => [{ path, method: run.method, url: run.url, status: response.status, at: time() }, ...h].slice(0, 30));
       }
     } catch (e) {
       const elapsed = Math.round(performance.now() - started);
@@ -670,6 +679,8 @@ export class Workspace {
       this.patchTab(where(), {
         sendingId: undefined,
         result: undefined,
+        report: undefined,
+        skipped: undefined,
         error: message === 'Requête annulée' ? `Requête annulée après ${elapsed} ms. Rien n'a été enregistré.` : message,
       });
     }

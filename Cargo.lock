@@ -5017,6 +5017,7 @@ dependencies = [
  "trash",
  "xc-core",
  "xc-engine",
+ "xc-runner",
  "xc-sync",
  "xc-watch",
 ]

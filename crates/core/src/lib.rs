@@ -10,8 +10,8 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 pub use collection::{
-    list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request, restyle,
-    save_environment, save_request, set_default_environment, CollectionInfo, EnvVar, TreeItem,
+    collection_name, list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request,
+    restyle, save_environment, save_request, set_default_environment, CollectionInfo, EnvVar, TreeItem,
 };
 pub use prepare::{merged_headers, prepare, prepare_with, Overrides, Prepared};
 pub use request::{Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, RequestDoc};

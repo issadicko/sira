@@ -2,6 +2,7 @@ import type { Api } from './api';
 import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments } from './demo-env';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
+import { emptyReport } from './scripts';
 import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
@@ -233,6 +234,8 @@ export const demoApi: Api = {
           url,
           unresolved,
           assertions: d.assertions.filter((a) => a.enabled).map((a) => ({ expression: a.expression, operator: a.operator, expected: a.value, actual: '200', passed: a.expression === 'res.status' || a.value === 'XOF' })),
+          scripts: emptyReport(),
+          skipped: false,
           response: {
             status: 200,
             reason: 'OK',

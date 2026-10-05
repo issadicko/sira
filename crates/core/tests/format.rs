@@ -314,3 +314,43 @@ fn ef_req_02_a_body_or_auth_of_the_same_type_keeps_its_unknown_keys_and_another_
     let written = saved(|doc| doc.auth = Auth::Bearer { token: "abc".into() });
     assert!(written.contains("x-auth: keep auth"), "inchangée : {written}");
 }
+
+#[test]
+fn ef_scr_01_editing_one_script_changes_only_its_code_and_keeps_the_others() {
+    let original = fixture("request-full.yml");
+    let mut t = tree(&original);
+    let previous = RequestDoc::from_tree(&t);
+    assert_eq!(previous.scripts.len(), 3);
+
+    let mut doc = previous.clone();
+    doc.scripts[0].code = "bru.setVar(\"ts\", 1);".into();
+    doc.apply(&mut t, &previous);
+    assert_eq!(
+        yaml::emit(&Value::Map(t), BLANK_BEFORE),
+        original.replace("bru.setVar(\"ts\", Date.now());", "bru.setVar(\"ts\", 1);")
+    );
+}
+
+#[test]
+fn ef_scr_01_a_new_script_is_added_in_order_and_an_emptied_one_is_dropped() {
+    let original = fixture("request-minimal.yml");
+    let mut t = tree(&original);
+    let previous = RequestDoc::from_tree(&t);
+    assert!(previous.scripts.is_empty());
+
+    let mut doc = previous.clone();
+    doc.scripts.push(xc_core::request::Script {
+        kind: "tests".into(),
+        code: "test('a', () => {});\ntest('b', () => {});".into(),
+    });
+    doc.apply(&mut t, &previous);
+    let written = yaml::emit(&Value::Map(t), BLANK_BEFORE);
+    assert!(written.contains("runtime:\n  scripts:\n    - type: tests\n      code: |-\n        test('a', () => {});\n        test('b', () => {});"), "{written}");
+
+    let mut again = tree(&written);
+    let before = RequestDoc::from_tree(&again);
+    let mut emptied = before.clone();
+    emptied.scripts[0].code = "  \n".into();
+    emptied.apply(&mut again, &before);
+    assert_eq!(yaml::emit(&Value::Map(again), BLANK_BEFORE), original);
+}

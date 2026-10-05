@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -6,7 +5,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use xc_core::assert::{evaluate, AssertionResult, ResponseView};
-use xc_core::vars::{dynamic_value, Context, Scope, ScopeOverrides};
+use xc_core::vars::{dynamic_value, Context, Scope};
 use xc_core::{prepare_with, Overrides, RequestDoc};
 use xc_engine::HttpResponse;
 use xc_script::{Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
@@ -108,23 +107,8 @@ pub struct Request<'a> {
     pub cancel: Arc<AtomicBool>,
 }
 
-fn text(value: &Value) -> String {
-    match value {
-        Value::String(s) => s.clone(),
-        other => other.to_string(),
-    }
-}
-
-fn strings(map: &Map<String, Value>) -> HashMap<String, String> {
-    map.iter().map(|(k, v)| (k.clone(), text(v))).collect()
-}
-
 fn typed(pairs: Vec<(String, String)>) -> Map<String, Value> {
     pairs.into_iter().map(|(k, v)| (k, Value::String(v))).collect()
-}
-
-fn pairs(map: &Map<String, Value>) -> Vec<(String, String)> {
-    map.iter().map(|(k, v)| (k.clone(), text(v))).collect()
 }
 
 /// Les variables que les scripts voient : celles des fichiers, recouvertes par ce que des scripts ont déjà écrit.
@@ -144,16 +128,6 @@ fn vars_for(scope: &Scope, session: &Session, env: Option<&str>) -> Vars {
         request: typed(scope.vars_of("Requête")),
         oauth2: Map::new(),
         process_env,
-    }
-}
-
-fn overrides_of(session: &Session, env: Option<&str>) -> ScopeOverrides {
-    ScopeOverrides {
-        global: pairs(&session.global),
-        collection: session.collection.as_ref().map(pairs),
-        env: session
-            .env_for(env)
-            .map(|vars| pairs(vars).into_iter().filter(|(k, _)| k != xc_script::ENV_NAME).collect()),
     }
 }
 
@@ -243,7 +217,7 @@ pub async fn run_request(req: Request<'_>, session: &mut Session) -> Outcome {
         Ok(ctx) => ctx,
         Err(e) => return out.fail(Stage::Prepare, e),
     };
-    let scope = match Scope::build(req.root, &ctx, req.path, req.doc, req.env, &strings(&session.runtime)) {
+    let scope = match Scope::build(req.root, &ctx, req.path, req.doc, req.env, &session.runtime_strings()) {
         Ok(scope) => scope,
         Err(e) => return out.fail(Stage::Prepare, e),
     };
@@ -266,8 +240,8 @@ pub async fn run_request(req: Request<'_>, session: &mut Session) -> Outcome {
     }
 
     let (doc, headers) = apply_request(req.doc, &before, &pre.request);
-    let overrides = Overrides { headers, vars: overrides_of(session, req.env) };
-    let prepared = match prepare_with(req.root, req.path, &doc, req.env, &strings(&session.runtime), overrides) {
+    let overrides = Overrides { headers, vars: session.overrides(req.env) };
+    let prepared = match prepare_with(req.root, req.path, &doc, req.env, &session.runtime_strings(), overrides) {
         Ok(prepared) => prepared,
         Err(e) => return out.fail(Stage::Prepare, e),
     };
