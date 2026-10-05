@@ -2,7 +2,7 @@
 
 Client API compatible avec les collections Bruno (OpenCollection YAML) : un dossier, un fichier par requête, versionné avec Git, sans compte ni cloud. Moteur en Rust, fenêtre Tauri 2, interface Angular.
 
-État : **MVP complet** (α boucle requête, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies, δ gestion de collection). Voir `docs/docs/roadmap.md`.
+État : **MVP complet** (α boucle requête et rechargement à chaud, β imports cURL et OpenAPI, palette, CodeMirror, γ synchro OpenAPI à 3 voies, δ gestion de collection). Voir `docs/docs/roadmap.md`.
 
 ## Structure
 
@@ -11,6 +11,7 @@ Client API compatible avec les collections Bruno (OpenCollection YAML) : un doss
 | `crates/engine` | Envoi HTTP/1.1 et HTTPS (hyper + rustls), timings DNS / TCP / TLS / TTFB / téléchargement, annulation |
 | `crates/core` | Lecture et écriture OpenCollection YAML à l'identique de Bruno, résolution des variables, héritage auth et en-têtes, assertions |
 | `crates/sync` | Imports à l'identique de Bruno (cURL, OpenAPI 3.0 / 3.1 / Swagger 2.0, sérialiseur OpenCollection YAML) et synchro OpenAPI à 3 voies non destructive (`.oc-sync/`) |
+| `crates/watch` | Surveillance du dossier de la collection (`notify`) : changements du disque regroupés en lots de chemins relatifs |
 | `crates/cli` | Binaire `xc` : `run`, `check`, `import` et `sync` |
 | `app/` | Interface Angular 21 zoneless (signals) ; `app/src-tauri` : commandes Tauri |
 | `examples/demo` | Collection de démonstration (httpbin.org) |
@@ -94,6 +95,16 @@ C'est un raccourci pour `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --t
 - **Arbre** : bouton `+` (à la racine), menu contextuel (clic droit, touche Menu, Maj+F10), renommage et création sur place, dupliquer, supprimer **vers la corbeille du système** après confirmation, « Déplacer vers… ».
 - **Glisser-déposer** avant, après ou dans un dossier ; ⌥↑ / ⌥↓ pour réordonner. Seule la ligne `info.seq` (ou `info.name`) des fichiers concernés change.
 - Un fichier n'est jamais écrasé ni écrit à travers un lien symbolique ; un renommage ou un déplacement met à jour `.oc-sync/openapi/source.yml` pour que la synchro suive la requête.
+
+## Rechargement à chaud
+
+Un `git pull`, un `git checkout` ou un éditeur externe qui modifie la collection est pris en compte sans rien cliquer : l'arbre, les environnements et les variables sont relus au bout d'une fraction de seconde.
+
+- Un onglet **sans brouillon** adopte le fichier modifié ; un message le dit.
+- Un onglet **avec brouillon** garde ton brouillon et passe à « Modifié sur le disque » (point bleu, bouton **Recharger**). L'enregistrer demande confirmation, parce qu'il remplacerait le changement du disque ; **Recharger** le remplace, après confirmation, par le fichier.
+- Un fichier supprimé ferme son onglet propre ; un onglet avec brouillon reste ouvert, barré, pour ne pas perdre le travail.
+- `.git/`, `.oc-sync/`, `node_modules/` et les fichiers temporaires d'éditeur sont ignorés. Si le système ne peut plus surveiller le dossier, un message l'indique et « Relire le dossier » (↻) reste disponible.
+- L'enregistrement relit le fichier avant d'écrire : un changement que la surveillance aurait manqué demande la même confirmation. Au retour de la fenêtre au premier plan, les onglets ouverts sont relus.
 
 ## Importer
 

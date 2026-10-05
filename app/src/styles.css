@@ -478,6 +478,8 @@ input, textarea { caret-color: var(--accent); }
 .crumbs b { font-weight: 500; color: var(--ink); }
 .crumbs-state { margin-left: auto; font: calc(11.5 * var(--px)) var(--font-ui); color: var(--faint); display: flex; align-items: center; gap: 6px; }
 .crumbs-state.dirty { color: var(--muted); }
+.crumbs-state.stale { color: var(--info); }
+.tab.is-stale .tab-x .dirty { background: var(--info); }
 
 /* ---------- url bar ---------- */
 

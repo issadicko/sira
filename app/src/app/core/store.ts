@@ -2,7 +2,8 @@ import { Injectable, computed, signal } from '@angular/core';
 
 import { api } from './api';
 import { withCurl } from './curl';
-import { CollectionInfo, EnvVar, RequestDoc, SendResult, TreeItem, VariableInfo } from './model';
+import { affectedTabs, describeDiskChange, mergeChanges, touchesEnvironments, verdictFor } from './disk-sync';
+import { CollectionInfo, DiskChange, EnvVar, RequestDoc, SendResult, TreeItem, VariableInfo } from './model';
 import { closeUnder, isUnder, missingPaths, remapPath, remapPaths, remapSet } from './tree-ops';
 import { withParams, withUrl } from './url';
 
@@ -10,6 +11,8 @@ export interface Tab {
   path: string;
   doc: RequestDoc;
   saved: string;
+  /** Le fichier tel que Rust l'a lu la dernière fois (ouverture, enregistrement, relecture) : ce à quoi on compare le disque. */
+  base: string;
   preview: boolean;
   result?: SendResult;
   error?: string;
@@ -17,6 +20,14 @@ export interface Tab {
   sentAt?: number;
   /** Le fichier n'existe plus sur le disque : l'onglet reste ouvert pour ne pas perdre le brouillon. */
   missing?: boolean;
+  /** Le fichier a changé sur le disque alors que l'onglet a un brouillon : l'enregistrer écraserait ce changement. */
+  stale?: boolean;
+}
+
+/** Résultat de la relecture d'onglets : relus sans brouillon, ou périmés parce qu'un brouillon s'y oppose. */
+export interface TabRefresh {
+  reloaded: number;
+  stale: string[];
 }
 
 export interface HistoryEntry {
@@ -28,6 +39,7 @@ export interface HistoryEntry {
 }
 
 export interface Discard {
+  heading?: string;
   message: string;
   action: string;
   resolve: (accepted: boolean) => void;
@@ -106,6 +118,47 @@ export class Workspace {
   private varsSeq = 0;
   private requested = '';
   private viewBeforeSettings: View = 'collections';
+  private writes = 0;
+  private writeSeq = 0;
+  private diskPending: DiskChange | null = null;
+  private diskRunning = false;
+  private lastRearm = 0;
+  private lastRescan = 0;
+
+  constructor() {
+    void api.onDiskChange((change) => {
+      if (change.truncated) this.rearm(change.root);
+      void this.onDiskChange(change);
+    });
+  }
+
+  /** Exécute une écriture dans la collection : la relecture déclenchée par le disque l'attend et ignore ce qu'elle a lu pendant ce temps. */
+  async writing<T>(action: () => Promise<T>): Promise<T> {
+    this.writes++;
+    this.writeSeq++;
+    try {
+      return await action();
+    } finally {
+      this.writes--;
+      this.writeSeq++;
+    }
+  }
+
+  /** Relance la surveillance : un lot tronqué peut signaler qu'elle est morte (dossier renommé ou recréé), au plus une fois par 5 s. */
+  private rearm(root: string) {
+    if (this.collection()?.root !== root || Date.now() - this.lastRearm < 5000) return;
+    this.lastRearm = Date.now();
+    api.watchCollection(root).catch(() => undefined);
+  }
+
+  /** Relit tout depuis le disque, au retour dans la fenêtre : filet de sécurité si des événements ont été perdus. Au plus une fois par 3 s. */
+  async rescan() {
+    const c = this.collection();
+    if (!c || this.loading() || Date.now() - this.lastRescan < 3000) return;
+    this.lastRescan = Date.now();
+    this.rearm(c.root);
+    await this.onDiskChange({ root: c.root, paths: [], truncated: true });
+  }
 
   isDirty(tab: Tab): boolean {
     return JSON.stringify(tab.doc) !== tab.saved;
@@ -143,9 +196,9 @@ export class Workspace {
   }
 
   /** Demande de confirmer la perte des modifications non enregistrées ; `answerDiscard` répond. */
-  private confirmDiscard(message: string, action: string): Promise<boolean> {
+  private confirmDiscard(message: string, action: string, heading?: string): Promise<boolean> {
     this.discard()?.resolve(false);
-    return new Promise((resolve) => this.discard.set({ message, action, resolve }));
+    return new Promise((resolve) => this.discard.set({ heading, message, action, resolve }));
   }
 
   answerDiscard(accepted: boolean) {
@@ -220,10 +273,12 @@ export class Workspace {
       this.filter.set('');
       this.vars.set([]);
       this.openFolders.set(new Set(c.items.filter((i) => i.kind === 'folder').map((i) => i.path)));
-      this.env.set(c.defaultEnvironment && c.environments.includes(c.defaultEnvironment) ? c.defaultEnvironment : c.environments[0] ?? null);
+      this.diskPending = null;
+      this.env.set(initialEnv(c));
       const recent = [root, ...this.recent().filter((r) => r !== root)].slice(0, 6);
       this.recent.set(recent);
       persist(RECENT_KEY, recent);
+      api.watchCollection(root).catch((e) => this.notify(`Rechargement à chaud indisponible : ${e}. « Relire le dossier » reste disponible.`, true));
       await this.loadEnv();
       const first = firstRequest(c.items);
       if (first) await this.openRequest(first, true);
@@ -247,22 +302,97 @@ export class Workspace {
     }
   }
 
-  /** Relit depuis le disque les onglets des fichiers donnés ; renvoie le nombre d'onglets modifiés, laissés tels quels. */
-  async refreshTabs(paths: string[]): Promise<number> {
+  /**
+   * Relit depuis le disque les onglets des fichiers donnés. Un onglet sans brouillon adopte le fichier ; un onglet avec brouillon est
+   * marqué périmé si le fichier a changé, et redevient normal si le fichier a retrouvé la version enregistrée.
+   */
+  async refreshTabs(paths: string[]): Promise<TabRefresh> {
+    const outcome: TabRefresh = { reloaded: 0, stale: [] };
     const c = this.collection();
-    if (!c) return 0;
-    const open = this.tabs().filter((t) => paths.includes(t.path));
-    const clean = open.filter((t) => !this.isDirty(t));
+    if (!c) return outcome;
+    const open = this.tabs().filter((t) => paths.includes(t.path) && !t.missing);
     await Promise.all(
-      clean.map(async (t) => {
-        const doc = await api.readRequest(c.root, t.path).catch(() => null);
-        if (doc && this.collection()?.root === c.root && !this.isDirty(this.tabs().find((x) => x.path === t.path) ?? t)) {
-          this.patchTab(t.path, { doc, saved: JSON.stringify(doc) });
+      open.map(async (t) => {
+        const seq = this.writeSeq;
+        const disk = await api.readRequest(c.root, t.path).catch(() => null);
+        const now = this.tabs().find((x) => x.path === t.path);
+        if (!disk || !now || this.collection()?.root !== c.root || this.writeSeq !== seq) return;
+        const text = JSON.stringify(disk);
+        switch (verdictFor(now.base, now.saved, JSON.stringify(now.doc), text)) {
+          case 'adopt':
+            this.patchTab(t.path, { doc: disk, saved: text, base: text, stale: false });
+            outcome.reloaded++;
+            break;
+          case 'stale':
+            this.patchTab(t.path, { stale: true });
+            if (!now.stale) outcome.stale.push(now.doc.name || now.path);
+            break;
+          case 'unchanged':
+            if (now.stale) this.patchTab(t.path, { stale: false });
+            break;
         }
       }),
     );
     this.refreshVars();
-    return open.length - clean.length;
+    return outcome;
+  }
+
+  /** Traite les changements du disque (pull Git, éditeur externe) : une seule relecture à la fois, les lots reçus entre-temps sont réunis. */
+  async onDiskChange(change: DiskChange) {
+    this.diskPending = mergeChanges(this.diskPending, change);
+    if (this.diskRunning) return;
+    this.diskRunning = true;
+    try {
+      for (let next: DiskChange | null = this.diskPending; next; next = this.diskPending) {
+        this.diskPending = null;
+        await this.applyDiskChange(next);
+      }
+    } finally {
+      this.diskRunning = false;
+    }
+  }
+
+  private async applyDiskChange(change: DiskChange) {
+    await this.settled();
+    const c = this.collection();
+    if (!c || c.root !== change.root || this.loading()) return;
+    await this.reload();
+    const fresh = this.collection();
+    if (!fresh || fresh.root !== change.root) return;
+    const before = this.tabs();
+    this.reconcileTabs();
+    const closed = before.filter((t) => !this.tabs().some((x) => x.path === t.path)).map((t) => t.doc.name || t.path);
+    const refreshed = await this.refreshTabs(affectedTabs(change, this.tabs().map((t) => t.path)));
+    const env = this.env();
+    if (env && !fresh.environments.includes(env)) this.env.set(initialEnv(fresh));
+    if (touchesEnvironments(change)) await this.loadEnv();
+    else this.refreshVars();
+    const told = describeDiskChange({ closed, reloaded: refreshed.reloaded, stale: refreshed.stale });
+    if (told) this.notify(told);
+  }
+
+  /** Laisse finir une écriture en cours (enregistrement, commande de collection) avant de relire : la relecture la croiserait. */
+  private async settled() {
+    for (let waited = 0; (this.busy() || this.writes > 0) && waited < 5000; waited += 50) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
+  /** Remplace le contenu de l'onglet par le fichier du disque, après confirmation s'il y a un brouillon à perdre. */
+  async reloadFromDisk(path: string) {
+    const c = this.collection();
+    const tab = this.tabs().find((t) => t.path === path);
+    if (!c || !tab) return;
+    const lost = `Ton brouillon de « ${tab.doc.name || tab.path} » sera remplacé par le fichier tel qu'il est sur le disque.`;
+    if (this.isDirty(tab) && !(await this.confirmDiscard(lost, 'Recharger depuis le disque', 'Recharger depuis le disque'))) return;
+    try {
+      const doc = await api.readRequest(c.root, path);
+      const text = JSON.stringify(doc);
+      this.patchTab(path, { doc, saved: text, base: text, stale: false, missing: false });
+      this.refreshVars();
+    } catch (e) {
+      this.notify(String(e), true);
+    }
   }
 
   async loadEnv() {
@@ -332,7 +462,16 @@ export class Workspace {
         if (!fresh || this.collection()?.root !== c.root) return;
         const header = { name: fresh.name, seq: fresh.seq };
         this.tabs.update((tabs) =>
-          tabs.map((t) => (t.path === path ? { ...t, doc: { ...t.doc, ...header }, saved: JSON.stringify({ ...JSON.parse(t.saved), ...header }) } : t)),
+          tabs.map((t) =>
+            t.path === path
+              ? {
+                  ...t,
+                  doc: { ...t.doc, ...header },
+                  saved: JSON.stringify({ ...JSON.parse(t.saved), ...header }),
+                  base: JSON.stringify({ ...JSON.parse(t.base), ...header }),
+                }
+              : t,
+          ),
         );
       }),
     );
@@ -354,7 +493,8 @@ export class Workspace {
       try {
         const doc = await api.readRequest(c.root, path);
         if (this.requested !== path) return;
-        const tab: Tab = { path, doc, saved: JSON.stringify(doc), preview: !pin };
+        const text = JSON.stringify(doc);
+        const tab: Tab = { path, doc, saved: text, base: text, preview: !pin };
         this.tabs.update((tabs) => {
           if (tabs.some((t) => t.path === path)) return tabs;
           const preview = tabs.findIndex((t) => t.preview && !this.isDirty(t));
@@ -446,16 +586,32 @@ export class Workspace {
       this.notify(`Rien à enregistrer dans ${tab.path}`);
       return;
     }
-    try {
-      const before: RequestDoc = JSON.parse(tab.saved);
-      const listed = before.name !== tab.doc.name || before.method !== tab.doc.method || before.url !== tab.doc.url;
-      await api.saveRequest(c.root, tab.path, tab.doc);
-      this.patchTab(tab.path, { saved: JSON.stringify(tab.doc) });
-      this.notify(`Enregistré dans ${tab.path}`);
-      if (listed) await this.reload();
-    } catch (e) {
-      this.notify(`Échec de l'enregistrement : ${e}`, true);
-    }
+    const path = tab.path;
+    const onDisk = await api.readRequest(c.root, path).then(
+      (doc) => JSON.stringify(doc),
+      () => null,
+    );
+    const asked = this.tabs().find((t) => t.path === path);
+    if (!asked) return;
+    const outside = asked.stale || (onDisk !== null && onDisk !== asked.base && onDisk !== JSON.stringify(asked.doc));
+    const overwrite = `« ${asked.doc.name || path} » a changé sur le disque depuis que tu l'as ouvert. L'enregistrer remplace ces changements par ton brouillon.`;
+    if (outside && !(await this.confirmDiscard(overwrite, 'Écraser le fichier', 'Fichier modifié sur le disque'))) return;
+    await this.writing(async () => {
+      const current = this.tabs().find((t) => t.path === path);
+      if (!current) return;
+      try {
+        const before: RequestDoc = JSON.parse(current.saved);
+        const listed = before.name !== current.doc.name || before.method !== current.doc.method || before.url !== current.doc.url;
+        await api.saveRequest(c.root, path, current.doc);
+        const written = await api.readRequest(c.root, path).catch(() => null);
+        const saved = JSON.stringify(current.doc);
+        this.patchTab(path, { saved, base: written ? JSON.stringify(written) : saved, stale: false });
+        this.notify(`Enregistré dans ${path}`);
+        if (listed) await this.reload();
+      } catch (e) {
+        this.notify(`Échec de l'enregistrement : ${e}`, true);
+      }
+    });
   }
 
   async send() {
@@ -504,6 +660,10 @@ export class Workspace {
       if (seq === this.varsSeq) this.vars.set(vars);
     }, 120);
   }
+}
+
+function initialEnv(c: CollectionInfo): string | null {
+  return c.defaultEnvironment && c.environments.includes(c.defaultEnvironment) ? c.defaultEnvironment : c.environments[0] ?? null;
 }
 
 function firstRequest(items: TreeItem[]): string | null {

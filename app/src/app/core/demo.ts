@@ -193,6 +193,8 @@ export const demoApi: Api = {
   pickSpecFile: async () => '~/démo/petstore.yaml',
   pickFile: async () => `${ROOT}/pieces/recu-0043.pdf`,
   openCollection: async (root) => structuredClone(collectionAt(collections, root).info),
+  watchCollection: async () => undefined,
+  onDiskChange: async () => () => undefined,
   readRequest: async (root, path) => {
     const doc = collectionAt(collections, root).files[path];
     if (!doc) throw `Fichier introuvable : ${path}`;

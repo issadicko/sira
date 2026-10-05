@@ -12,7 +12,7 @@ Tu reprends un projet cadré dont le MVP (α, β, γ et δ : synchro OpenAPI à 
 ## Décisions déjà prises (ne pas rediscuter sans validation)
 
 - Nom du produit : **Sira** (« le chemin » en dioula et en bambara). Licence : MIT ou Apache-2.0, au choix. Dépôt public : `github.com/issadicko/sira`.
-- Stack : Rust (workspace Cargo `core`, `engine`, `script`, `sync`, `cli`, `app`) + Tauri 2. Front Angular zoneless avec signals, CodeMirror 6.
+- Stack : Rust (workspace Cargo `core`, `engine`, `script`, `sync`, `watch`, `cli`, `app`) + Tauri 2. Front Angular zoneless avec signals, CodeMirror 6.
 - Format natif : **OpenCollection YAML**, strictement conforme à la spec publique de Bruno. Aucun champ propriétaire dans les fichiers de requête. Nos métadonnées vont dans `.oc-sync/`.
 - Scripts : QuickJS via `rquickjs`, API compatible Bruno (`bru`, `req`, `res`).
 - Synchro OpenAPI : fusion à 3 voies (base / ours / theirs), jamais d'écrasement silencieux, conflits arbitrés par l'utilisateur.

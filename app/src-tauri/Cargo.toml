@@ -23,6 +23,7 @@ trash = "5"
 xc-core.workspace = true
 xc-engine.workspace = true
 xc-sync.workspace = true
+xc-watch.workspace = true
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }

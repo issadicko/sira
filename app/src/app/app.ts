@@ -201,6 +201,11 @@ export class App {
     if (this.envMenu() && !(e.target as HTMLElement).closest('.env-wrap')) this.envMenu.set(false);
   }
 
+  @HostListener('window:focus')
+  protected onFocus() {
+    void this.ws.rescan();
+  }
+
   /** Dans la fenêtre native, le menu contextuel de la webview n'apparaît que sur les champs de saisie. */
   @HostListener('document:contextmenu', ['$event'])
   protected onContextMenu(e: MouseEvent) {

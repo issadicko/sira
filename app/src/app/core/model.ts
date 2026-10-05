@@ -74,6 +74,13 @@ export interface CollectionInfo {
   requestCount: number;
 }
 
+/** Lot de changements du disque dans la collection `root` ; `truncated` : tout a pu changer, il faut tout relire. */
+export interface DiskChange {
+  root: string;
+  paths: string[];
+  truncated: boolean;
+}
+
 export interface EnvVar {
   name: string;
   value?: string | null;

@@ -11,7 +11,8 @@ use xc_core::request::BLANK_BEFORE;
 use xc_core::vars::{Context, Scope};
 use xc_core::yaml::Value;
 use xc_core::{
-    mark_deprecated, normalize, open_collection, prepare, read_request, save_request, Assertion, CoreError, TreeItem,
+    mark_deprecated, normalize, open_collection, prepare, read_request, save_request, Assertion, CoreError, KeyValue,
+    Param, ParamKind, TreeItem,
 };
 
 fn write(root: &Path, rel: &str, text: &str) {
@@ -701,4 +702,37 @@ fn ef_col_01_yaml_files_that_are_not_requests_are_shown_in_error_and_never_saved
     assert!(matches!(save_request(root, "transactions/petstore.yml", &doc), Err(CoreError::NotARequest { .. })));
     assert!(matches!(save_request(root, "transactions/script.yml", &doc), Err(CoreError::NotARequest { .. })));
     assert_eq!(fs::read_to_string(root.join("transactions/petstore.yml")).unwrap(), spec);
+}
+
+#[test]
+fn ef_col_03_a_saved_request_reads_back_identical_so_a_save_never_looks_like_an_outside_change() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    for name in ["minimal", "full", "form", "multipart", "multipart-empty", "text", "quoting"] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(root, "opencollection.yml", &fs::read_to_string(fixtures.join("opencollection-min.yml")).unwrap());
+        write(root, "r.yml", &fs::read_to_string(fixtures.join(format!("request-{name}.yml"))).unwrap());
+
+        let original = read_request(root, "r.yml").unwrap();
+        save_request(root, "r.yml", &original).unwrap();
+        assert_eq!(read_request(root, "r.yml").unwrap(), original, "{name} : enregistrement sans changement");
+
+        let mut edited = original.clone();
+        edited.url = format!("{}/modifie?a=1", edited.url);
+        edited.method = if edited.method == "GET" { "POST".into() } else { "GET".into() };
+        edited.params.push(Param {
+            name: "a".into(),
+            value: "1".into(),
+            kind: ParamKind::Query,
+            enabled: true,
+            description: None,
+        });
+        edited.headers.push(KeyValue { name: "X-Edite".into(), value: "oui".into(), enabled: true, description: None });
+        if let Some(first) = edited.headers.first_mut() {
+            first.enabled = !first.enabled;
+        }
+        edited.docs = Some("Notes\n\nsur deux lignes".into());
+        save_request(root, "r.yml", &edited).unwrap();
+        assert_eq!(read_request(root, "r.yml").unwrap(), edited, "{name} : après modification");
+    }
 }

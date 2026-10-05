@@ -73,6 +73,11 @@
                   "maximumError": "16kB"
                 }
               ],
+              "optimization": {
+                "scripts": true,
+                "styles": { "minify": true, "inlineCritical": false },
+                "fonts": { "inline": true }
+              },
               "outputHashing": "all"
             },
             "development": {

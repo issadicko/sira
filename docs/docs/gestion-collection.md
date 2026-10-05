@@ -239,3 +239,44 @@ Chaque commande relit ensuite l'arbre côté interface (`ws.reload()`).
 - **Onglets** : un onglet ouvert suit le renommage et le déplacement de son fichier (même onglet, même brouillon), et se ferme quand le fichier est supprimé.
 - **Palette** : Nouvelle collection…, Nouvelle requête, Nouveau dossier, Renommer, Dupliquer et Supprimer l'élément actif.
 - **Style** : le menu et les dialogues suivent DESIGN.md (surface flottante, rayon 9px, ombre unique) ; aucune couleur hors tokens.
+
+## 10. Changements extérieurs : rechargement à chaud (EF-COL-03)
+
+Un `git pull`, un `git checkout` ou un éditeur externe écrit dans la collection pendant qu'elle est ouverte. L'application le voit et se remet à jour sans que l'utilisateur ne fasse rien, sans jamais perdre un brouillon.
+
+**Surveillance (`crates/watch`).**
+
+- `watch_collection(root)` surveille le dossier de la collection, récursivement, et remplace la surveillance précédente. Elle est démarrée à chaque ouverture ; son échec (limite de fichiers surveillés du système, dossier illisible) est annoncé sans bloquer l'ouverture.
+- Les événements bruts sont regroupés en **lots** : un lot se clôt après 200 ms de silence, ou au bout de 2 s si les écritures ne s'arrêtent pas. Un lot est annoncé à l'interface par l'événement `collection-changed` : `{ root, paths, truncated }`, chemins relatifs séparés par `/`, triés, sans doublon.
+- Au-delà de 512 chemins, ou si le système perd des événements, ou si le dossier de la collection disparaît, le lot est `truncated` : tout a pu changer, l'interface relit tout.
+- Ne déclenchent rien : les lectures (accès), `.git/`, `.oc-sync/`, `node_modules/`, les fichiers temporaires (`*~`, `*.swp`, `*.tmp`, dont les `.xc-*.tmp` de notre écriture atomique, `.#*`, `.DS_Store`). Les chemins sont comparés au dossier canonique (liens symboliques de `/var` sous macOS, préfixe `\\?\` sous Windows). Les liens symboliques ne sont pas suivis.
+- Seuls réveillent l'interface : les fichiers `*.yml` / `*.yaml`, les `.env*`, et la création ou la suppression d'un dossier. Une modification de contenu ou de métadonnées d'un chemin sans extension (un dossier qui change de date à chaque écriture d'un fichier) est ignorée.
+- Aucune suppression d'écho pour nos propres écritures : relire un fichier qu'on vient d'écrire redonne exactement le même document (test `ef_col_03_a_saved_request_reads_back_identical…`). L'interface ne compare cependant jamais le disque à son propre document, mais à ce que Rust a lu (voir ci-dessous).
+
+**Interface (`Workspace.onDiskChange`).** Un seul traitement à la fois ; les lots reçus entre-temps sont réunis. Le traitement attend la fin d'un enregistrement ou d'une commande de collection en cours, puis :
+
+1. relit l'arbre (`reload`) et ferme les onglets propres dont le fichier a disparu ; ceux qui ont un brouillon restent, marqués « introuvable » ;
+2. relit les onglets dont le fichier a changé, ou situé sous un dossier annoncé (tous si le lot est tronqué), et décide, pour chacun, d'après quatre versions : `base` (le fichier tel que Rust l'a lu pour la dernière fois, à l'ouverture ou en relecture après un enregistrement), `saved` (le document de l'interface au dernier enregistrement), le brouillon, le disque. Le disque se compare à `base`, jamais à `saved` : le document de l'interface (valeurs `null`, ordre des clés) ne se sérialise pas comme celui de Rust, et la comparaison verrait un changement extérieur à chaque enregistrement :
+   - le disque égale `base` : rien (c'est notre écriture, ou le fichier est revenu à ce qu'on a) ; l'éventuel état « périmé » disparaît ;
+   - le disque diffère et le brouillon est identique à `saved` (rien d'écrit depuis l'enregistrement), ou identique au disque (un collègue a fait la même modification) : l'onglet **adopte** le disque ;
+   - le disque diffère et le brouillon diffère des deux : l'onglet est **périmé**, le brouillon est gardé ;
+3. relit les variables de l'environnement actif si `environments/` ou `.env` ont changé, et rend un environnement disparu à l'environnement par défaut ;
+4. dit en une phrase ce qui mérite d'être su (onglets relus, fermés ou périmés) ; rien si rien n'a changé pour l'utilisateur.
+
+**Onglet périmé.** Fil d'Ariane : « Modifié sur le disque » en `info` et bouton **Recharger** ; point de l'onglet en `info`. `⌘S` demande « Écraser le fichier » parce que `save_request` applique le document entier sur le fichier : sans cela, un champ que l'on n'a pas touché reprendrait sa valeur d'avant le changement du disque. **Recharger** remplace le brouillon par le fichier, après confirmation. La synchro OpenAPI applique la même règle : un onglet modifié dont le fichier est réécrit par la synchro devient périmé au lieu d'être écrasé à l'enregistrement.
+
+**Enregistrer, sans se fier à la seule surveillance.**
+
+- Avant d'écrire, `save()` relit le fichier et le compare à `base` : si la surveillance a manqué un changement (lot perdu, fenêtre en veille), la confirmation « Écraser le fichier » est demandée quand même.
+- Après l'écriture, le fichier est relu et devient la nouvelle `base`.
+- Un compteur d'écritures en cours et un numéro de séquence empêchent qu'une relecture lancée avant une écriture ne l'emporte sur elle ; le traitement d'un lot attend la fin des écritures.
+
+**Rattraper ce que la surveillance n'a pas vu.** Au retour de la fenêtre au premier plan (au plus toutes les 3 s), l'interface relit tous les onglets ouverts. Si un lot est `truncated`, la surveillance est ré-armée (au plus toutes les 5 s) avant la relecture.
+
+**Limites assumées.**
+
+- Pas de fusion à trois voies entre un brouillon et le disque : le choix est entre garder le brouillon et recharger (V2).
+- Les changements de `.oc-sync/` ne sont pas annoncés ; l'écran de synchro se relit à son ouverture.
+- Sous Linux, inotify pose une surveillance par dossier, y compris sous `.git/` et `node_modules/` que l'on ignore ensuite : une très grosse arborescence peut atteindre la limite du système (`ENOSPC`). Le message « le système a atteint sa limite de fichiers surveillés » est alors affiché, sans bloquer l'ouverture, et « Relire le dossier » (↻) reste disponible.
+- Les limites de `notify` s'appliquent : sous Windows, le tampon du système (16 Kio) peut déborder sans qu'une relecture complète soit signalée, d'où la relecture au retour de la fenêtre ; sous macOS, FSEvents peut perdre des événements en rafale, d'où les lots `truncated`.
+

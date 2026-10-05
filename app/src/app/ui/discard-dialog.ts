@@ -11,7 +11,7 @@ import { Dialog } from './dialog';
   host: { style: 'display: contents' },
   template: `
     @if (ws.discard(); as d) {
-      <app-dialog heading="Modifications non enregistrées" (closed)="answer(false)" (confirmed)="answer(true)">
+      <app-dialog [heading]="d.heading ?? 'Modifications non enregistrées'" (closed)="answer(false)" (confirmed)="answer(true)">
         <p class="discard-text">{{ d.message }}</p>
         <div dialog-foot class="foot-actions">
           <button class="btn ghost" data-autofocus (click)="answer(false)">Annuler</button>

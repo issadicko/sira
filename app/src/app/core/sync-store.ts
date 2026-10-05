@@ -291,14 +291,14 @@ export class SyncStore {
     if (!plan || !root || this.applying() || this.conflictsLeft() > 0) return;
     this.applying.set(true);
     try {
-      const report = await api.syncApply(plan.id, this.decisions());
+      const report = await this.ws.writing(() => api.syncApply(plan.id, this.decisions()));
       if (this.root() !== root) return;
       this.clear();
       this.synced.set({ report, to: plan.to, source: plan.source });
       await Promise.all([this.refreshStatus(), this.ws.reload()]);
-      const stale = await this.ws.refreshTabs(touchedFiles(report));
+      const { stale } = await this.ws.refreshTabs(touchedFiles(report));
       const demo = this.ws.demo ? ' Mode démo : rien n\'a été écrit sur ton disque.' : '';
-      const note = stale ? ` ${stale > 1 ? `${stale} onglets modifiés n'ont` : "Un onglet modifié n'a"} pas été relu : enregistre-le avec précaution.` : '';
+      const note = stale.length ? ` ${stale.length > 1 ? `${stale.length} onglets modifiés n'ont` : "Un onglet modifié n'a"} pas été relu : l'enregistrer demandera confirmation.` : '';
       this.ws.notify(`Spec synchronisée : ${reportSummary(report).toLowerCase()}.${demo}${note}`);
     } catch (e) {
       this.ws.notify(String(e), true);

@@ -26,6 +26,7 @@ import { UrlBar } from './url-bar';
             [class.preview]="t.preview"
             [class.is-dirty]="ws.isDirty(t)"
             [class.is-missing]="t.missing"
+            [class.is-stale]="t.stale"
             [attr.aria-selected]="t.path === tab.path"
             [title]="t.missing ? 'Fichier introuvable : le brouillon reste ouvert' : t.path"
             (click)="ws.activate(t.path)"
@@ -48,9 +49,12 @@ import { UrlBar } from './url-bar';
             <span>{{ p }}</span><app-ic name="chev-right" [size]="12" />
           }
         }
-        <span class="crumbs-state" [class.dirty]="ws.isDirty(tab)">
+        <span class="crumbs-state" [class.dirty]="ws.isDirty(tab)" [class.stale]="tab.stale && !tab.missing">
           @if (tab.missing) {
             <app-ic name="alert" [size]="12" />Fichier introuvable sur le disque
+          } @else if (tab.stale) {
+            <span class="stale-text" title="Le fichier a changé sur le disque : ton brouillon est gardé, et l'enregistrer demandera confirmation."><app-ic name="alert" [size]="12" />Modifié sur le disque</span>
+            <button class="btn ghost sm" (click)="ws.reloadFromDisk(tab.path)">Recharger</button>
           } @else if (ws.isDirty(tab)) {
             Non enregistré <kbd class="kbd">{{ label('request.save') }}</kbd>
           } @else {
@@ -88,6 +92,7 @@ import { UrlBar } from './url-bar';
   `,
   styles: `
     .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
+    .stale-text { display: inline-flex; align-items: center; gap: 6px; }
   `,
 })
 export class Editor {

@@ -4,6 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { demoApi } from './demo';
 import {
   CollectionInfo,
+  DiskChange,
   DropPosition,
   EnvVar,
   FolderKind,
@@ -28,6 +29,10 @@ export interface Api {
   createCollection(parent: string, name: string): Promise<string>;
   initCollection(dir: string, name: string): Promise<string>;
   openCollection(root: string): Promise<CollectionInfo>;
+  /** Surveille le dossier de la collection ; les changements arrivent par `onDiskChange`. Remplace la surveillance précédente. */
+  watchCollection(root: string): Promise<void>;
+  /** S'abonne aux changements du disque ; renvoie la fonction qui se désabonne. */
+  onDiskChange(handler: (change: DiskChange) => void): Promise<() => void>;
   createRequest(root: string, folder: string, name: string): Promise<string>;
   createFolder(root: string, parent: string, name: string): Promise<string>;
   renameItem(root: string, path: string, name: string): Promise<string>;
@@ -65,6 +70,11 @@ const tauriApi: Api = {
   createCollection: (parent, name) => invoke('create_collection', { parent, name }),
   initCollection: (dir, name) => invoke('init_collection', { dir, name }),
   openCollection: (root) => invoke('open_collection', { root }),
+  watchCollection: (root) => invoke('watch_collection', { root }),
+  onDiskChange: async (handler) => {
+    const { listen } = await import('@tauri-apps/api/event');
+    return listen<DiskChange>('collection-changed', (event) => handler(event.payload));
+  },
   createRequest: (root, folder, name) => invoke('create_request', { root, folder, name }),
   createFolder: (root, parent, name) => invoke('create_folder', { root, parent, name }),
   renameItem: (root, path, name) => invoke('rename_item', { root, path, name }),

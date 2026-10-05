@@ -241,7 +241,7 @@ Une palette de gris froids très légèrement bleutés, un seul accent violet, e
 - **Ambre de conflit** (warn) : exclusivement les conflits de synchro OpenAPI et ce qui y mène (pastille « Spec OpenAPI : n conflits », badge d'activité, lignes non arbitrées du Résultat, état « à arbitrer »).
 - **Rouge d'alerte** (bad) : erreurs (statut 4xx/5xx, test échoué, JSONPath invalide), variable non résolue, environnement de production, suppressions de diff, méthode DELETE.
 - **Vert de réussite** (good) : statut 2xx, tests passés, ajouts de diff, variables d'environnement, environnement dev, état « arbitré ».
-- **Bleu d'information** (info) : variables dynamiques, éléments issus de la spec (tag « spec », volet Spec de la fusion), environnement de recette, fichier Git modifié.
+- **Bleu d'information** (info) : variables dynamiques, éléments issus de la spec (tag « spec », volet Spec de la fusion), environnement de recette, fichier Git modifié, fichier modifié sur le disque pendant que l'onglet a un brouillon.
 
 ### Tertiary
 - **Teintes de méthode** : GET vert (m-get), POST violet clair (m-post), PUT bleu (m-put), PATCH turquoise (m-patch), DELETE rouge (m-delete), toujours en mono 600, abrégé `DEL` dans l'arbre.
@@ -361,7 +361,7 @@ Des rayons doux et hiérarchisés selon la taille : 4px pour les petites marques
 
 ### Navigation
 - **Barre d'activité:** icônes 36px en faint ; survol ink + hover ; vue courante : fond island avec liseré island-line (l'îlot « déborde » dans la barre). Badges 16px en pilule : accent pour un compte, ambre (on-warn) pour des conflits, détourés de 2px de frame.
-- **Onglets d'éditeur:** 28px, muted ; sélectionné : raised + ink + liseré line. Onglet d'aperçu en italique. Fermeture 18px visible au survol ou si sélectionné ; un onglet modifié montre un point ink de 7px à la place de la croix tant qu'on ne le survole pas.
+- **Onglets d'éditeur:** 28px, muted ; sélectionné : raised + ink + liseré line. Onglet d'aperçu en italique. Fermeture 18px visible au survol ou si sélectionné ; un onglet modifié montre un point ink de 7px à la place de la croix tant qu'on ne le survole pas. Un onglet périmé (son fichier a changé sur le disque alors qu'il a un brouillon) a ce point en info ; le fil d'Ariane dit « Modifié sur le disque » en info avec un bouton Recharger.
 - **Sous-onglets:** texte muted, sélectionné en ink 500 avec un trait accent de 2px en bas ; compteurs en faint tabulaires, ok / ko colorés.
 - **Arbre:** lignes 26px, rayon 6px, survol hover, active accent-soft + nom en 500. Collections en 600 avec icône accent. Dépréciée : barrée, faint, jamais masquée.
 - **Barre d'état:** 11.5px muted sur le cadre ; items 20px cliquables (survol hover + ink), item ambre pour les conflits, vert pour un succès.

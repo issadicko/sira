@@ -10,7 +10,7 @@ Application desktop Tauri 2 (webview système) sur Windows, macOS et Linux. Les 
 
 ## Stack
 
-Rust (workspace Cargo `core`, `engine`, `script`, `sync`, `cli`, `app`) + Tauri 2. Front Angular zoneless avec signals, éditeur CodeMirror 6. Maquettes de conception : HTML/CSS/JS statiques dans `docs/design/`.
+Rust (workspace Cargo `core`, `engine`, `script`, `sync`, `watch`, `cli`, `app`) + Tauri 2. Front Angular zoneless avec signals, éditeur CodeMirror 6. Maquettes de conception : HTML/CSS/JS statiques dans `docs/design/`.
 
 ## Users
 

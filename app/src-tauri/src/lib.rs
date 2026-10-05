@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Emitter, State};
 use xc_core::assert::{evaluate, AssertionResult, ResponseView};
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
@@ -21,6 +21,8 @@ struct AppState {
     inflight: Mutex<HashMap<String, tokio::task::AbortHandle>>,
     plans: Arc<Plans>,
     writes: tokio::sync::Mutex<()>,
+    watching: tokio::sync::Mutex<()>,
+    watch: Mutex<Option<xc_watch::Watch>>,
 }
 
 /// Plans de synchro en cours, sous un identifiant ; un plan par collection au plus.
@@ -121,10 +123,43 @@ struct SendArgs {
 }
 
 #[tauri::command]
-fn open_collection(root: String) -> Reply<CollectionInfo> {
-    let mut info = xc_core::open_collection(Path::new(&root)).map_err(err)?;
-    xc_core::mark_deprecated(&mut info.items, &xc_sync::store::removed_files(Path::new(&root)));
-    Ok(info)
+async fn open_collection(root: String) -> Reply<CollectionInfo> {
+    blocking(move || {
+        let mut info = xc_core::open_collection(Path::new(&root))?;
+        xc_core::mark_deprecated(&mut info.items, &xc_sync::store::removed_files(Path::new(&root)));
+        Ok::<_, xc_core::CoreError>(info)
+    })
+    .await
+}
+
+/// Changements du disque dans la collection `root`, annoncés à l'interface sous l'événement `collection-changed`.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DiskChange {
+    root: String,
+    paths: Vec<String>,
+    truncated: bool,
+}
+
+/// Surveille la collection ouverte et remplace la surveillance précédente.
+#[tauri::command]
+async fn watch_collection<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, AppState>,
+    root: String,
+) -> Reply<()> {
+    let _turn = state.watching.lock().await;
+    state.watch.lock().map_err(err)?.take();
+    let announced = root.clone();
+    let watch = blocking(move || {
+        xc_watch::Watch::start(Path::new(&root), move |batch| {
+            let change = DiskChange { root: announced.clone(), paths: batch.paths, truncated: batch.truncated };
+            app.emit("collection-changed", change).ok();
+        })
+    })
+    .await?;
+    *state.watch.lock().map_err(err)? = Some(watch);
+    Ok(())
 }
 
 #[tauri::command]
@@ -362,6 +397,7 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             open_collection,
+            watch_collection,
             read_request,
             save_request,
             read_environment,
@@ -533,6 +569,43 @@ paths:
             seqs.dedup();
             assert_eq!(seqs.len(), items.len(), "aucun seq en double : {items:?}");
         }
+    }
+
+    #[tokio::test]
+    async fn ef_col_03_watch_collection_announces_disk_changes_of_the_open_collection_only() {
+        use tauri::Listener;
+
+        let app = app();
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let root = create_collection(state(), dir.path().display().to_string(), "C".into()).await.unwrap();
+        let other = create_collection(state(), dir.path().display().to_string(), "Autre".into()).await.unwrap();
+        let (sender, announced) = std::sync::mpsc::channel();
+        app.listen("collection-changed", move |event| drop(sender.send(event.payload().to_owned())));
+
+        watch_collection(app.handle().clone(), state(), root.clone()).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        fs::write(Path::new(&other).join("ailleurs.yml"), "x").unwrap();
+        fs::write(Path::new(&root).join("Nouvelle.yml"), "x").unwrap();
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        let mut seen = Vec::new();
+        while std::time::Instant::now() < deadline
+            && !seen.iter().any(|p: &serde_json::Value| p["paths"].to_string().contains("Nouvelle.yml"))
+        {
+            if let Ok(payload) = announced.recv_timeout(std::time::Duration::from_millis(250)) {
+                seen.push(serde_json::from_str::<serde_json::Value>(&payload).unwrap());
+            }
+        }
+        let change =
+            seen.iter().find(|p| p["paths"].to_string().contains("Nouvelle.yml")).unwrap_or_else(|| panic!("{seen:?}"));
+        assert_eq!(change["root"], root);
+        assert!(seen.iter().all(|p| !p["paths"].to_string().contains("ailleurs.yml")), "{seen:?}");
+
+        let missing = watch_collection(app.handle().clone(), state(), dir.path().join("absent").display().to_string())
+            .await
+            .unwrap_err();
+        assert!(missing.starts_with("dossier introuvable"), "{missing}");
     }
 
     #[test]

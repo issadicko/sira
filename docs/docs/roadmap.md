@@ -19,7 +19,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | 0.10 Bench de perf en CI | À faire | — |
 | 0.11 Signature des binaires | À faire | — |
 | MVP-α α.1 – α.8 | Fait, sauf coup d'œil éditable des environnements (glisser-déposer livré au MVP-δ) | `app/` |
-| MVP-α α.9 Rechargement à chaud (`notify`) | À faire (bouton « Relire le dossier » en attendant) | — |
+| MVP-α α.9 Rechargement à chaud (`notify`) | Fait : lots de changements (200 ms de silence), onglets relus, onglet périmé quand un brouillon s'oppose, enregistrement qui demande confirmation avant d'écraser ; vérifié dans la fenêtre macOS avec Git et un éditeur extérieur | `crates/watch`, `app/src/app/core/store.ts`, `gestion-collection.md` § 10 |
 | MVP-β β.1 Collage cURL et « Nouvelle requête depuis cURL… » | Fait ; analyse identique à Bruno (fixtures de son code et 113 000 commandes aléatoires) | `crates/sync/src/curl`, `app/src/app/ui/url-bar.ts` |
 | MVP-β β.2 Import OpenAPI 3.0 / 3.1 / Swagger 2.0 (fichier ou URL), tags ou chemins | Fait ; collection identique à l'octet à celle de Bruno (35 specs × 2 regroupements, 34 arbres d'import) | `crates/sync/src/openapi`, `crates/sync/src/import`, `xc import` |
 | MVP-β β.3 Base `.oc-sync/openapi/` | Fait : `source.yml` (source, regroupement, opérations) et copie brute de la spec, écrits en dernier (format revu au MVP-γ, `synchro-openapi.md` § 2) | `crates/sync/src/store.rs` |
@@ -28,6 +28,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | MVP-β β.4 Palette ⌘K | Fait : requêtes, commandes (registre partagé avec les raccourcis), environnements | `app/src/app/ui/palette.ts` |
 | MVP-β β.5 CodeMirror 6 | Fait ; réponse JSON de 10 Mo affichée en 140 ms (Chrome, mode démo), formatage en Rust | `app/src/app/ui/code-editor.ts`, `crates/core/src/pretty.rs` |
 | Corps form-urlencoded et multipart (EF-REQ-02) | Fait : lecture, écriture, envoi et édition | `crates/core`, `app/src/app/ui/multipart-table.ts` |
+| Build de production de la fenêtre | Corrigé : Angular émettait la feuille de style avec un `onload` que la CSP de la fenêtre interdit, l'application empaquetée s'affichait sans style (invisible en mode dev) ; `inlineCritical` désactivé dans `angular.json` | `app/angular.json` |
 | Réglages d'apparence (EF-UX-03) | Fait : écran « Réglages » (barre d'activité, palette, ⌘,), thème puis famille et taille des polices de l'interface, de l'éditeur de requête et du résultat, appliquées en direct et enregistrées dans `localStorage` (`xc-settings`) ; tailles de l'interface relatives à la taille choisie | `app/src/app/core/settings.ts`, `app/src/app/ui/settings-view.ts`, `app/src/app/ui/appearance-settings.ts` |
 
 Écarts assumés du MVP-α : secrets d'environnement non saisissables (trousseau en V1, `{{process.env.X}}` fonctionne déjà), scripts conservés mais non exécutés, corps `file` (binaire) et `sparql` conservés mais non envoyés, HTTP/2 non négocié, redirections non suivies à l'envoi.

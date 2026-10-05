@@ -188,7 +188,7 @@
 </div>
 
 <app-var-popover />
-<app-palette />
+@defer (on immediate) { <app-palette /> }
 @switch (ws.dialog()) {
   @case ('curl') {
     @defer (on immediate) { <app-curl-dialog /> }

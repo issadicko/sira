@@ -1,0 +1,17 @@
+[package]
+name = "xc-watch"
+description = "Surveillance d'une collection : changements du disque regroupés en lots"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+notify = "8"
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
