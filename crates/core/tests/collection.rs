@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{
     count_entries, ensure_collection, ignore_name, ignored_names, info_type, is_hidden, list_folder, resolve_path,
     resolve_visible_path, with_info, write_atomic, write_new,
@@ -11,8 +10,8 @@ use xc_core::request::BLANK_BEFORE;
 use xc_core::vars::{Context, Scope};
 use xc_core::yaml::Value;
 use xc_core::{
-    mark_deprecated, normalize, open_collection, prepare, read_request, save_request, Assertion, CoreError, KeyValue,
-    Param, ParamKind, TreeItem,
+    mark_deprecated, normalize, open_collection, prepare, read_request, save_request, CoreError, KeyValue, Param,
+    ParamKind, TreeItem,
 };
 
 fn write(root: &Path, rel: &str, text: &str) {
@@ -368,35 +367,6 @@ fn enf_sec_01_visible_paths_refuse_hidden_files() {
     }
     assert!(matches!(resolve_visible_path(root, "../x"), Err(CoreError::OutsideCollection(_))));
     assert_eq!(resolve_visible_path(root, "./auth/connexion.yml").unwrap(), root.join("./auth/connexion.yml"));
-}
-
-#[test]
-fn ef_tst_02_declarative_assertions() {
-    let a = |expression: &str, operator: &str, value: Option<&str>| Assertion {
-        expression: expression.into(),
-        operator: operator.into(),
-        value: value.map(Into::into),
-        enabled: true,
-        description: None,
-    };
-    let headers = vec![("content-type".to_owned(), "application/json".to_owned())];
-    let body = br#"{"id":"TX-1","montant":15000,"devise":"XOF","historique":[{"statut":"INITIEE"}]}"#;
-    let res = ResponseView { status: 200, headers: &headers, body };
-    let results = evaluate(
-        &[
-            a("res.status", "eq", Some("200")),
-            a("res.body.devise", "eq", Some("XOF")),
-            a("res.body.montant", "gt", Some("1000")),
-            a("res.body.montant", "isNumber", None),
-            a("res.body.historique[0].statut", "eq", Some("\"INITIEE\"")),
-            a("res.headers.content-type", "contains", Some("json")),
-            a("res.body.devise", "eq", Some("EUR")),
-            a("res.body.absent", "isDefined", None),
-        ],
-        &res,
-    );
-    let passed: Vec<bool> = results.iter().map(|r| r.passed).collect();
-    assert_eq!(passed, [true, true, true, true, true, true, false, false]);
 }
 
 const CANONICAL: &str = "info:

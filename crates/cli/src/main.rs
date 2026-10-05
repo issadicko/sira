@@ -396,13 +396,7 @@ async fn run_one(
             for r in &outcome.assertions {
                 let mark = if r.passed { "✓" } else { "✗" };
                 let expected = r.expected.as_deref().unwrap_or("");
-                let detail = r.error.clone().unwrap_or_else(|| {
-                    if r.passed {
-                        String::new()
-                    } else {
-                        format!("  (reçu {})", r.actual)
-                    }
-                });
+                let detail = r.error.as_ref().map(|e| format!("  {e}")).unwrap_or_default();
                 println!("    {mark} {} {} {expected}{detail}", r.expression, r.operator);
             }
             print_phase("tests", &outcome.tests);

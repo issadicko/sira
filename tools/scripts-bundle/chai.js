@@ -126,4 +126,4 @@ Assertion.addMethod('jsonBody', function (...args) {
   }
 });
 
-globalThis.__lib = { expect: chai.expect, assert: chai.assert };
+globalThis.__lib = { expect: chai.expect, assert: chai.assert, Assertion };

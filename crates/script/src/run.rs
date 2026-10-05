@@ -113,6 +113,25 @@ pub struct TestResult {
     pub expected: Option<Value>,
 }
 
+/// Une assertion déclarative (`res.status eq 200`) : expression gauche, opérateur, opérande droit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssertionSpec {
+    pub expression: String,
+    pub operator: String,
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssertionOutcome {
+    pub expression: String,
+    pub operator: String,
+    pub value: Option<String>,
+    pub passed: bool,
+    pub error: Option<String>,
+    /// Valeur de l'expression gauche, en JSON.
+    pub actual: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LogLine {
     pub level: String,
@@ -139,6 +158,7 @@ pub struct Output {
     pub vars: Vars,
     pub dirty: Dirty,
     pub results: Vec<TestResult>,
+    pub assertions: Vec<AssertionOutcome>,
     pub logs: Vec<LogLine>,
     pub next_request: NextRequest,
     pub skip_request: bool,
@@ -153,6 +173,7 @@ struct Collected {
     request: CollectedRequest,
     response: Option<CollectedResponse>,
     results: Vec<TestResult>,
+    assertions: Vec<AssertionOutcome>,
     next_request: Value,
     skip_request: bool,
     stop_execution: bool,
@@ -343,6 +364,7 @@ fn nothing(input: &Input) -> Output {
         vars: input.vars.clone(),
         dirty: Dirty::default(),
         results: Vec::new(),
+        assertions: Vec::new(),
         logs: Vec::new(),
         next_request: NextRequest::Unset,
         skip_request: false,
@@ -409,7 +431,7 @@ fn execute(input: Input) -> Result<Output, ScriptError> {
     })?;
 
     let host = host.borrow();
-    let Collected { request, response, results, next_request, skip_request, stop_execution } = collected;
+    let Collected { request, response, results, assertions, next_request, skip_request, stop_execution } = collected;
     Ok(Output {
         request: ScriptRequest {
             url: request.url,
@@ -426,6 +448,7 @@ fn execute(input: Input) -> Result<Output, ScriptError> {
         vars: host.vars.clone(),
         dirty: host.dirty,
         results,
+        assertions,
         logs: host.logs.clone(),
         next_request: match next_request.get("name") {
             None => NextRequest::Unset,
@@ -476,4 +499,20 @@ fn load_module(root: &str, module: &str) -> Result<String, String> {
         return Err("Access to files outside of the collectionPath is not allowed.".into());
     }
     fs::read_to_string(wanted).map_err(|_| missing())
+}
+
+/// Évalue les assertions déclaratives comme Bruno, avec chai : expression gauche en JavaScript sur la réponse et les
+/// variables, opérande droit interpolé puis évalué comme littéral, opérateur appliqué par chai.
+pub fn assert(specs: &[AssertionSpec], mut input: Input) -> Result<Vec<AssertionOutcome>, ScriptError> {
+    if specs.is_empty() {
+        return Ok(Vec::new());
+    }
+    let json = serde_json::to_string(specs).map_err(|e| ScriptError::new(e.to_string()))?;
+    input.script = format!("__assert({json});");
+    input.phase = Phase::Tests;
+    let out = run(input)?;
+    match out.error {
+        Some(error) => Err(error),
+        None => Ok(out.assertions),
+    }
 }

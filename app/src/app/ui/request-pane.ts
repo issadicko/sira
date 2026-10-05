@@ -13,7 +13,11 @@ import { KvTable } from './kv-table';
 import { MultipartTable } from './multipart-table';
 
 type Section = 'params' | 'body' | 'headers' | 'auth' | 'tests' | 'scripts' | 'docs';
-const OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'notContains', 'isNumber', 'isString', 'isBoolean', 'isArray', 'isJson', 'isNull', 'isDefined', 'isUndefined', 'isTruthy', 'isFalsy', 'isEmpty'];
+const OPERATORS = [
+  'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn', 'contains', 'notContains', 'length', 'matches', 'notMatches', 'startsWith',
+  'endsWith', 'between', 'isEmpty', 'isNotEmpty', 'isNull', 'isUndefined', 'isDefined', 'isTruthy', 'isFalsy', 'isJson', 'isNumber',
+  'isString', 'isBoolean', 'isArray',
+];
 const UNARY = new Set(OPERATORS.filter((o) => o.startsWith('is')));
 const BODY_TYPES: { type: Body['type']; label: string }[] = [
   { type: 'none', label: 'Aucun' },

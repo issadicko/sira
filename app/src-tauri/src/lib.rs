@@ -5,12 +5,11 @@ use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
-use xc_core::assert::AssertionResult;
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, RequestDoc};
 use xc_engine::Timings;
-use xc_runner::{PhaseReport, Request, RunError, Session};
+use xc_runner::{AssertionResult, PhaseReport, Request, RunError, Session};
 use xc_sync::import::{fetch_spec, OpenApiPreview};
 use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;

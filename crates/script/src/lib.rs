@@ -3,7 +3,8 @@ mod sandbox;
 mod vars;
 
 pub use run::{
-    run, Input, LogLine, NextRequest, Output, PathParam, Phase, ResponseSize, ScriptRequest, ScriptResponse, TestResult,
+    assert, run, AssertionOutcome, AssertionSpec, Input, LogLine, NextRequest, Output, PathParam, Phase, ResponseSize,
+    ScriptRequest, ScriptResponse, TestResult,
 };
 pub use sandbox::{Clock, Limits, Sandbox, ScriptError};
 pub use vars::{Dirty, Vars, ENV_NAME};

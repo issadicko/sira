@@ -1,4 +1,3 @@
-pub mod assert;
 pub mod collection;
 pub mod prepare;
 pub mod pretty;

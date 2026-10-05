@@ -4,11 +4,10 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use serde_json::{Map, Value};
-use xc_core::assert::{evaluate, AssertionResult, ResponseView};
 use xc_core::vars::{dynamic_value, Context, Scope};
 use xc_core::{prepare_with, Overrides, RequestDoc};
 use xc_engine::HttpResponse;
-use xc_script::{Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
+use xc_script::{AssertionSpec, Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
 
 use crate::convert::{apply_request, body_bytes, script_request, script_response};
 use crate::scripts::{merged_script, AFTER_RESPONSE, BEFORE_REQUEST, TESTS};
@@ -41,6 +40,18 @@ impl PhaseReport {
     pub fn failed(&self) -> bool {
         self.error.is_some() || self.results.iter().any(|r| r.status != "pass")
     }
+}
+
+/// Résultat d'une assertion déclarative : ce qui est évalué, ce qui est attendu, la valeur reçue et pourquoi elle échoue.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssertionResult {
+    pub expression: String,
+    pub operator: String,
+    pub expected: Option<String>,
+    pub actual: String,
+    pub passed: bool,
+    pub error: Option<String>,
 }
 
 pub struct Outcome {
@@ -164,17 +175,16 @@ struct Phases<'a> {
 }
 
 impl Phases<'_> {
-    async fn run(
+    fn input(
         &self,
         phase: Phase,
-        kind: &str,
+        code: String,
         session: &Session,
         request: ScriptRequest,
         response: Option<xc_script::ScriptResponse>,
-    ) -> Result<Output, String> {
+    ) -> Input {
         let r = self.request;
-        let code = merged_script(self.ctx, r.root, r.path, r.doc, kind);
-        let input = Input {
+        Input {
             phase,
             script: code,
             request,
@@ -186,8 +196,57 @@ impl Phases<'_> {
             dynamic: dynamic_value,
             limits: Limits::default(),
             cancel: Arc::clone(&r.cancel),
+        }
+    }
+
+    async fn run(
+        &self,
+        phase: Phase,
+        kind: &str,
+        session: &Session,
+        request: ScriptRequest,
+        response: Option<xc_script::ScriptResponse>,
+    ) -> Result<Output, String> {
+        let r = self.request;
+        let code = merged_script(self.ctx, r.root, r.path, r.doc, kind);
+        script(self.input(phase, code, session, request, response)).await
+    }
+
+    async fn assertions(
+        &self,
+        specs: Vec<AssertionSpec>,
+        session: &Session,
+        request: ScriptRequest,
+        response: xc_script::ScriptResponse,
+    ) -> Vec<AssertionResult> {
+        let input = self.input(Phase::Tests, String::new(), session, request, Some(response));
+        let failed = |message: String, spec: &AssertionSpec| AssertionResult {
+            expression: spec.expression.clone(),
+            operator: spec.operator.clone(),
+            expected: spec.value.clone(),
+            actual: "undefined".into(),
+            passed: false,
+            error: Some(message),
         };
-        script(input).await
+        let evaluated = {
+            let specs = specs.clone();
+            tokio::task::spawn_blocking(move || xc_script::assert(&specs, input)).await
+        };
+        match evaluated {
+            Ok(Ok(outcomes)) => outcomes
+                .into_iter()
+                .map(|o| AssertionResult {
+                    expression: o.expression,
+                    operator: o.operator,
+                    expected: o.value,
+                    actual: o.actual,
+                    passed: o.passed,
+                    error: o.error,
+                })
+                .collect(),
+            Ok(Err(e)) => specs.iter().map(|spec| failed(e.message.clone(), spec)).collect(),
+            Err(e) => specs.iter().map(|spec| failed(e.to_string(), spec)).collect(),
+        }
     }
 }
 
@@ -269,12 +328,18 @@ pub async fn run_request(req: Request<'_>, session: &mut Session) -> Outcome {
         Err(e) => out.post.error = Some(e),
     }
 
-    out.assertions = evaluate(
-        &doc.assertions,
-        &ResponseView { status: response.status, headers: &response.headers, body: &response.body },
-    );
-
     let view = script_response(&response, &out.url, parse_json);
+    let specs = doc
+        .assertions
+        .iter()
+        .filter(|a| a.enabled)
+        .map(|a| AssertionSpec {
+            expression: a.expression.clone(),
+            operator: a.operator.clone(),
+            value: a.value.clone(),
+        })
+        .collect();
+    out.assertions = phases.assertions(specs, session, sent.clone(), view.clone()).await;
     match phases.run(Phase::Tests, TESTS, session, sent, Some(view)).await {
         Ok(tests) => {
             remember(session, &tests, req.env);

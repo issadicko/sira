@@ -70,7 +70,7 @@ fn ef_cli_01_failed_assertion_gives_non_zero_exit() {
     let dir = collection(&base, "EUR");
     let (code, out) = xc(&["run", dir.path().to_str().unwrap(), "tx", "--env", "local", "--env-var", "txId=TX-9"]);
     assert_eq!(code, 1, "{out}");
-    assert!(out.contains("res.body.devise eq EUR  (reçu \"XOF\")"), "{out}");
+    assert!(out.contains("res.body.devise eq EUR  expected 'XOF' to equal 'EUR'"), "{out}");
 }
 
 #[test]

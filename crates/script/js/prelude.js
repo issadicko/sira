@@ -13,6 +13,7 @@
     request: init.request,
     response: init.response,
     results: [],
+    assertions: [],
     nextRequest: undefined,
     skipRequest: false,
     stopExecution: false,
@@ -492,6 +493,134 @@
     return localModules[mod];
   };
 
+  // ---------- assertions déclaratives ----------
+
+  const UNARY = new Set([
+    'isEmpty', 'isNotEmpty', 'isNull', 'isUndefined', 'isDefined', 'isTruthy', 'isFalsy', 'isJson', 'isNumber', 'isString',
+    'isBoolean', 'isArray',
+  ]);
+
+  const errorValue = (e) => ({ name: e && e.name, message: e && e.message, stack: e && e.stack });
+
+  // Les variables deviennent des variables globales de l'expression, la plus forte en dernier, comme chez Bruno.
+  const assertionScope = () => {
+    const merged = {};
+    for (const name of ['global', 'collection', 'env', 'folder', 'request', 'oauth2', 'runtime', 'process']) {
+      Object.assign(merged, JSON.parse(h.all(name)));
+    }
+    return Object.fromEntries(Object.entries(merged).filter(([key]) => /^[A-Za-z_$][\w$]*$/.test(key)));
+  };
+
+  // Évalue `code` (une expression, ou un gabarit entre accents graves) avec les variables, `bru`, `req` et `res` ; une
+  // erreur devient la valeur, comme dans le sandbox de Bruno.
+  const evaluate = (code) => {
+    const names = Object.keys(assertionScope());
+    const scope = assertionScope();
+    try {
+      const fn = new Function('bru', 'req', 'res', ...names, `return (${code});`);
+      return fn(bru, req, globalThis.res, ...names.map((n) => scope[n]));
+    } catch (e) {
+      return errorValue(e);
+    }
+  };
+
+  const toNumber = (text) => (Number.isInteger(Number(text)) ? parseInt(text, 10) : parseFloat(text));
+  const unquote = (text) =>
+    (text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")) ? text.slice(1, -1) : text;
+
+  // Un opérande est un nombre, `true`, `false`, `null`, `undefined`, ou un texte (entre guillemets ou non) où `${…}`
+  // est évalué ; les tableaux et objets JSON restent des textes.
+  const literal = (raw) => {
+    const text = raw.trim();
+    if (!text.length) return '';
+    if (!isNaN(Number(text))) return Number(text) > Number.MAX_SAFE_INTEGER ? text : toNumber(text);
+    if (text === 'true') return true;
+    if (text === 'false') return false;
+    if (text === 'null') return null;
+    if (text === 'undefined') return undefined;
+    return evaluate('`' + unquote(text) + '`');
+  };
+
+  const list = (rhs) => rhs.split(',').map((item) => literal(interpolate(item.trim())));
+
+  const operand = (op, rhs) => {
+    if (UNARY.has(op)) return undefined;
+    if (op === 'in' || op === 'notIn') return list(rhs.replace(/^\[|\]$/g, ''));
+    if (op === 'between') return list(rhs);
+    if (op === 'matches' || op === 'notMatches') return interpolate(rhs.replace(/^\//, '').replace(/\/$/, ''));
+    return literal(interpolate(rhs));
+  };
+
+  const check = (op, lhs, rhs) => {
+    const { expect, Assertion } = lib('chai');
+    const e = expect(lhs);
+    const text = (cond, pass, fail) => new Assertion(lhs).assert(cond, pass, fail, rhs, lhs);
+    switch (op) {
+      case 'eq': return e.to.equal(rhs);
+      case 'neq': return e.to.not.equal(rhs);
+      case 'gt': return e.to.be.greaterThan(rhs);
+      case 'gte': return e.to.be.greaterThanOrEqual(rhs);
+      case 'lt': return e.to.be.lessThan(rhs);
+      case 'lte': return e.to.be.lessThanOrEqual(rhs);
+      case 'in': return e.to.be.oneOf(rhs);
+      case 'notIn': return e.to.not.be.oneOf(rhs);
+      case 'contains': return e.to.include(rhs);
+      case 'notContains': return e.to.not.include(rhs);
+      case 'length': return e.to.have.lengthOf(rhs);
+      case 'matches': {
+        const re = new RegExp(rhs);
+        return text(lhs !== undefined && re.test(lhs), `expected #{this} to match ${re}`, `expected #{this} not to match ${re}`);
+      }
+      case 'notMatches': {
+        const re = new RegExp(rhs);
+        return text(!(lhs !== undefined && re.test(lhs)), `expected #{this} not to match ${re}`, `expected #{this} to match ${re}`);
+      }
+      case 'startsWith':
+        return text(typeof lhs === 'string' && lhs.startsWith(rhs), 'expected #{this} to start with #{exp}', 'expected #{this} not to start with #{exp}');
+      case 'endsWith':
+        return text(typeof lhs === 'string' && lhs.endsWith(rhs), 'expected #{this} to end with #{exp}', 'expected #{this} not to end with #{exp}');
+      case 'between': return e.to.be.within(rhs[0], rhs[1]);
+      case 'isEmpty': return e.to.be.empty;
+      case 'isNotEmpty': return e.to.not.be.empty;
+      case 'isNull': return e.to.be.null;
+      case 'isUndefined': return e.to.be.undefined;
+      case 'isDefined': return e.to.not.be.undefined;
+      case 'isTruthy': return e.to.be.true;
+      case 'isFalsy': return e.to.be.false;
+      case 'isJson': return e.to.be.json;
+      case 'isNumber': return e.to.be.a('number');
+      case 'isString': return e.to.be.a('string');
+      case 'isBoolean': return e.to.be.a('boolean');
+      case 'isArray': return e.to.be.a('array');
+      default: throw new Error(`Unknown assertion operator: ${op}`);
+    }
+  };
+
+  const shown = (value) => {
+    try {
+      const json = JSON.stringify(value);
+      return json === undefined ? 'undefined' : json;
+    } catch {
+      return String(value);
+    }
+  };
+
+  // Évalue des assertions `{ expression, operator, value }` ; les résultats vont dans `state.assertions`.
+  const runAssertions = (specs) => {
+    for (const spec of specs) {
+      const outcome = { expression: spec.expression, operator: spec.operator, value: spec.value ?? null, passed: true, error: null, actual: 'undefined' };
+      try {
+        const lhs = evaluate(spec.expression);
+        outcome.actual = shown(lhs);
+        check(spec.operator, lhs, operand(spec.operator, spec.value ?? ''));
+      } catch (e) {
+        outcome.passed = false;
+        outcome.error = (e && e.message) || String(e);
+      }
+      state.assertions.push(outcome);
+    }
+  };
+
   const define = (name, value) =>
     Object.defineProperty(globalThis, name, { value, writable: true, configurable: true, enumerable: false });
   const lazy = (name, make) =>
@@ -525,6 +654,7 @@
   lazy('addFormats', () => lib('ajv').addFormats);
   lazy('expect', () => lib('chai').expect);
   lazy('assert', () => lib('chai').assert);
+  Object.defineProperty(globalThis, '__assert', { value: runAssertions, enumerable: false });
   Object.defineProperty(globalThis, '__ajv', { value: () => lib('ajv'), enumerable: false });
 
   return {
@@ -542,6 +672,7 @@
         },
         response: state.response && state.bodyChanged ? { data: state.response.data } : null,
         results: state.results,
+        assertions: state.assertions,
         nextRequest: state.nextRequest === undefined ? { unset: true } : { name: state.nextRequest },
         skipRequest: state.skipRequest,
         stopExecution: state.stopExecution,

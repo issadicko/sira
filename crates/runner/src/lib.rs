@@ -6,7 +6,7 @@ mod scripts;
 mod sequence;
 mod session;
 
-pub use pipeline::{run_request, Outcome, PhaseReport, Request, RunError, Stage};
+pub use pipeline::{run_request, AssertionResult, Outcome, PhaseReport, Request, RunError, Stage};
 pub use scripts::{flow_of, merged_script, Flow};
 pub use sequence::{next_step, Step, MAX_JUMPS};
 pub use session::{EnvWrites, Session};
