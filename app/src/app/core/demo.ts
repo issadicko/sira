@@ -129,7 +129,7 @@ const collectionVars: Record<string, string> = { baseUrl: 'https://api.paiements
 const folderVars: Record<string, string> = { canal: 'USSD' };
 
 function variables(path: string, env: string | null): VariableInfo[] {
-  const names = new Set([...environments['dev'].map((v) => v.name), ...Object.keys(collectionVars), ...Object.keys(folderVars), 'token']);
+  const names = new Set([...Object.values(environments).flatMap((vars) => vars.filter((v) => !v.secret).map((v) => v.name)), ...Object.keys(collectionVars), ...Object.keys(folderVars), 'token']);
   return [...names].sort().map((name) => {
     const rungs: Rung[] = [
       { level: 'Runtime', source: 'bru.setVar()', value: null },

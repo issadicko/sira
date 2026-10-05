@@ -49,10 +49,14 @@ fn ensure_dir(root: &Path) -> Result<PathBuf, ManageError> {
     }
 }
 
-/// Fichier de l'environnement existant `name`, qui n'est pas un lien symbolique.
+/// Fichier de l'environnement existant `name`, qui n'est pas un lien symbolique, dans un `environments/` qui n'en est pas
+/// un non plus : on ne renomme, ne copie ni ne supprime à travers un lien.
 fn locate(root: &Path, name: &str) -> Result<PathBuf, ManageError> {
     let path = environment_file(root, name)?;
     let shown = || format!("{ENV_DIR}/{name}{REQUEST_EXT}");
+    if fs::symlink_metadata(root.join(ENV_DIR)).is_ok_and(|meta| meta.is_symlink()) {
+        return Err(CoreError::Symlink(ENV_DIR.into()).into());
+    }
     match fs::symlink_metadata(&path) {
         Ok(meta) if meta.is_symlink() => Err(CoreError::Symlink(shown()).into()),
         Ok(meta) if meta.is_file() => Ok(path),
@@ -104,14 +108,16 @@ pub fn rename_environment(root: &Path, from: &str, name: &str) -> Result<String,
     }
     let done = "l'environnement est bien renommé";
     let file = dir.join(&target);
-    rewrite_file(&file, |text| with_environment_name(&file, text, &renamed))
+    let renamed_key = rewrite_file(&file, |text| with_environment_name(&file, text, &renamed))
         .and_then(|edit| edit.map_or(Ok(()), |edit| commit(root, &[edit])))
-        .map_err(|e| not_updated(done, NAME_KEY, e))?;
-    let follows = default_environment(root).map_err(|e| not_updated(done, DEFAULT_KEY, e))?;
-    if follows.as_deref() == Some(from) {
-        set_default_environment(root, Some(&renamed)).map_err(|e| not_updated(done, DEFAULT_KEY, e))?;
-    }
-    Ok(renamed)
+        .map_err(|e| not_updated(done, NAME_KEY, e));
+    let followed_default = default_environment(root)
+        .and_then(|default| match default.as_deref() == Some(from) {
+            true => set_default_environment(root, Some(&renamed)),
+            false => Ok(()),
+        })
+        .map_err(|e| not_updated(done, DEFAULT_KEY, e));
+    renamed_key.and(followed_default).map(|()| renamed)
 }
 
 /// Duplique l'environnement `from` sous le nom `name` et renvoie le nom de la copie : le fichier est copié, seule sa

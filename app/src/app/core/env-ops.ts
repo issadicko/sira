@@ -9,16 +9,19 @@ export function blankVar(name = ''): EnvVar {
 
 /**
  * Ce qui empêche d'enregistrer chaque ligne, `null` quand elle convient : un nom, des caractères permis (seulement pour un nom nouveau, un fichier
- * écrit à la main garde les siens), pas deux fois le même nom.
+ * écrit à la main garde ses noms), pas deux fois le même nom (sauf les doublons que le fichier contient déjà : les corriger détruirait une donnée).
  */
 export function varProblems(vars: EnvVar[], known: string[]): (string | null)[] {
   const before = new Set(known);
-  const seen = new Set<string>();
+  const allowed = new Map<string, number>();
+  for (const name of known) allowed.set(name, (allowed.get(name) ?? 0) + 1);
+  const seen = new Map<string, number>();
   return vars.map((v) => {
     const name = v.name;
     if (!name.trim()) return 'Donne un nom à la variable.';
-    if (seen.has(name)) return 'Cette variable est déjà définie plus haut.';
-    seen.add(name);
+    const count = (seen.get(name) ?? 0) + 1;
+    seen.set(name, count);
+    if (count > Math.max(1, allowed.get(name) ?? 0)) return 'Cette variable est déjà définie plus haut.';
     if (!before.has(name) && !VARIABLE_NAME.test(name)) return 'Lettres, chiffres, « _ », « - » et « . » seulement.';
     return null;
   });

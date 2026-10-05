@@ -18,6 +18,12 @@ use crate::CoreError;
 const ENV_ORDER: &[&str] = &["name", "extends", "color", "variables", "externalSecrets"];
 const PRESETS_ORDER: &[&str] = &["requestType", "requestUrl", "defaultEnvironment"];
 
+/// `name` peut être celui d'un environnement : un simple nom de fichier visible, jamais un chemin.
+fn is_valid_name(name: &str) -> bool {
+    !name.is_empty() && !name.starts_with('.') && !name.contains(['/', '\\'])
+}
+
+/// Les environnements de la collection : les fichiers `*.yml` de `environments/` dont le nom est utilisable.
 pub fn list_environments(root: &Path) -> Result<Vec<String>, CoreError> {
     let dir = root.join(ENV_DIR);
     if !dir.is_dir() {
@@ -26,7 +32,9 @@ pub fn list_environments(root: &Path) -> Result<Vec<String>, CoreError> {
     let mut names: Vec<String> = fs::read_dir(&dir)
         .map_err(|e| CoreError::io(&dir, e))?
         .flatten()
+        .filter(|e| e.path().is_file())
         .filter_map(|e| e.file_name().to_string_lossy().strip_suffix(REQUEST_EXT).map(str::to_owned))
+        .filter(|name| is_valid_name(name))
         .collect();
     names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()).then(Ordering::Equal));
     Ok(names)
@@ -106,7 +114,7 @@ fn variables_of(tree: &Map) -> Vec<EnvVar> {
 
 /// Fichier de l'environnement `name` : un simple nom, jamais un chemin.
 pub fn environment_file(root: &Path, name: &str) -> Result<PathBuf, CoreError> {
-    if name.is_empty() || name.starts_with('.') || name.contains(['/', '\\']) {
+    if !is_valid_name(name) {
         return Err(CoreError::InvalidEnvironment(name.to_owned()));
     }
     resolve_path(root, &format!("{ENV_DIR}/{name}{REQUEST_EXT}"))
@@ -119,14 +127,20 @@ pub fn read_environment(root: &Path, name: &str) -> Result<Vec<EnvVar>, CoreErro
 
 /// Enregistre les variables de l'environnement `name`. Chaque variable reprend sa table existante (repérée par son
 /// nom) et n'y change que ce qui a changé : les clés inconnues, l'ordre et la forme des valeurs sont conservés, ainsi
-/// que les autres clés du fichier (`extends`, `color`…). Un fichier absent est créé. Renvoie `false` quand rien ne
-/// change : le fichier n'est alors pas réécrit, ni normalisé.
-pub fn save_environment(root: &Path, name: &str, vars: &[EnvVar]) -> Result<bool, CoreError> {
+/// que les autres clés du fichier (`extends`, `color`…). Un fichier absent est refusé, sauf avec `create` : un
+/// environnement supprimé ou renommé ailleurs n'est jamais recréé par erreur. Renvoie `false` quand rien ne change :
+/// le fichier n'est alors pas réécrit, ni normalisé. Le fichier est réémis par l'émetteur : les commentaires et la mise
+/// en forme d'un fichier écrit à la main sont normalisés ; rien n'est écrit à travers un `environments/` lien
+/// symbolique.
+pub fn save_environment(root: &Path, name: &str, vars: &[EnvVar], create: bool) -> Result<bool, CoreError> {
     ensure_collection(root)?;
     let path = environment_file(root, name)?;
+    if root.join(ENV_DIR).is_symlink() {
+        return Err(CoreError::Symlink(ENV_DIR.into()));
+    }
     let current = match fs::read_to_string(&path) {
         Ok(text) => Some(text),
-        Err(e) if e.kind() == ErrorKind::NotFound => None,
+        Err(e) if e.kind() == ErrorKind::NotFound && create => None,
         Err(e) => return Err(CoreError::io(&path, e)),
     };
     let mut tree = match &current {

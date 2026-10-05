@@ -41,8 +41,8 @@ export interface Api {
   readRequest(root: string, path: string): Promise<RequestDoc>;
   saveRequest(root: string, path: string, doc: RequestDoc): Promise<boolean>;
   readEnvironment(root: string, name: string): Promise<EnvVar[]>;
-  /** Enregistre les variables de l'environnement (créé s'il n'existe plus) ; `false` : rien n'a changé. */
-  saveEnvironment(root: string, name: string, vars: EnvVar[]): Promise<boolean>;
+  /** Enregistre les variables de l'environnement ; un fichier absent est refusé sauf avec `create`. `false` : rien n'a changé. */
+  saveEnvironment(root: string, name: string, vars: EnvVar[], create: boolean): Promise<boolean>;
   createEnvironment(root: string, name: string): Promise<string>;
   renameEnvironment(root: string, from: string, name: string): Promise<string>;
   cloneEnvironment(root: string, from: string, name: string): Promise<string>;
@@ -91,7 +91,7 @@ const tauriApi: Api = {
   readRequest: (root, path) => invoke('read_request', { root, path }),
   saveRequest: (root, path, doc) => invoke('save_request', { root, path, doc }),
   readEnvironment: (root, name) => invoke('read_environment', { root, name }),
-  saveEnvironment: (root, name, vars) => invoke('save_environment', { root, name, vars }),
+  saveEnvironment: (root, name, vars, create) => invoke('save_environment', { root, name, vars, create }),
   createEnvironment: (root, name) => invoke('create_environment', { root, name }),
   renameEnvironment: (root, from, name) => invoke('rename_environment', { root, from, name }),
   cloneEnvironment: (root, from, name) => invoke('clone_environment', { root, from, name }),

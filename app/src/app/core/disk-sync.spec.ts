@@ -46,6 +46,7 @@ test('ef_col_03_a_folder_that_moved_reaches_the_tabs_inside_it_but_not_its_names
 
 test('ef_col_03_environment_files_and_the_local_env_file_trigger_a_variables_reload', () => {
   assert.equal(touchesEnvironments(change(['environments/dev.yml'])), true);
+  assert.equal(touchesEnvironments(change(['environments'])), true, 'le dossier lui-même renommé ou supprimé');
   assert.equal(touchesEnvironments(change(['.env'])), true);
   assert.equal(touchesEnvironments(change(['.env.local'])), true);
   assert.equal(touchesEnvironments(change(['sous/.env'])), true);

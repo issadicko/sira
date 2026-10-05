@@ -177,10 +177,17 @@ fn read_environment(root: String, name: String) -> Reply<Vec<EnvVar>> {
     xc_core::read_environment(Path::new(&root), &name).map_err(err)
 }
 
-/// Enregistre les variables de l'environnement ; un environnement absent est créé. `false` : rien n'a changé.
+/// Enregistre les variables de l'environnement ; un environnement absent est refusé, sauf avec `create`. `false` : rien
+/// n'a changé.
 #[tauri::command]
-async fn save_environment(state: State<'_, AppState>, root: String, name: String, vars: Vec<EnvVar>) -> Reply<bool> {
-    writing(&state, move || xc_core::save_environment(Path::new(&root), &name, &vars)).await
+async fn save_environment(
+    state: State<'_, AppState>,
+    root: String,
+    name: String,
+    vars: Vec<EnvVar>,
+    create: bool,
+) -> Reply<bool> {
+    writing(&state, move || xc_core::save_environment(Path::new(&root), &name, &vars, create)).await
 }
 
 #[tauri::command]
@@ -579,8 +586,8 @@ paths:
                 {"name":"vide","enabled":false}]"#,
         )
         .unwrap();
-        assert!(save_environment(state(), root.clone(), "Dev".into(), vars.clone()).await.unwrap());
-        assert!(!save_environment(state(), root.clone(), "Dev".into(), vars).await.unwrap());
+        assert!(save_environment(state(), root.clone(), "Dev".into(), vars.clone(), false).await.unwrap());
+        assert!(!save_environment(state(), root.clone(), "Dev".into(), vars, false).await.unwrap());
         let read = read_environment(root.clone(), "Dev".into()).unwrap();
         assert_eq!((read.len(), read[1].enabled), (2, false));
         assert_eq!(serde_json::to_value(&read[0]).unwrap()["dataType"], serde_json::Value::Null);

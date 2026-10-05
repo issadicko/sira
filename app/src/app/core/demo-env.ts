@@ -2,7 +2,7 @@ import type { Api } from './api';
 import { DemoCollection, collectionAt } from './demo-tree';
 import { sameVars } from './disk-sync';
 import { EnvVar } from './model';
-import { envFileName, validateName } from './tree-ops';
+import { envFileName, envNameProblem } from './tree-ops';
 
 type DemoEnvironments = Pick<
   Api,
@@ -31,7 +31,7 @@ export function createDemoEnvironments(collections: Map<string, DemoCollection>)
   };
 
   const wanted = (raw: string, c: DemoCollection, except?: string) => {
-    const problem = validateName(raw, 'request');
+    const problem = envNameProblem(raw);
     if (problem) throw problem;
     return envFileName(raw, c.info.environments, except);
   };
@@ -39,10 +39,11 @@ export function createDemoEnvironments(collections: Map<string, DemoCollection>)
   return {
     readEnvironment: async (root, name) => structuredClone(known(at(root), name)),
 
-    saveEnvironment: async (root, name, vars) => {
+    saveEnvironment: async (root, name, vars, create) => {
       const c = at(root);
       const next = stored(vars);
       const current = c.environments[name];
+      if (!current && !create) throw `environments/${name}.yml : introuvable`;
       if (current && sameVars(current, next)) return false;
       if (current) c.environments[name] = next;
       else add(c, name, next);

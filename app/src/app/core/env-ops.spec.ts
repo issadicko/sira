@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { reconciled, sameVars, varsKey } from './disk-sync.ts';
 import { blankVar, varProblems } from './env-ops.ts';
 import type { EnvVar } from './model.ts';
-import { cloneName, envFileName, validateName } from './tree-ops.ts';
+import { cloneName, envFileName, envNameProblem, validateName } from './tree-ops.ts';
 
 const v = (name: string, value: string | null = '', extra: Partial<EnvVar> = {}): EnvVar => ({
   name,
@@ -50,6 +50,21 @@ test('ef_var_01_un_nom_ecrit_a_la_main_dans_le_fichier_n_empeche_pas_d_enregistr
   assert.deepEqual(varProblems([v('nom avec espace'), v('x y')], ['nom avec espace']), [null, 'Lettres, chiffres, « _ », « - » et « . » seulement.']);
 });
 
+test('ef_var_01_un_doublon_que_le_fichier_contient_deja_n_empeche_pas_d_enregistrer_un_nouveau_doublon_si', () => {
+  const rows = [v('host'), v('host', 'x', { enabled: false }), v('port')];
+  assert.deepEqual(varProblems(rows, ['host', 'host', 'port']), [null, null, null]);
+  assert.deepEqual(varProblems([...rows, v('host')], ['host', 'host', 'port']), [null, null, null, 'Cette variable est déjà définie plus haut.']);
+  assert.deepEqual(varProblems([v('port'), v('port')], ['port']), [null, 'Cette variable est déjà définie plus haut.']);
+});
+
+test('ef_col_04_l_apercu_du_nom_de_fichier_suit_le_moteur', () => {
+  assert.equal(envFileName('a.yml', []), 'a', 'le moteur retire .yml, qui serait sinon doublé');
+  assert.equal(envFileName('dev.yml', ['dev']), 'dev 1');
+  assert.ok(envNameProblem('.dev'), 'un point en tête cacherait le fichier');
+  assert.equal(envNameProblem('dev'), null);
+  assert.equal(envNameProblem('Prod/EU'), null);
+});
+
 test('ef_col_04_le_nom_de_fichier_d_un_environnement_est_assaini_et_ne_remplace_jamais_un_autre', () => {
   assert.equal(envFileName('Prod/EU', []), 'Prod-EU');
   assert.equal(envFileName('dev', ['dev']), 'dev 1');
@@ -87,6 +102,8 @@ test('ef_col_03_notre_propre_enregistrement_n_est_pas_un_changement_exterieur', 
   const next = reconciled({ base: [v('a', '1')], draft: [v('a', 'brouillon')], stale: false }, written);
   assert.equal(next.stale, false);
   assert.deepEqual(next.base, written);
+  const after = reconciled({ base: written, draft: written, stale: false }, written);
+  assert.equal(after.stale, false, 'la relecture qui suit notre enregistrement ne change rien');
   const same = reconciled({ base: [v('a', '1')], draft: [v('a', 'brouillon')], stale: false }, [v('a', '1')]);
   assert.equal(same.stale, false, 'le disque n\'a pas changé : rien à signaler');
   assert.deepEqual(same.draft, [v('a', 'brouillon')]);

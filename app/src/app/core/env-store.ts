@@ -5,7 +5,7 @@ import { reconciled, sameVars, varsKey } from './disk-sync';
 import { blankVar, varProblems } from './env-ops';
 import { EnvVar } from './model';
 import { Workspace } from './store';
-import { cloneName, envFileName, validateName } from './tree-ops';
+import { cloneName, envFileName, envNameProblem } from './tree-ops';
 
 /** Saisie d'un nom d'environnement : un nouveau, ou celui d'un renommage ou d'une copie. */
 export type EnvNaming = { mode: 'create' } | { mode: 'rename'; env: string } | { mode: 'clone'; env: string };
@@ -110,6 +110,16 @@ export class EnvStore {
     if (await this.ws.confirmDiscard(lost, 'Abandonner les modifications', 'Abandonner les modifications')) this.reset(this.owner(), this.base());
   }
 
+  /** Le fichier tel qu'il est sur le disque ; `null` avec la raison à l'utilisateur quand il ne se relit pas (introuvable, YAML invalide) : on n'enregistre pas à l'aveugle. */
+  private async readDisk(root: string, env: string): Promise<EnvVar[] | null> {
+    try {
+      return await api.readEnvironment(root, env);
+    } catch (e) {
+      this.ws.notify(`Impossible de relire ${env}.yml avant d'enregistrer : ${e}`, true);
+      return null;
+    }
+  }
+
   async save() {
     const c = this.ws.collection();
     const env = this.owner();
@@ -123,15 +133,26 @@ export class EnvStore {
       return;
     }
     const recreated = this.missing();
-    const onDisk = await api.readEnvironment(c.root, env).catch(() => null);
-    const outside = !recreated && (this.stale() || (onDisk !== null && !sameVars(onDisk, this.base()) && !sameVars(onDisk, this.draft())));
-    const overwrite = `« ${env} » a changé sur le disque depuis que tu l'as ouvert. L'enregistrer remplace ces changements par ton brouillon.`;
-    if (outside && !(await this.ws.confirmDiscard(overwrite, 'Écraser le fichier', 'Fichier modifié sur le disque'))) return;
+    if (!recreated) {
+      const seen = await this.readDisk(c.root, env);
+      if (!seen) return;
+      const outside = this.stale() || (!sameVars(seen, this.base()) && !sameVars(seen, this.draft()));
+      const overwrite = `« ${env} » a changé sur le disque depuis que tu l'as ouvert. L'enregistrer remplace ces changements par ton brouillon.`;
+      if (outside && !(await this.ws.confirmDiscard(overwrite, 'Écraser le fichier', 'Fichier modifié sur le disque'))) return;
+      if (outside) {
+        const again = await this.readDisk(c.root, env);
+        if (!again) return;
+        if (!sameVars(again, seen)) {
+          this.ws.notify(`« ${env} » a encore changé pendant la confirmation : vérifie le fichier puis réessaie.`, true);
+          return;
+        }
+      }
+    }
     this.saving.set(true);
     try {
       await this.ws.writing(async () => {
         const vars = structuredClone(this.draft());
-        await api.saveEnvironment(c.root, env, vars);
+        await api.saveEnvironment(c.root, env, vars, recreated);
         const written = await api.readEnvironment(c.root, env).catch(() => vars);
         if (this.ws.collection()?.root !== c.root || this.owner() !== env) return;
         const unchanged = varsKey(this.draft()) === varsKey(vars);
@@ -177,7 +198,7 @@ export class EnvStore {
   }
 
   problem(raw: string): string | null {
-    return validateName(raw, 'request');
+    return envNameProblem(raw);
   }
 
   cancelNaming() {
@@ -186,11 +207,19 @@ export class EnvStore {
     this.ws.dialog.set(null);
   }
 
+  /** Après une erreur de renommage : le fichier a-t-il quand même changé de nom (clé `name` ou défaut non mis à jour) ? Renvoie son nouveau nom, sinon `null`. */
+  private async renamedDespite(root: string, before: string[], from: string): Promise<string | null> {
+    await this.ws.reload();
+    const after = this.ws.collection()?.environments ?? [];
+    const added = after.filter((env) => !before.includes(env));
+    return this.ws.collection()?.root === root && !after.includes(from) && added.length === 1 ? added[0] : null;
+  }
+
   async confirmNaming(raw: string) {
     const c = this.ws.collection();
     const naming = this.naming();
     if (!c || !naming || this.namingBusy()) return;
-    const problem = validateName(raw, 'request');
+    const problem = envNameProblem(raw);
     if (problem) {
       this.namingError.set(problem);
       return;
@@ -199,13 +228,19 @@ export class EnvStore {
     this.namingError.set(null);
     try {
       const name = raw.trim();
+      let warning: string | null = null;
       const result = await this.ws.writing(async () => {
         const created =
           naming.mode === 'create'
             ? await api.createEnvironment(c.root, name)
-            : naming.mode === 'rename'
-              ? await api.renameEnvironment(c.root, naming.env, name)
-              : await api.cloneEnvironment(c.root, naming.env, name);
+            : naming.mode === 'clone'
+              ? await api.cloneEnvironment(c.root, naming.env, name)
+              : await api.renameEnvironment(c.root, naming.env, name).catch(async (e) => {
+                  const done = await this.renamedDespite(c.root, c.environments, naming.env);
+                  if (!done) throw e;
+                  warning = String(e);
+                  return done;
+                });
         await this.ws.reload();
         if (this.ws.collection()?.root !== c.root) return created;
         if (naming.mode === 'rename' && this.ws.env() === naming.env) {
@@ -218,9 +253,13 @@ export class EnvStore {
       this.naming.set(null);
       this.ws.dialog.set(null);
       if (naming.mode !== 'rename') await this.ws.setEnv(result);
-      this.ws.notify(
-        naming.mode === 'create' ? `Environnement « ${result} » créé` : naming.mode === 'clone' ? `« ${result} » créé, copie de « ${naming.env} »` : `Renommé en « ${result} »`,
-      );
+      if (warning) {
+        this.ws.notify(warning, true);
+      } else {
+        this.ws.notify(
+          naming.mode === 'create' ? `Environnement « ${result} » créé` : naming.mode === 'clone' ? `« ${result} » créé, copie de « ${naming.env} »` : `Renommé en « ${result} »`,
+        );
+      }
     } catch (e) {
       this.namingError.set(String(e));
       await this.ws.reload();

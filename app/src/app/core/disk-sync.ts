@@ -25,7 +25,7 @@ const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
 /** Vrai si le lot touche les environnements ou le `.env` : leurs variables sont à relire. */
 export function touchesEnvironments(change: DiskChange): boolean {
-  return change.truncated || change.paths.some((path) => path.startsWith('environments/') || baseName(path) === '.env' || baseName(path).startsWith('.env.'));
+  return change.truncated || change.paths.some((path) => path === 'environments' || path.startsWith('environments/') || baseName(path) === '.env' || baseName(path).startsWith('.env.'));
 }
 
 /** Réunit deux lots reçus pendant qu'un traitement était en cours ; un lot d'une autre collection remplace l'ancien. */

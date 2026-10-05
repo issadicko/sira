@@ -151,9 +151,14 @@ export function cloneName(name: string): string {
   return `${name} copie`;
 }
 
-/** Nom que prendrait le fichier d'un environnement : le nom assaini, avec ` 1`, ` 2`… s'il est pris (la casse ne distingue pas deux noms). */
+/** Message d'un nom d'environnement refusé, `null` s'il convient : les règles d'un nom de requête, et pas de point en tête (le fichier serait caché). */
+export function envNameProblem(raw: string): string | null {
+  return validateName(raw, 'request') ?? (raw.trim().startsWith('.') ? 'Le nom ne peut pas commencer par un point.' : null);
+}
+
+/** Nom que prendrait le fichier d'un environnement, comme le moteur : nom assaini sans son `.yml`, avec ` 1`, ` 2`… s'il est pris (la casse ne distingue pas deux noms). */
 export function envFileName(raw: string, taken: string[], except?: string): string {
-  const stem = sanitizeName(raw.trim()) || 'Environnement';
+  const stem = sanitizeName(raw.trim()).replace('.yml', '') || 'Environnement';
   const used = new Set(taken.filter((name) => name !== except).map((name) => name.toLowerCase()));
   let name = stem;
   for (let n = 1; used.has(name.toLowerCase()); n++) name = `${stem} ${n}`;

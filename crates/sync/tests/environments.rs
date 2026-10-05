@@ -216,3 +216,30 @@ fn ef_col_04_a_default_that_cannot_be_updated_after_the_rename_says_the_rename_w
     assert!(error.to_string().starts_with("l'environnement est bien renommé, mais "), "{error}");
     assert!(dir.path().join("environments/production.yml").exists());
 }
+
+#[test]
+fn ef_var_01_a_rename_whose_name_key_cannot_be_rewritten_still_moves_the_default_environment() {
+    let dir = collection(Some("prod"), &[("prod", "variables: [oups\n")]);
+    let error = rename_environment(dir.path(), "prod", "production").unwrap_err();
+    assert!(error.to_string().starts_with("l'environnement est bien renommé, mais la clé name"), "{error}");
+    assert!(dir.path().join("environments/production.yml").exists());
+    assert_eq!(default(dir.path()).as_deref(), Some("production"), "le défaut ne reste pas sur l'ancien nom");
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_an_environments_folder_that_is_a_symbolic_link_is_never_renamed_cloned_or_deleted_through() {
+    let dir = collection(None, &[]);
+    let real = dir.path().join("vrai-dossier");
+    fs::create_dir_all(&real).unwrap();
+    fs::write(real.join("prod.yml"), PROD).unwrap();
+    std::os::unix::fs::symlink(&real, dir.path().join("environments")).unwrap();
+    for action in [
+        rename_environment(dir.path(), "prod", "x").map(drop),
+        clone_environment(dir.path(), "prod", "x").map(drop),
+        delete_environment(dir.path(), "prod", |_| panic!("la corbeille ne doit pas être appelée")),
+    ] {
+        assert!(matches!(action, Err(ManageError::Core(CoreError::Symlink(_)))), "{action:?}");
+    }
+    assert_eq!(fs::read_to_string(real.join("prod.yml")).unwrap(), PROD);
+}

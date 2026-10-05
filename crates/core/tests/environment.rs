@@ -73,7 +73,7 @@ fn ef_var_01_saving_what_was_read_writes_nothing_and_keeps_a_hand_written_file_a
         "# réglages locaux\nname: Local\nvariables:\n    - name:   host # l'hôte\n      value: http://localhost:8080\n";
     let dir = collection(&[("environments/Local.yml", hand)]);
     let vars = read_environment(dir.path(), "Local").unwrap();
-    assert!(!save_environment(dir.path(), "Local", &vars).unwrap());
+    assert!(!save_environment(dir.path(), "Local", &vars, false).unwrap());
     assert_eq!(text(dir.path(), "Local"), hand);
 }
 
@@ -82,9 +82,9 @@ fn ef_var_01_changing_a_value_changes_only_its_line_and_keeps_every_other_key() 
     let dir = local();
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars[0].value = Some("http://localhost:9090".into());
-    assert!(save_environment(dir.path(), "Local", &vars).unwrap());
+    assert!(save_environment(dir.path(), "Local", &vars, false).unwrap());
     assert_eq!(text(dir.path(), "Local"), LOCAL.replace("localhost:8080\n  - secret", "localhost:9090\n  - secret"));
-    assert!(!save_environment(dir.path(), "Local", &vars).unwrap(), "un second enregistrement ne change rien");
+    assert!(!save_environment(dir.path(), "Local", &vars, false).unwrap(), "un second enregistrement ne change rien");
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn ef_var_02_a_typed_value_keeps_its_type_when_its_text_is_edited() {
     let dir = local();
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars[3].value = Some("9090".into());
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     assert_eq!(text(dir.path(), "Local"), LOCAL.replace("data: \"8080\"", "data: \"9090\""));
     assert_eq!(read_environment(dir.path(), "Local").unwrap()[3].data_type.as_deref(), Some("number"));
 }
@@ -103,7 +103,7 @@ fn ef_var_01_disabling_adds_disabled_and_enabling_removes_it() {
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars[0].enabled = false;
     vars[2].enabled = true;
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     let written = text(dir.path(), "Local");
     assert!(written.contains("  - name: host\n    value: http://localhost:8080\n    disabled: true\n"), "{written}");
     assert!(written.contains("  - name: off\n    value: x\n    description: désactivée\n"), "{written}");
@@ -115,13 +115,13 @@ fn ef_var_01_added_variables_are_appended_removed_ones_disappear_and_none_left_d
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars.retain(|v| v.name != "off");
     vars.push(var("nouvelle", "a: b"));
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     let written = text(dir.path(), "Local");
     assert!(
         !written.contains("name: off") && written.contains("  - name: nouvelle\n    value: \"a: b\"\n"),
         "{written}"
     );
-    save_environment(dir.path(), "Local", &[]).unwrap();
+    save_environment(dir.path(), "Local", &[], false).unwrap();
     assert_eq!(
         text(dir.path(), "Local"),
         "name: Local\nextends: base\ncolor: \"#ff0000\"\nexternalSecrets:\n  type: vault\n  variables: []\n"
@@ -134,7 +134,7 @@ fn ef_var_01_a_renamed_variable_keeps_its_description_and_its_type() {
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars[3].name = "portHttp".into();
     vars[2].name = "inactive".into();
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     let written = text(dir.path(), "Local");
     assert!(
         written.contains("  - name: portHttp\n    value:\n      type: number\n      data: \"8080\"\n"),
@@ -152,12 +152,12 @@ fn enf_sec_01_a_secret_never_receives_a_value_in_the_file() {
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars[1].value = Some("jeton-à-ne-pas-écrire".into());
     vars[0].value = Some("http://h".into());
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     let written = text(dir.path(), "Local");
     assert!(!written.contains("jeton-à-ne-pas-écrire"), "{written}");
     assert!(written.contains("  - secret: true\n    name: token\n"), "{written}");
     vars.push(EnvVar { secret: true, value: Some("autre secret".into()), ..var("cle", "") });
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     let written = text(dir.path(), "Local");
     assert!(!written.contains("autre secret") && written.contains("  - secret: true\n    name: cle\n"), "{written}");
 }
@@ -165,9 +165,46 @@ fn enf_sec_01_a_secret_never_receives_a_value_in_the_file() {
 #[test]
 fn ef_var_01_saving_creates_a_missing_environment_and_its_folder() {
     let dir = collection(&[]);
-    assert!(save_environment(dir.path(), "Dev", &[var("host", "http://d")]).unwrap());
+    assert!(save_environment(dir.path(), "Dev", &[var("host", "http://d")], true).unwrap());
     assert_eq!(text(dir.path(), "Dev"), "name: Dev\nvariables:\n  - name: host\n    value: http://d\n");
     assert_eq!(open_collection(dir.path()).unwrap().environments, ["Dev"]);
+}
+
+#[test]
+fn ef_var_01_saving_never_recreates_an_environment_that_vanished_unless_asked_to() {
+    let dir = collection(&[]);
+    let error = save_environment(dir.path(), "Dev", &[var("host", "h")], false).unwrap_err();
+    assert!(matches!(error, CoreError::Io { .. }) && error.to_string().contains("introuvable"), "{error}");
+    assert!(!dir.path().join("environments").exists(), "rien n'est créé");
+    let kept = local();
+    fs::remove_file(kept.path().join("environments/Local.yml")).unwrap();
+    assert!(save_environment(kept.path(), "Local", &[var("a", "b")], false).is_err());
+    assert!(!kept.path().join("environments/Local.yml").exists());
+}
+
+#[test]
+fn ef_var_01_the_list_holds_only_files_with_a_usable_name() {
+    let dir = local();
+    fs::write(dir.path().join("environments/.cache.yml"), "name: x\n").unwrap();
+    fs::create_dir(dir.path().join("environments/dossier.yml")).unwrap();
+    fs::write(dir.path().join("environments/notes.txt"), "x").unwrap();
+    assert_eq!(open_collection(dir.path()).unwrap().environments, ["Local"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn enf_sec_01_nothing_is_written_through_an_environments_folder_that_is_a_symbolic_link() {
+    let dir = collection(&[]);
+    let real = dir.path().join("vrai-dossier");
+    fs::create_dir_all(&real).unwrap();
+    fs::write(real.join("Local.yml"), LOCAL).unwrap();
+    std::os::unix::fs::symlink(&real, dir.path().join("environments")).unwrap();
+    let mut vars = read_environment(dir.path(), "Local").unwrap();
+    assert_eq!(vars.len(), 4, "la lecture suit le lien");
+    vars[0].value = Some("http://h".into());
+    let error = save_environment(dir.path(), "Local", &vars, false).unwrap_err();
+    assert!(matches!(error, CoreError::Symlink(_)), "{error}");
+    assert_eq!(fs::read_to_string(real.join("Local.yml")).unwrap(), LOCAL);
 }
 
 #[test]
@@ -176,7 +213,7 @@ fn ef_var_01_a_byte_order_mark_and_windows_line_endings_are_kept() {
     let dir = collection(&[("environments/Local.yml", &crlf)]);
     let mut vars = read_environment(dir.path(), "Local").unwrap();
     vars[0].value = Some("http://h".into());
-    save_environment(dir.path(), "Local", &vars).unwrap();
+    save_environment(dir.path(), "Local", &vars, false).unwrap();
     let written = fs::read(dir.path().join("environments/Local.yml")).unwrap();
     assert!(written.starts_with("\u{feff}name: Local\r\n".as_bytes()));
     assert!(!String::from_utf8(written).unwrap().replace("\r\n", "").contains('\n'));
@@ -187,7 +224,7 @@ fn ef_var_01_an_environment_name_is_a_plain_name_never_a_path() {
     let dir = local();
     for name in ["", ".caché", "../Local", "sous/dossier", "a\\b", "environments/Local"] {
         let read = read_environment(dir.path(), name).unwrap_err();
-        let saved = save_environment(dir.path(), name, &[]).unwrap_err();
+        let saved = save_environment(dir.path(), name, &[], true).unwrap_err();
         assert!(matches!(read, CoreError::InvalidEnvironment(_)), "{name:?} : {read}");
         assert!(matches!(saved, CoreError::InvalidEnvironment(_)), "{name:?} : {saved}");
     }
@@ -197,7 +234,7 @@ fn ef_var_01_an_environment_name_is_a_plain_name_never_a_path() {
 #[test]
 fn ef_var_01_a_file_that_is_not_a_table_is_refused_not_overwritten() {
     let dir = collection(&[("environments/Mal.yml", "- a\n- b\n")]);
-    assert!(save_environment(dir.path(), "Mal", &[var("a", "b")]).is_err());
+    assert!(save_environment(dir.path(), "Mal", &[var("a", "b")], false).is_err());
     assert_eq!(text(dir.path(), "Mal"), "- a\n- b\n");
 }
 
