@@ -393,7 +393,8 @@ pub fn read_request(root: &Path, relative: &str) -> Result<RequestDoc, CoreError
     Ok(RequestDoc::from_tree(&tree))
 }
 
-/// Enregistre la requête. Renvoie `false` quand le fichier n'a pas changé (aucune écriture).
+/// Enregistre la requête. Renvoie `false` quand le fichier n'a pas changé (aucune écriture) : un document que
+/// l'utilisateur n'a pas modifié ne réécrit jamais son fichier, quelle que soit la façon dont il était mis en forme.
 pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<bool, CoreError> {
     ensure_collection(root)?;
     let path = resolve_path(root, relative)?;
@@ -404,9 +405,12 @@ pub fn save_request(root: &Path, relative: &str, doc: &RequestDoc) -> Result<boo
         return Err(CoreError::NotARequest { path: relative.to_owned(), reason: format!("élément « {kind} »") });
     }
     let previous = RequestDoc::from_tree(&tree);
+    if doc == &previous {
+        return Ok(false);
+    }
     doc.apply(&mut tree, &previous);
     let next = styled_like(&current, yaml::emit(&Value::Map(tree), BLANK_BEFORE));
-    if next == current || (doc == &previous && current.trim_end() == next.trim_end()) {
+    if next == current {
         return Ok(false);
     }
     write_atomic(root, &path, &next)?;
@@ -522,4 +526,9 @@ pub fn write_new(path: &Path, text: &str) -> std::io::Result<()> {
 /// Relit puis réécrit un document avec l'émetteur, sans rien modifier.
 pub fn normalize(text: &str, blank_before: &[&str]) -> Result<String, yaml::YamlError> {
     Ok(yaml::emit(&yaml::parse(text)?, blank_before))
+}
+
+/// [`normalize`] avec le BOM et les fins de ligne de `text` : le fichier tel qu'un enregistrement le réécrirait.
+pub fn restyle(text: &str, blank_before: &[&str]) -> Result<String, yaml::YamlError> {
+    normalize(without_bom(text), blank_before).map(|out| styled_like(text, out))
 }

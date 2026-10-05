@@ -1,0 +1,23 @@
+info:
+  name: Add Cart Item
+  type: graphql
+  seq: 11
+
+graphql:
+  method: POST
+  url: https://localhost/api/v2/graphql
+  headers:
+    - name: x-trace
+      value: abc
+  body:
+    query: |-
+      mutation {
+        addCartItem(sku: "DS4-B", units: 2) {
+          success
+        }
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0

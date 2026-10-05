@@ -29,6 +29,7 @@ fn enf_comp_02_bruno_files_round_trip_without_diff() {
         "request-multipart-edited.yml",
         "request-multipart-empty.yml",
         "request-quoting.yml",
+        "request-graphql.yml",
         "opencollection.yml",
         "opencollection-min.yml",
         "folder.yml",
@@ -50,6 +51,23 @@ fn enf_comp_02_unchanged_doc_leaves_tree_identical() {
         doc.apply(&mut t, &doc.clone());
         assert_eq!(yaml::emit(&Value::Map(t), BLANK_BEFORE), original, "{name}");
     }
+}
+
+#[test]
+fn ef_req_01_editing_a_graphql_request_stays_in_its_own_section() {
+    let original = fixture("request-graphql.yml");
+    let mut t = tree(&original);
+    let previous = RequestDoc::from_tree(&t);
+    assert_eq!((previous.method.as_str(), previous.headers.len()), ("POST", 1));
+    assert_eq!(previous.url, "https://localhost/api/v2/graphql");
+
+    let mut doc = previous.clone();
+    doc.url.push_str("/beta");
+    doc.headers[0].value = "def".into();
+    doc.apply(&mut t, &previous);
+
+    let saved = yaml::emit(&Value::Map(t), BLANK_BEFORE);
+    assert_eq!(saved, original.replace("/graphql\n", "/graphql/beta\n").replace("value: abc", "value: def"));
 }
 
 #[test]

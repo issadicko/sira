@@ -1,0 +1,232 @@
+[
+  {
+    "id": "dz4j",
+    "repo": "yvasyliev/dz4j",
+    "commit": "35c1899b1cefdae71773f2f69be4011b80d806e8",
+    "path": "bruno-collection",
+    "license": "MIT",
+    "restyled": 2,
+    "restyle": "`params:` vide réécrit `params: null` ; chaîne entre guillemets sans nécessité"
+  },
+  {
+    "id": "ba-docs",
+    "repo": "berry-audio/ba-docs",
+    "commit": "dbd63ef2c163d11d6b85f570ea9ed16c2df999f1",
+    "path": "bruno",
+    "license": "MIT",
+    "restyled": 1,
+    "restyle": "espaces en fin de valeur"
+  },
+  {
+    "id": "mockdata.dev",
+    "repo": "usebruno/mockdata.dev",
+    "commit": "3893b8a4dcac2881ad15f4b68e34f1dd6e90deab",
+    "path": "resources/opencollection",
+    "license": "MIT",
+    "restyled": 104,
+    "restyle": "chaînes entre guillemets sans nécessité, lignes vides en trop"
+  },
+  {
+    "id": "crpt-openapi",
+    "repo": "pravets/crpt-openapi",
+    "commit": "00ea5aa4652a7beb7411fcc722fef18b590308c5",
+    "path": "bruno/true-api",
+    "license": "Unlicense",
+    "restyled": 0
+  },
+  {
+    "id": "senior-accounting-officer-stubs",
+    "repo": "hmrc/senior-accounting-officer-stubs",
+    "commit": "2df2002e7b947f1c7576cfbba1fb51bbdf8e2c5a",
+    "path": "bruno",
+    "license": "Apache-2.0",
+    "restyled": 0
+  },
+  {
+    "id": "saral",
+    "repo": "DemocratiseResearch/SARAL",
+    "commit": "98d9ff250a165c6c4d9758724538a37302517a45",
+    "path": "backend/Saral API Collection",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "cubby",
+    "repo": "andreypostal/cubby",
+    "commit": "abbcdd3bdbfadb6f50b55783636f99d2867a5870",
+    "path": "docs/api",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "j-commerce",
+    "repo": "filipemartinsdev/j-commerce",
+    "commit": "82a9bcdfee66032461a04b893ea1b3712df78d32",
+    "path": "bruno/j-commerce",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "corrugation",
+    "repo": "W-Floyd/corrugation",
+    "commit": "96d58b6d9ad066dc4dc8d4330d1691252d91ef01",
+    "path": "bruno",
+    "license": "MIT",
+    "restyled": 1,
+    "restyle": "pas de ligne vide avant `docs:`"
+  },
+  {
+    "id": "jupyterhealth-exchange",
+    "repo": "jupyterhealth/jupyterhealth-exchange",
+    "commit": "070edf83fe74bb44ef611add3ac4b13d188dc0a8",
+    "path": "opencollection/JHE",
+    "license": "MIT",
+    "restyled": 18,
+    "restyle": "listes écrites au niveau de leur clé"
+  },
+  {
+    "id": "opensource-chat-platform",
+    "repo": "saihanhtet/opensource-chat-platform",
+    "commit": "28a98b9ffb69c3e3dc4bc1097d17d4f6f19cde4b",
+    "path": "bruno",
+    "license": "MIT",
+    "restyled": 9,
+    "restyle": "`docs` d'une ligne écrit en bloc `|-`"
+  },
+  {
+    "id": "opencollection",
+    "repo": "hoalulab/opencollection",
+    "commit": "0877d8c49657a398519ba1d8ef4e93511c64dfe7",
+    "path": "collections/TCBS/v1",
+    "license": "Apache-2.0",
+    "restyled": 49,
+    "restyle": "pas de ligne vide entre les sections, bloc `|-` d'une ligne"
+  },
+  {
+    "id": "emplorer-server",
+    "repo": "LoethTechnology/emplorer-server",
+    "commit": "64ca2c54fb9d4b917e5803d72c41c8d07fbb5ac3",
+    "path": "bruno",
+    "license": "Apache-2.0",
+    "restyled": 48,
+    "restyle": "chaînes entre apostrophes"
+  },
+  {
+    "id": "missio",
+    "repo": "cjohnsto-nz/missio",
+    "commit": "69155ccf73d07464eed9d797ac6b1911e4ce2146",
+    "path": "examples/demo-api",
+    "license": "MIT",
+    "restyled": 43,
+    "restyle": "pas de ligne vide entre les sections"
+  },
+  {
+    "id": "langalpha",
+    "repo": "Lakshay-Deol/LangAlpha",
+    "commit": "3695aaef4a9866516c5e18f8553d24fd91742fdd",
+    "path": "docs/api",
+    "license": "Apache-2.0",
+    "restyled": 36,
+    "restyle": "pas de ligne vide avant `tests:`"
+  },
+  {
+    "id": "hardwaremon",
+    "repo": "louisboii747/HardwareMon",
+    "commit": "c3f441cd44bd40e71b9a51516dfd280f869a46ad",
+    "path": "hardwaremon_app/bruno",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "a2j-kommunikationsplattform",
+    "repo": "digitalservicebund/a2j-kommunikationsplattform",
+    "commit": "b831078ce03d89da8e180718a341751948f88de0",
+    "path": "doc/bruno/kompla-api",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "latech",
+    "repo": "RomanL1/latech",
+    "commit": "d5eed1268681bab9556744b314e259c7f6e453ca",
+    "path": "api-collection",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "unlockit",
+    "repo": "TINF24AI2/unlockit",
+    "commit": "6508fde4355bc924c0e311d7e953d1b17c025b76",
+    "path": "open_collection",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "2526-4ahitm-franklyn",
+    "repo": "2526-4ahitm-itp/2526-4ahitm-franklyn",
+    "commit": "d51197ca6dc1e41984d2593ee86f4f69ae912062",
+    "path": "server/http",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "hyxi-cloud-api",
+    "repo": "Veldkornet/hyxi-cloud-api",
+    "commit": "d1e9ba9bb40311d8ba63d817ea5bbf8d7ef95962",
+    "path": "dev_env/bruno",
+    "license": "MIT",
+    "restyled": 1,
+    "restyle": "ligne vide entre deux éléments d'une liste"
+  },
+  {
+    "id": "oauth",
+    "repo": "linuxchata/oauth",
+    "commit": "bd1561937c64f3e2da84db05223d2441f861ea78",
+    "path": "bruno/Shark.OAuth2.0",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "jsonplaceholder",
+    "repo": "jenhy/jsonplaceholder",
+    "commit": "238cfae541afd8cb4ec1b88d91003502999f0253",
+    "path": "Bruno_Collection",
+    "license": "MIT",
+    "restyled": 15,
+    "restyle": "lignes vides mal placées"
+  },
+  {
+    "id": "nanomon",
+    "repo": "benc-uk/nanomon",
+    "commit": "6b1009b463c9f99b5ef7e386837bb32720dc5891",
+    "path": "api/bruno",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "syfomotebehov",
+    "repo": "navikt/syfomotebehov",
+    "commit": "f514452dfae5bd734689d8c1b688fbd1f7d638da",
+    "path": "bruno/syfomotebehov",
+    "license": "MIT",
+    "restyled": 2,
+    "restyle": "chaînes entre guillemets sans nécessité"
+  },
+  {
+    "id": "connect3dp",
+    "repo": "AaronFJung/Connect3Dp",
+    "commit": "0eeccf19131f767e99781580028cf72370c4047b",
+    "path": "Research/Elegoo/Bruno",
+    "license": "MIT",
+    "restyled": 0
+  },
+  {
+    "id": "delta-chat-bots---rest-api",
+    "repo": "Ovaday/Delta-Chat-Bots---REST-API",
+    "commit": "49b608b0ef0bea0feb3ec4f087e615e395f975f4",
+    "path": "Bruno Requests",
+    "license": "MIT",
+    "restyled": 2,
+    "restyle": "lignes vides en fin de fichier"
+  }
+]

@@ -31,6 +31,11 @@ jobs:
       - name: Toolchain Rust (rust-toolchain.toml)
         run: rustup show
       - uses: Swatinem/rust-cache@v2
+      - name: Corpus Bruno (Gate 1)
+        uses: actions/cache@v4
+        with:
+          path: target/corpus
+          key: corpus-${{ runner.os }}-${{ hashFiles('crates/core/tests/corpus/manifest.json') }}
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy

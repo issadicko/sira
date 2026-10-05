@@ -15,7 +15,7 @@ Cette roadmap découpe le cahier des charges en lots livrables, chacun fermé pa
 | 0.4 – 0.6 Modèle, format, variables | Fait (requête HTTP, dossiers, collection, environnements, `.env`, variables dynamiques) | `crates/core` |
 | 0.7 Moteur HTTP avec timings et annulation | Fait (HTTP/1.1, TLS rustls + certificats du système) | `crates/engine` |
 | 0.8 CLI `run` | Fait, plus `check` (aller-retour) et assertions déclaratives | `crates/cli` |
-| 0.9 Corpus de 20 collections Bruno | À faire ; l'oracle `tools/oracle` (vrai code de Bruno, épinglé) produit déjà les fixtures de `core` et `sync` | `crates/*/tests/fixtures`, `tools/oracle` |
+| 0.9 Corpus de 20 collections Bruno | Fait (Gate 1) : 27 collections publiques, 1 578 fichiers, épinglées par commit dans `manifest.json` et récupérées avec git (cache CI) ; relues et réécrites sans perdre de sens, de façon stable, sans toucher un fichier que personne n'a modifié, en ne changeant qu'une ligne pour une modification d'une ligne (nom, URL, méthode, ajout d'en-tête) ; a révélé un vrai bogue (modifier une requête GraphQL, gRPC ou WebSocket écrivait une table `http` en trop), corrigé | `crates/core/tests/corpus.rs`, `crates/core/tests/corpus/manifest.json` |
 | 0.10 Bench de perf en CI | À faire | — |
 | 0.11 Signature des binaires | À faire | — |
 | MVP-α α.1 – α.8 | Fait (glisser-déposer livré au MVP-δ, édition des environnements à la ligne « Gestion d'environnements ») | `app/` |
@@ -111,6 +111,8 @@ Synchro OpenAPI, imports, scripts JavaScript, auth autre que Bearer/Basic hérit
 | 0.11 | Pipeline de signature (macOS notarisation, Windows, Linux) | ENF-SEC-04 | workflow `release.yml` | Un binaire signé produit |
 
 **Gate 1** : le corpus est relu puis réécrit sans aucun diff. Sans elle, le MVP ne démarre pas.
+
+Franchie le 5 octobre 2026. « Sans aucun diff » se tient là où il compte : un fichier que personne n'a modifié n'est jamais réécrit (même écrit à la main ou par un autre outil), et un fichier tel que Bruno l'écrit change sur la seule ligne éditée. Pour le reste, la réécriture suit l'émetteur de Bruno et ne perd rien : sur les 1 578 fichiers, 1 247 reviennent à l'octet près ; les 331 autres (14 collections) sont écrits autrement — chaînes entre apostrophes ou guillemets superflus, lignes vides absentes ou en trop, listes au niveau de leur clé — et `manifest.json` donne leur nombre exact et leur cause (le test échoue si le nombre bouge, dans un sens comme dans l'autre). Bruno réécrit lui aussi le fichier entier à l'enregistrement.
 
 ## 4. MVP (9,5 semaines)
 

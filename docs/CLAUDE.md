@@ -1,6 +1,6 @@
 # Handoff — Client API desktop offline-first (parité Bruno)
 
-Tu reprends un projet cadré dont le MVP (α, β, γ et δ : synchro OpenAPI à 3 voies et gestion de collection comprises) est livré ; restent la Gate 1 (corpus), le bench de perf et la V1 (voir « Avancement » dans `docs/roadmap.md`, `docs/synchro-openapi.md` pour la synchro, `docs/gestion-collection.md` pour la gestion de collection). Ton rôle est d'implémenter le produit décrit dans `docs/cahier-des-charges.md`, en suivant l'interface de `design/`.
+Tu reprends un projet cadré dont le MVP (α, β, γ et δ : synchro OpenAPI à 3 voies et gestion de collection comprises) est livré ; la Gate 1 (corpus) est franchie ; restent le bench de perf et la V1 (voir « Avancement » dans `docs/roadmap.md`, `docs/synchro-openapi.md` pour la synchro, `docs/gestion-collection.md` pour la gestion de collection). Ton rôle est d'implémenter le produit décrit dans `docs/cahier-des-charges.md`, en suivant l'interface de `design/`.
 
 ## À lire, dans cet ordre
 

@@ -7,7 +7,7 @@ use clap::{ArgGroup, Parser, Subcommand};
 use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
-use xc_core::{normalize, open_collection, prepare, read_request, TreeItem};
+use xc_core::{open_collection, prepare, read_request, restyle, TreeItem};
 use xc_sync::import::{fetch_spec, import_spec};
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
@@ -43,7 +43,12 @@ enum Command {
         bail: bool,
     },
     /// Relit et réécrit chaque fichier en mémoire pour vérifier l'aller-retour sans diff
-    Check { collection: PathBuf },
+    Check {
+        collection: PathBuf,
+        /// Montre la première ligne qui diffère de chaque fichier renormalisé
+        #[arg(long)]
+        diff: bool,
+    },
     /// Importe une spec OpenAPI 3.x ou Swagger 2.0 dans une nouvelle collection et affiche son chemin
     Import {
         /// Chemin d'un fichier ou URL http(s) de la spec
@@ -93,7 +98,7 @@ fn main() -> ExitCode {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(run(&collection, target.as_deref(), env.as_deref(), env_vars.into_iter().collect(), bail))
         }
-        Command::Check { collection } => check(&collection),
+        Command::Check { collection, diff } => check(&collection, diff),
         Command::Import { source, location, group_by } => {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(import(&source, &location, group_by))
@@ -373,7 +378,7 @@ async fn run_one(root: &Path, path: &str, name: &str, env: Option<&str>, runtime
     }
 }
 
-fn check(root: &Path) -> ExitCode {
+fn check(root: &Path, diff: bool) -> ExitCode {
     let mut files = Vec::new();
     walk(root, &mut files);
     let (mut same, mut differ, mut broken) = (0, 0, 0);
@@ -382,11 +387,14 @@ fn check(root: &Path) -> ExitCode {
         let Ok(text) = fs::read_to_string(file) else { continue };
         let is_env = file.parent().and_then(Path::file_name).is_some_and(|d| d == ENV_DIR);
         let blank: &[&str] = if is_env { &[] } else { BLANK_BEFORE };
-        match normalize(&text, blank) {
+        match restyle(&text, blank) {
             Ok(out) if out == text => same += 1,
-            Ok(_) => {
+            Ok(out) => {
                 differ += 1;
                 println!("≠ {rel}");
+                if diff {
+                    println!("{}", first_difference(&text, &out));
+                }
             }
             Err(e) => {
                 broken += 1;
@@ -400,6 +408,20 @@ fn check(root: &Path) -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// La première ligne où `after` s'écarte de `before`, avec deux lignes avant et après de chaque côté.
+fn first_difference(before: &str, after: &str) -> String {
+    let (a, b): (Vec<&str>, Vec<&str>) = (before.split('\n').collect(), after.split('\n').collect());
+    let at = a.iter().zip(&b).position(|(x, y)| x != y).unwrap_or(a.len().min(b.len()));
+    let window = |lines: &[&str], mark: char| {
+        let from = at.saturating_sub(2);
+        (from..(at + 3).min(lines.len()))
+            .map(|i| format!("    {}{:>4} {:?}", if i == at { mark } else { ' ' }, i + 1, lines[i]))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    format!("{}\n{}", window(&a, '-'), window(&b, '+'))
 }
 
 fn walk(dir: &Path, out: &mut Vec<PathBuf>) {

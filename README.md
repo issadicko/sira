@@ -61,7 +61,7 @@ cargo run -p xc-cli -- check chemin/vers/une-collection-bruno
 cargo run -p xc-cli -- import https://petstore3.swagger.io/api/v3/openapi.json ~/collections --group-by tags
 ```
 
-`run` sort avec le code 1 si une assertion ou un envoi échoue, 2 si la collection est illisible. `check` relit et réécrit chaque fichier en mémoire et signale ceux qui ne reviendraient pas à l'identique (porte d'entrée de la Gate 1). `import` crée une collection à partir d'une spec OpenAPI (fichier ou URL) et affiche son chemin.
+`run` sort avec le code 1 si une assertion ou un envoi échoue, 2 si la collection est illisible. `check` relit et réécrit chaque fichier en mémoire et signale ceux qui ne reviendraient pas à l'identique (`--diff` montre la première ligne qui change). `import` crée une collection à partir d'une spec OpenAPI (fichier ou URL) et affiche son chemin.
 
 ```bash
 cargo run -p xc-cli -- sync chemin/vers/la-collection --check

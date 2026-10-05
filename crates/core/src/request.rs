@@ -391,12 +391,22 @@ fn canonical(m: &Map) -> String {
     yaml::emit(&Value::Map(rest).sorted(), &[]).trim_end().to_owned()
 }
 
+/// Table qui porte méthode, URL, en-têtes et corps : `http`, ou la section propre au protocole (`graphql`, `grpc`,
+/// `websocket`) d'une requête qui n'a pas de table `http`.
+fn section<'a>(root: &Map, request_type: &'a str) -> &'a str {
+    if root.map("http").is_none() && root.map(request_type).is_some() {
+        request_type
+    } else {
+        "http"
+    }
+}
+
 impl RequestDoc {
     pub fn from_tree(root: &Map) -> Self {
         let empty = Map::default();
         let info = root.map("info").unwrap_or(&empty);
         let request_type = info.str("type").unwrap_or("http").to_owned();
-        let http = root.map("http").or_else(|| root.map(&request_type)).unwrap_or(&empty);
+        let http = root.map(section(root, &request_type)).unwrap_or(&empty);
         let runtime = root.map("runtime").unwrap_or(&empty);
         let settings = root.map("settings").unwrap_or(&empty);
 
@@ -439,7 +449,7 @@ impl RequestDoc {
             || self.body != previous.body
             || self.auth != previous.auth;
         if changed_http {
-            let http = root.map_mut_or_insert("http", TOP_ORDER);
+            let http = root.map_mut_or_insert(section(root, &previous.request_type), TOP_ORDER);
             if self.method != previous.method {
                 http.set("method", Value::str(&self.method), HTTP_ORDER);
             }
