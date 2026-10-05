@@ -5,7 +5,9 @@
 use std::fs;
 use std::path::Path;
 
-use xc_core::{open_collection, CoreError};
+use xc_core::open_collection;
+#[cfg(unix)]
+use xc_core::CoreError;
 use xc_sync::manage::{clone_environment, create_environment, delete_environment, rename_environment, ManageError};
 
 const PROD: &str = "name: prod
