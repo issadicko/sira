@@ -86,9 +86,9 @@ pub struct ScriptResponse {
     pub size: ResponseSize,
 }
 
-pub struct Input<'a> {
+pub struct Input {
     pub phase: Phase,
-    pub script: &'a str,
+    pub script: String,
     pub request: ScriptRequest,
     pub response: Option<ScriptResponse>,
     pub vars: Vars,
@@ -97,6 +97,8 @@ pub struct Input<'a> {
     pub execution_mode: String,
     pub dynamic: fn(&str) -> Option<String>,
     pub limits: Limits,
+    /// Levé par l'appelant (annulation de la requête), il interrompt le script.
+    pub cancel: Arc<AtomicBool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -331,7 +333,7 @@ fn install<'js>(ctx: &Ctx<'js>, host: &Rc<RefCell<Host>>, collection_path: Rc<St
     ctx.globals().set("__h", h)
 }
 
-fn nothing(input: &Input<'_>) -> Output {
+fn nothing(input: &Input) -> Output {
     Output {
         request: input.request.clone(),
         max_redirects: None,
@@ -355,7 +357,7 @@ const NATIVE_STACK_MARGIN: usize = 4 << 20;
 /// Exécute le script d'une phase dans un sandbox neuf, sur un fil à la pile assez grande pour la limite de QuickJS.
 /// Une erreur du script n'est pas une erreur d'exécution : elle est dans `Output::error`, avec les variables et les
 /// tests qui précèdent.
-pub fn run(input: Input<'_>) -> Result<Output, ScriptError> {
+pub fn run(input: Input) -> Result<Output, ScriptError> {
     if input.script.trim().is_empty() {
         return Ok(nothing(&input));
     }
@@ -371,8 +373,8 @@ pub fn run(input: Input<'_>) -> Result<Output, ScriptError> {
     })
 }
 
-fn execute(input: Input<'_>) -> Result<Output, ScriptError> {
-    let sandbox = Sandbox::new(input.limits)?;
+fn execute(input: Input) -> Result<Output, ScriptError> {
+    let sandbox = Sandbox::cancellable(input.limits, Arc::clone(&input.cancel))?;
     let host = Rc::new(RefCell::new(Host {
         vars: input.vars.clone(),
         dirty: Dirty::default(),

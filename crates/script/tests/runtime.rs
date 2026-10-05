@@ -5,10 +5,10 @@ fn object(v: Value) -> Map<String, Value> {
     v.as_object().cloned().unwrap()
 }
 
-fn input(phase: Phase, script: &str) -> Input<'_> {
+fn input(phase: Phase, script: &str) -> Input {
     Input {
         phase,
-        script,
+        script: script.to_owned(),
         request: ScriptRequest {
             name: "List users".into(),
             method: "GET".into(),
@@ -39,6 +39,7 @@ fn input(phase: Phase, script: &str) -> Input<'_> {
         execution_mode: "cli".into(),
         dynamic: |name| (name == "guid").then(|| "GUID".to_owned()),
         limits: Limits::default(),
+        cancel: Default::default(),
     }
 }
 

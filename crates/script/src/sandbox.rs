@@ -84,11 +84,16 @@ pub struct Sandbox {
 
 impl Sandbox {
     pub fn new(limits: Limits) -> Result<Self, ScriptError> {
+        Self::cancellable(limits, Arc::default())
+    }
+
+    /// Comme [`Sandbox::new`], avec un drapeau d'annulation que l'appelant peut lever d'un autre fil.
+    pub fn cancellable(limits: Limits, cancelled: Arc<AtomicBool>) -> Result<Self, ScriptError> {
         let init = |e: rquickjs::Error| ScriptError::new(format!("moteur de scripts : {e}"));
         let runtime = Runtime::new().map_err(init)?;
         runtime.set_memory_limit(limits.memory);
         runtime.set_max_stack_size(limits.stack);
-        let (cancelled, timed_out) = (Arc::new(AtomicBool::new(false)), Arc::new(AtomicBool::new(false)));
+        let timed_out = Arc::new(AtomicBool::new(false));
         let clock = Clock::new();
         let (stop, late, time) = (Arc::clone(&cancelled), Arc::clone(&timed_out), clock.clone());
         runtime.set_interrupt_handler(Some(Box::new(move || {

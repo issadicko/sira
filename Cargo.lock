@@ -5026,10 +5026,12 @@ name = "xc-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "serde_json",
  "tempfile",
  "tokio",
  "xc-core",
  "xc-engine",
+ "xc-runner",
  "xc-sync",
 ]
 
@@ -5065,6 +5067,20 @@ dependencies = [
  "tokio-rustls",
  "url",
  "webpki-roots 0.26.11",
+]
+
+[[package]]
+name = "xc-runner"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "xc-core",
+ "xc-engine",
+ "xc-script",
 ]
 
 [[package]]

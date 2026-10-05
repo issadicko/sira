@@ -87,3 +87,49 @@ fn enf_comp_02_check_reports_identical_files() {
     assert_eq!(code, 0, "{out}");
     assert!(out.contains("3 identique(s)"), "{out}");
 }
+
+fn scripted_collection(base: &str) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write(
+        root,
+        "opencollection.yml",
+        &format!("opencollection: 1.0.0\n\ninfo:\n  name: E2E\n\nrequest:\n  variables:\n    - name: baseUrl\n      value: {base}\n"),
+    );
+    let request = |name: &str, seq: u32, scripts: &str| {
+        format!("info:\n  name: {name}\n  type: http\n  seq: {seq}\n\nhttp:\n  method: GET\n  url: \"{{{{baseUrl}}}}/{name}\"\n\nruntime:\n  scripts:\n{scripts}")
+    };
+    write(
+        root,
+        "first.yml",
+        &request(
+            "first",
+            1,
+            "    - type: before-request\n      code: console.log('about to send'); bru.setVar('who', 'Ada');\n    - type: after-response\n      code: bru.setNextRequest('third');\n    - type: tests\n      code: |-\n        test('devise', () => expect(res.body.devise).to.equal('XOF'));\n        test('who survives', () => expect(bru.getVar('who')).to.equal('Ada'));\n",
+        ),
+    );
+    write(root, "second.yml", &request("second", 2, "    - type: tests\n      code: test('never runs', () => {});\n"));
+    write(
+        root,
+        "third.yml",
+        &request(
+            "third",
+            3,
+            "    - type: tests\n      code: |-\n        test('wrong on purpose', () => expect(1).to.equal(2));\n",
+        ),
+    );
+    dir
+}
+
+#[test]
+fn ef_scr_01_run_executes_scripts_and_tests_and_follows_set_next_request() {
+    let base = serve(2);
+    let dir = scripted_collection(&base);
+    let (code, out) = xc(&["run", dir.path().to_str().unwrap()]);
+    assert_eq!(code, 1, "{out}");
+    assert!(out.contains("[log] about to send"), "{out}");
+    assert!(out.contains("✓ devise") && out.contains("✓ who survives"), "{out}");
+    assert!(out.contains("✗ wrong on purpose  expected 1 to equal 2"), "{out}");
+    assert!(!out.contains("never runs") && !out.contains("second"), "{out}");
+    assert!(out.contains("1 réussie(s), 1 en échec"), "{out}");
+}

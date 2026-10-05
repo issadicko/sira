@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{ArgGroup, Parser, Subcommand};
-use xc_core::assert::{evaluate, ResponseView};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
-use xc_core::{open_collection, prepare, read_request, restyle, TreeItem};
+use xc_core::{open_collection, read_request, restyle, RequestDoc, TreeItem};
+use xc_runner::{next_step, run_request, Outcome, PhaseReport, Request, Session, Stage};
 use xc_sync::import::{fetch_spec, import_spec};
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
@@ -305,19 +305,31 @@ async fn run(
         return ExitCode::from(2);
     }
 
-    let (mut passed, mut failed) = (0, 0);
-    for (path, name) in &requests {
-        let ok = run_one(root, path, name, env.as_deref(), &runtime).await;
-        if ok {
-            passed += 1
+    let mut session = Session::default();
+    session.runtime.extend(runtime.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))));
+    let names: Vec<String> = requests.iter().map(|(_, name)| name.clone()).collect();
+    let (mut passed, mut failed, mut skipped, mut jumps, mut at) = (0, 0, 0, 0, Some(0));
+    while let Some(index) = at {
+        let (path, name) = &requests[index];
+        let outcome = run_one(root, path, name, env.as_deref(), &collection.name, &mut session).await;
+        if outcome.skipped {
+            skipped += 1;
+        } else if outcome.passed() {
+            passed += 1;
         } else {
-            failed += 1
+            failed += 1;
         }
-        if !ok && bail {
+        if !outcome.passed() && !outcome.skipped && bail {
             break;
         }
+        let step = next_step(&names, index, &outcome, &mut jumps);
+        if let Some(warning) = step.warning {
+            eprintln!("  ! {warning}");
+        }
+        at = step.next;
     }
-    println!("\n{passed} réussie(s), {failed} en échec, {} au total", requests.len());
+    let skipped_note = if skipped > 0 { format!(", {skipped} ignorée(s)") } else { String::new() };
+    println!("\n{passed} réussie(s), {failed} en échec{skipped_note}, {} au total", passed + failed + skipped);
     if failed == 0 {
         ExitCode::SUCCESS
     } else {
@@ -325,43 +337,63 @@ async fn run(
     }
 }
 
-async fn run_one(root: &Path, path: &str, name: &str, env: Option<&str>, runtime: &HashMap<String, String>) -> bool {
+fn print_phase(label: &str, phase: &PhaseReport) {
+    for line in &phase.logs {
+        let args: Vec<String> = line.args.as_array().map_or_else(Vec::new, |a| {
+            a.iter().map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_owned)).collect()
+        });
+        println!("    [{}] {}", line.level, args.join(" "));
+    }
+    for result in &phase.results {
+        if result.status == "pass" {
+            println!("    ✓ {}", result.description);
+        } else {
+            println!("    ✗ {}  {}", result.description, result.error.as_deref().unwrap_or(""));
+        }
+    }
+    if let Some(error) = &phase.error {
+        println!("    ✗ {label} : {error}");
+    }
+}
+
+async fn run_one(
+    root: &Path,
+    path: &str,
+    name: &str,
+    env: Option<&str>,
+    collection_name: &str,
+    session: &mut Session,
+) -> Outcome {
     let doc = match read_request(root, path) {
         Ok(d) => d,
         Err(e) => {
             println!("✗ {name}  {e}");
-            return false;
+            return Outcome::failed(&RequestDoc::from_tree(&Default::default()), Stage::Prepare, e);
         }
     };
-    let prepared = match prepare(root, path, &doc, env, runtime) {
-        Ok(p) => p,
-        Err(e) => {
-            println!("✗ {name}  {e}");
-            return false;
-        }
-    };
-    if !prepared.unresolved.is_empty() {
-        println!("  ! variables non résolues : {}", prepared.unresolved.join(", "));
+    let request =
+        Request { root, path, doc: &doc, env, collection_name, execution_mode: "cli", cancel: Default::default() };
+    let outcome = run_request(request, session).await;
+    let method = outcome.method.clone();
+    if outcome.skipped {
+        print_phase("script pré-requête", &outcome.pre);
+        println!("- {method} {name}  ignorée par un script");
+        return outcome;
     }
-    let method = prepared.request.method.clone();
-    match xc_engine::send(prepared.request).await {
-        Err(e) => {
-            println!("✗ {method} {name}  {e}");
-            false
+    if !outcome.unresolved.is_empty() {
+        println!("  ! variables non résolues : {}", outcome.unresolved.join(", "));
+    }
+    match (&outcome.error, &outcome.response) {
+        (Some(error), _) => {
+            print_phase("script pré-requête", &outcome.pre);
+            println!("✗ {method} {name}  {}", error.message);
         }
-        Ok(res) => {
-            let results =
-                evaluate(&doc.assertions, &ResponseView { status: res.status, headers: &res.headers, body: &res.body });
-            let ok = results.iter().all(|r| r.passed);
-            println!(
-                "{} {} {name}  {} {}  {:.0} ms",
-                if ok { "✓" } else { "✗" },
-                method,
-                res.status,
-                res.reason,
-                res.timings.total_ms
-            );
-            for r in &results {
+        (None, Some(res)) => {
+            let mark = if outcome.passed() { "✓" } else { "✗" };
+            println!("{mark} {method} {name}  {} {}  {:.0} ms", res.status, res.reason, res.timings.total_ms);
+            print_phase("script pré-requête", &outcome.pre);
+            print_phase("script post-réponse", &outcome.post);
+            for r in &outcome.assertions {
                 let mark = if r.passed { "✓" } else { "✗" };
                 let expected = r.expected.as_deref().unwrap_or("");
                 let detail = r.error.clone().unwrap_or_else(|| {
@@ -373,9 +405,11 @@ async fn run_one(root: &Path, path: &str, name: &str, env: Option<&str>, runtime
                 });
                 println!("    {mark} {} {} {expected}{detail}", r.expression, r.operator);
             }
-            ok
+            print_phase("tests", &outcome.tests);
         }
+        (None, None) => {}
     }
+    outcome
 }
 
 fn check(root: &Path, diff: bool) -> ExitCode {

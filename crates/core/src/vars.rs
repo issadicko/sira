@@ -77,7 +77,16 @@ fn read_dotenv(path: &Path) -> HashMap<String, String> {
         .collect()
 }
 
-/// Pile de portées dans l'ordre de Bruno : runtime > requête > dossier > environnement > collection.
+/// Valeurs que des scripts ont données à l'environnement, à la collection ou aux variables globales : elles
+/// remplacent celles des fichiers pour la requête qui suit.
+#[derive(Debug, Clone, Default)]
+pub struct ScopeOverrides {
+    pub global: Vec<(String, String)>,
+    pub collection: Option<Vec<(String, String)>>,
+    pub env: Option<Vec<(String, String)>>,
+}
+
+/// Pile de portées dans l'ordre de Bruno : runtime > requête > dossier > environnement > collection > globales.
 pub struct Scope {
     layers: Vec<Layer>,
     secrets: Vec<String>,
@@ -123,6 +132,49 @@ impl Scope {
             .unwrap_or_default();
         layers.push(Layer { level: "Collection".into(), source: COLLECTION_FILE.into(), vars: collection_vars });
         Ok(Self { layers, secrets, dotenv: ctx.dotenv.clone() })
+    }
+
+    pub fn with_overrides(mut self, overrides: ScopeOverrides) -> Self {
+        let ScopeOverrides { global, collection, env } = overrides;
+        if let Some(vars) = env {
+            match self.layers.iter_mut().find(|l| l.level.starts_with("Environnement")) {
+                Some(layer) => layer.vars = vars,
+                None => {
+                    let at = self.layers.iter().position(|l| l.level == "Collection").unwrap_or(self.layers.len());
+                    self.layers
+                        .insert(at, Layer { level: "Environnement".into(), source: "bru.setEnvVar()".into(), vars });
+                }
+            }
+        }
+        if let Some(vars) = collection {
+            if let Some(layer) = self.layers.iter_mut().find(|l| l.level == "Collection") {
+                layer.vars = vars;
+            }
+        }
+        if !global.is_empty() {
+            self.layers.push(Layer { level: "Globales".into(), source: "bru.setGlobalEnvVar()".into(), vars: global });
+        }
+        self
+    }
+
+    /// Variables des portées dont le nom commence par `level` (`Requête`, `Dossier`, `Environnement`, `Collection`),
+    /// fusionnées du plus faible au plus fort, sans celles du runtime.
+    pub fn vars_of(&self, level: &str) -> Vec<(String, String)> {
+        let mut merged: Vec<(String, String)> = Vec::new();
+        for layer in self.layers.iter().rev().filter(|l| l.level.starts_with(level)) {
+            for (name, value) in &layer.vars {
+                match merged.iter_mut().find(|(k, _)| k == name) {
+                    Some(slot) => slot.1.clone_from(value),
+                    None => merged.push((name.clone(), value.clone())),
+                }
+            }
+        }
+        merged
+    }
+
+    /// Variables du fichier `.env` de la collection.
+    pub fn dotenv(&self) -> &HashMap<String, String> {
+        &self.dotenv
     }
 
     pub fn lookup(&self, name: &str) -> Option<&str> {
@@ -216,7 +268,7 @@ fn sorted(map: &HashMap<String, String>) -> Vec<(String, String)> {
     v
 }
 
-fn dynamic_value(name: &str) -> Option<String> {
+pub fn dynamic_value(name: &str) -> Option<String> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     match name {
         "guid" | "randomUUID" => Some(uuid::Uuid::new_v4().to_string()),

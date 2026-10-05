@@ -11,7 +11,7 @@ use crate::collection::resolve_visible_path;
 use crate::request::{
     auth_from, key_values, Auth, Body, KeyValue, MultipartField, MultipartValue, ParamKind, RequestDoc,
 };
-use crate::vars::{Context, Scope};
+use crate::vars::{Context, Scope, ScopeOverrides};
 use crate::CoreError;
 
 const NO_TIMEOUT: Duration = Duration::from_secs(600);
@@ -22,6 +22,34 @@ pub struct Prepared {
     pub unresolved: Vec<String>,
 }
 
+/// Ce qu'un script pré-requête a changé et que `doc` ne dit pas : les en-têtes de la collection, des dossiers et de la
+/// requête, déjà fusionnés (sans l'auth ni le `Content-Type` automatique), et les variables écrites.
+#[derive(Debug, Clone, Default)]
+pub struct Overrides {
+    pub headers: Option<Vec<(String, String)>>,
+    pub vars: ScopeOverrides,
+}
+
+/// En-têtes activés de la collection, des dossiers puis de la requête, fusionnés comme le fait Bruno : une clé garde sa
+/// première position et la dernière valeur, `content-type` est unifié en minuscules, les noms ne différant que par la
+/// casse restent deux en-têtes. Ni interpolés, ni complétés par l'auth.
+pub fn merged_headers(ctx: &Context, doc: &RequestDoc) -> Vec<(String, String)> {
+    let mut headers: Vec<(String, String)> = Vec::new();
+    let parents = std::iter::once(&ctx.collection).chain(ctx.folders.iter().map(|(_, m)| m));
+    let inherited = parents
+        .filter_map(Context::request_section)
+        .flat_map(|section| key_values(section.seq("headers")))
+        .chain(doc.headers.iter().cloned());
+    for h in inherited.filter(|h| h.enabled && !h.name.is_empty()) {
+        let name = if h.name.eq_ignore_ascii_case("content-type") { "content-type".to_owned() } else { h.name };
+        match headers.iter_mut().find(|(k, _)| *k == name) {
+            Some(slot) => slot.1 = h.value,
+            None => headers.push((name, h.value)),
+        }
+    }
+    headers
+}
+
 /// Construit la requête prête à partir : variables résolues, en-têtes et auth hérités.
 pub fn prepare(
     root: &Path,
@@ -30,11 +58,23 @@ pub fn prepare(
     env: Option<&str>,
     runtime: &HashMap<String, String>,
 ) -> Result<Prepared, CoreError> {
+    prepare_with(root, request_path, doc, env, runtime, Overrides::default())
+}
+
+/// [`prepare`] avec ce que les scripts ont changé.
+pub fn prepare_with(
+    root: &Path,
+    request_path: &str,
+    doc: &RequestDoc,
+    env: Option<&str>,
+    runtime: &HashMap<String, String>,
+    overrides: Overrides,
+) -> Result<Prepared, CoreError> {
     if doc.request_type != "http" {
         return Err(CoreError::UnsupportedRequestType(doc.request_type.clone()));
     }
     let ctx = Context::load(root, request_path)?;
-    let scope = Scope::build(root, &ctx, request_path, doc, env, runtime)?;
+    let scope = Scope::build(root, &ctx, request_path, doc, env, runtime)?.with_overrides(overrides.vars);
     let mut unresolved = Vec::new();
     let mut fill = |s: &str| scope.interpolate(s, &mut unresolved);
 
@@ -48,16 +88,16 @@ pub fn prepare(
         headers.retain(|(k, _)| !k.eq_ignore_ascii_case(&name));
         headers.push((name, value));
     };
-    let parents = std::iter::once(&ctx.collection).chain(ctx.folders.iter().map(|(_, m)| m));
-    for parent in parents {
-        if let Some(section) = Context::request_section(parent) {
-            for h in key_values(section.seq("headers")).into_iter().filter(|h| h.enabled) {
-                push(fill(&h.name), fill(&h.value));
-            }
+    let own;
+    let merged = match &overrides.headers {
+        Some(headers) => headers,
+        None => {
+            own = merged_headers(&ctx, doc);
+            &own
         }
-    }
-    for h in doc.headers.iter().filter(|h| h.enabled && !h.name.is_empty()) {
-        push(fill(&h.name), fill(&h.value));
+    };
+    for (name, value) in merged {
+        push(fill(name), fill(value));
     }
 
     match effective_auth(doc, &ctx) {
