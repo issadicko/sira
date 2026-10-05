@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/engine", "crates/sync", "crates/watch", "crates/cli", "app/src-tauri"]
+members = ["crates/core", "crates/engine", "crates/sync", "crates/watch", "crates/script", "crates/cli", "app/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,6 +14,7 @@ xc-core = { path = "crates/core" }
 xc-engine = { path = "crates/engine" }
 xc-sync = { path = "crates/sync" }
 xc-watch = { path = "crates/watch" }
+xc-script = { path = "crates/script" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
