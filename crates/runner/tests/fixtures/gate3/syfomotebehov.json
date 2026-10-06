@@ -1,0 +1,132 @@
+[
+ {
+  "path": "arbeidsgiver/empty_fieldsnapshot_motebehov.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "arbeidsgiver/meld_motebehov_all_inputs.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "arbeidsgiver/motebehov.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "arbeidsgiver/svar_motebehov.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "arbeidstaker/ferdigstill.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "arbeidstaker/meld_motebehov.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "arbeidstaker/motebehov.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "mock-auth/azure.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "mock-auth/tokenx.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "veileder/behandle.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "veileder/historikk.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "veileder/motebehov.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "veileder/tilbakemelding.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

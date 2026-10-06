@@ -1,0 +1,182 @@
+[
+ {
+  "path": "Access Token/Authorize.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Client Credentials Flow.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Device Flow Token.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Device Flow.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Introspect.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Password Flow.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Refresh Token Flow.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Revoke Access Token.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Revoke Refresh Token.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Access Token/Token.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Client Registration/Client Delete.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Client Registration/Client Read.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Client Registration/Client Register.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Client Registration/Client Update.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Configuration/OpenID Configuration JWKS.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Configuration/OpenID Configuration.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "User Info/User Info Post.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "User Info/User Info.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

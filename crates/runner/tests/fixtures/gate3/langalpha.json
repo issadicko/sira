@@ -1,0 +1,402 @@
+[
+ {
+  "path": "00-health/health-check.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/create-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/delete-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/get-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/list-workspaces.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/refresh-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/start-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/stop-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "30-workspaces/update-workspace.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "35-workspace-files/download-file.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "35-workspace-files/list-files.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "35-workspace-files/read-file.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "35-workspace-files/upload-file.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "50-users/create-user.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "50-users/get-current-user.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "50-users/get-preferences.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "50-users/update-current-user.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "50-users/update-preferences.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "55-portfolio/add-holding.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "55-portfolio/delete-holding.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "55-portfolio/get-holding.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "55-portfolio/list-holdings.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "55-portfolio/update-holding.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/add-item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/create-watchlist.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/delete-item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/delete-watchlist.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/get-item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/get-watchlist.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/list-items.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/list-watchlists.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/update-item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "60-watchlist/update-watchlist.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "70-market-data/batch-index-intraday.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "70-market-data/batch-stock-intraday.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "70-market-data/get-index-intraday.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "70-market-data/get-stock-intraday.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "70-market-data/search-stocks.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "80-cache/clear-cache.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "80-cache/get-stats.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

@@ -8,3 +8,4 @@ node_modules/
 /tools/oracle/bruno/
 /tools/oracle/bundle.js
 /.claude/worktrees/
+__pycache__/

@@ -1,0 +1,262 @@
+[
+ {
+  "path": "Add Contact To Chat.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Create Account.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Create Broadcast Channel.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Export Backup.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Export Self Keys.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Account Info.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get All Account Ids.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get All Accounts.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Basic Chat Info.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Chat Securejoin Qr Code.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Chatlist Entries.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Contacts.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Info.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Get Message.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Health Check.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Import Backup.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Import Self Keys.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Remove Account.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "SecureJoin.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Send Message with Media.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Send Message.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Send Reaction.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Set Bot Name.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Set Bot Profile Image.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Set Chat Profile Image.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Upload Media.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ }
+]

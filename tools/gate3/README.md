@@ -14,18 +14,19 @@ Chaque collection est copiée dans un dossier temporaire où toute adresse `http
 
 ## État (6 octobre 2026)
 
-Première passe sur les collections qui ont fini :
+**Les 27 collections sont à zéro écart** (statut, code HTTP, assertions, tests avant et après la réponse, présence d'une erreur). Le texte des erreurs (`messages=` dans la sortie) est compté à part : QuickJS et Node, ou le moteur HTTP de chaque outil, ne l'écrivent pas pareil.
 
-| Collection | Requêtes | Écarts |
-| --- | --- | --- |
-| `jsonplaceholder`, `nanomon`, `mockdata.dev` | 15, 10, 94 | aucun |
-| `dz4j` | 110 | `oauth/get-access-token` : Bruno ignore une requête qui contient `{{?Code}}` (variable à saisir) ; **corrigé** (`Skip::Prompts`, `ef_run_01_a_request_with_prompt_variables_is_skipped_like_bru_run`). `playlist/upload-cover` : même échec (fichier introuvable, chemin `..\assets\…` de Windows), seul le texte du message diffère |
-| `ba-docs` | 102 | `Mixer/meta/mixer.set_volume.yml` : même échec (pas d'`info.type`), seul le texte du message diffère |
+Ce que la comparaison a fait corriger : les requêtes qui contiennent `{{?nom}}` sont ignorées (`Skip::Prompts`) ; les requêtes WebSocket et gRPC sont rapportées en erreur, comme chez Bruno, au lieu d'être omises ; un corps multipart n'est plus recopié dans le script post-réponse (40 Mo dépassaient le plafond mémoire de QuickJS).
 
-À faire pour fermer la Gate :
+Ce que le harnais règle pour comparer des choses comparables : `--noproxy` des deux côtés (`crpt-openapi` déclare un proxy injoignable et les deux outils l'attendaient 150 s), un corps écho plafonné à 64 Kio, un jeton OAuth dans chaque réponse d'écho.
 
-1. **Terminer la passe** sur les 22 autres collections. `crpt-openapi` fait attendre `bru run` jusqu'au délai de 150 s : trouver pourquoi (une requête que le serveur local ne termine pas ? une adresse qui n'est pas réécrite ?) et vérifier que `xc run` y répond comme Bruno.
-2. **Les scripts** : les collections qui en ont vraiment sont `corrugation` (221 tests), `opencollection` (41), `missio` (scripts, tests et 19 assertions), `hyxi-cloud-api`, `senior-accounting-officer-stubs`, `cubby`, `oauth`, `latech`, `unlockit`, `syfomotebehov`. Chaque écart restant est un écart d'exécution de `xc-script` ou du runner à corriger, ou un écart de message à normaliser (QuickJS et Node n'écrivent pas les erreurs JavaScript pareil : comparer le statut avant le texte).
-3. **Figer le résultat** : écrire pour chaque collection le rapport normalisé de Bruno dans `crates/runner/tests/fixtures/gate3/<id>.json` (les tests ne lancent jamais Node, comme pour l'oracle), puis un test Rust `crates/runner/tests/gate3.rs` qui réécrit le corpus de la même façon, lance le runner contre un serveur local identique et compare au fixture. Le corpus se récupère déjà avec le code de `crates/core/tests/corpus.rs` (à partager par `#[path]`).
-4. Forme du rapport JSON : `@usebruno/cli` 4.2.1 (npm) écrit une liste d'itérations `[{ iterationIndex, results, summary }]`, le commit épinglé de `tools/oracle` écrit `{ summary, results }` (ce que fait `xc`). `diff.py` accepte les deux.
-5. Documenter le résultat dans `docs/docs/runner.md` et la feuille de route (ligne « Gate 3 »).
+Écarts voulus (`crates/runner/tests/fixtures/gate3/divergences.json`, et les requêtes OAuth 2 interactives, comptées sous `interactif=`) : `xc run` refuse d'envoyer une requête dont le jeton OAuth manque ; `bru run` l'envoie sans. Voir `docs/docs/runner.md` § 8.
+
+## Figer le résultat
+
+```bash
+FREEZE=1 python3 tools/gate3/diff.py    # réécrit crates/runner/tests/fixtures/gate3/<id>.json d'après bru run
+cargo test -p xc-runner --test gate3    # rejoue le runner contre ces rapports (Node n'est jamais lancé)
+```
+
+Les rapports figés ont la forme normalisée de `diff.py` (`path`, `status`, `http`, `assertions`, `tests`, `pre`, `post`, `error`). `@usebruno/cli` 4.2.1 (npm) écrit une liste d'itérations `[{ iterationIndex, results, summary }]`, le commit épinglé de `tools/oracle` écrit `{ summary, results }` (ce que fait `xc`) ; `diff.py` accepte les deux.

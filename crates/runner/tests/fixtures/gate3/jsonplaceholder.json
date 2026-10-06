@@ -1,0 +1,317 @@
+[
+ {
+  "path": "Posts/Create_Post.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 201",
+    "fail"
+   ],
+   [
+    "res.body.title",
+    "eq 新文章标题",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Posts/Delete_Post.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Posts/Get_Post.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.id",
+    "eq 34",
+    "fail"
+   ],
+   [
+    "res.body.title",
+    "isString true",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Posts/List_Posts.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body",
+    "isArray true",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Posts/Update_Post.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.title",
+    "eq 已更新的标题",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Todos/Create_Todo.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 201",
+    "fail"
+   ],
+   [
+    "res.body.title",
+    "eq 完成 Bruno 集合编写",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Todos/Delete_Todo.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Todos/Get_Todo.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.id",
+    "eq 1",
+    "fail"
+   ],
+   [
+    "res.body.completed",
+    "isBoolean true",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Todos/List_Todos.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body",
+    "isArray true",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Todos/Update_Todo.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.completed",
+    "eq true",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Users/Create_User.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 201",
+    "fail"
+   ],
+   [
+    "res.body.name",
+    "eq Cline AI",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Users/Delete_User.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Users/Get_User.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.id",
+    "eq 1",
+    "fail"
+   ],
+   [
+    "res.body.username",
+    "eq Bret",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Users/List_Users.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body",
+    "isArray true",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Users/Update_User.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.name",
+    "eq Leanne Graham Updated",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

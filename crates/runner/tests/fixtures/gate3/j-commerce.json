@@ -1,0 +1,662 @@
+[
+ {
+  "path": "main/identity/private/get me.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/private/get user by ID.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/private/get users.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/private/update user role.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/public/get JWKS.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/public/health.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/public/login.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/public/openapi.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/public/refresh.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/identity/public/register.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/notification/private/get notifications.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/notification/private/read notification.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/notification/public/health.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/notification/public/swagger.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Check-in shipping.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Check-out shipping.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Create storage address.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Delete storage address.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Dispatch shipping.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Get shipping by ID.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Get shippings.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/admin/Get storage addresses.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/cancel order.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/create delivery address.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/get delivery address by ID.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/get delivery addresses.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/get order by ID.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/private/get orders.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/public/health.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/orders/public/swagger.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/payment/health.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/payment/swagger.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/pricing/Create price.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/pricing/Delete price.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/pricing/Get prices.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/pricing/Get products.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Add Shopping Cart Item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Add Wishlist Item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Catalogue Categories.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Catalogue Search.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Catalogue product.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Catalogue.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Clear Shopping Cart.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Clear Wishlist.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Confirm Shopping Cart.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Remove Shopping Cart Item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Remove Wishlist Item.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Shopping Cart.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/Wishlist.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Create Product Category.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Create Product.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Create SKU.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Delete Product.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Delete SKU.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Delete product Image.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Product Categories.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Product.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Products.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Update Product.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Update SKU.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Upload Image on S3.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/product/Upload product image.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/stock/Create Stock Movement.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/private/admin/stock/Stock Movements.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/public/health.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "main/products/public/swagger.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

@@ -1,0 +1,222 @@
+[
+ {
+  "path": "document-auth-controller/getAuthStatus.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-auth-controller/logoutDocument.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-auth-controller/unlockDocument.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-callback-controller/saveDocumentState.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/createDocument.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/getDocumentContent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/getDocumentHistory.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/getRenderedPDF.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/getTimestamps.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/initiateDocumentRender.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/setAutoRender.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "document-controller/thumbnail.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "image-controller/deleteImage.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "image-controller/getImages.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "image-controller/singleImage.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "image-controller/updateImage.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "image-controller/uploadImages.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "internal-document-auth-controller/authorizeWebSocket.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "pdf-rendered-stream-controller/GetPDFRenderStream.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "template-controller/getTemplateContent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "template-controller/listAllTemplates.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "template-controller/saveTemplate.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

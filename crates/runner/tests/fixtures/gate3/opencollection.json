@@ -1,0 +1,712 @@
+[
+ {
+  "path": "accounts/accounts_GetCashBalance.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetDerivativeAccountStatus.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetLoan.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetMarginLimit.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetMarginSubscriptionAddons.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetPositionClosed.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetPositionOpen.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetPricingPolicy.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetProfileByCustodyCode.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetPurchasingPower.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetPurchasingPowerBySymbol.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetPurchasingPowerBySymbolPrice.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetRisk.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/accounts_GetStockAsset.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/cash_GetMarginDebt.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/cash_GetStatements.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/cash_Transfer.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/cash_UpdateDeposit.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "accounts/cash_UpdateWithdrawal.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "auth/auth_ExchangeToken.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [
+   [
+    "Post-Response Script Error",
+    "fail"
+   ]
+  ],
+  "error": false
+ },
+ {
+  "path": "auth/auth_RequestOtp.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/derivative_GetContracts.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/derivative_GetQuotes.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/intraday_GetSupplyDemand.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/intraday_GetSupplyDemandExtended.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/intraday_GetSupplyDemandMonthly.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/intraday_GetTradeHistory.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/market_GetMarketSnapshots.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/market_GetStockQuotes.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/putThrough_GetSnapshots.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "market/securities_Get.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_CancelConditionalOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_CancelOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_ChangeConditionalOrderV2.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_ChangeOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_GetConditionalOrderDetails.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_GetOrdersInDay.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_PlaceConditionalOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/derivative_PlaceOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/orders_CancelOrders.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/orders_ChangeOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/orders_GetMatchingDetails.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/orders_GetOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/orders_GetOrders.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "trading/orders_PlaceOrder.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "response matches the schema",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "websocket/derivative_SubscribeOrderUpdate.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "websocket/derivative_SubscribeQuote.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "websocket/intraday_SubscribeHistorySupplyDemand.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "websocket/market_SubscribeStockQuote.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "websocket/orders_SubscribeMatchingDetails.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ }
+]

@@ -10,7 +10,8 @@ requête, le code HTTP, les assertions, les tests (et ceux des scripts pré-requ
     python3 tools/gate3/diff.py [id ...]      # tout le corpus, ou les collections nommées
 
 Le corpus est celui de `crates/core/tests/corpus/manifest.json`, récupéré dans `target/corpus` par le test Gate 1
-(`cargo test -p xc-core --test corpus`). `SHOW=n` limite le nombre de requêtes différentes détaillées par collection.
+(`cargo test -p xc-core --test corpus`). `FREEZE=1` écrit le rapport normalisé de Bruno de chaque collection dans
+`crates/runner/tests/fixtures/gate3/<id>.json` (ce que lit `cargo test -p xc-runner --test gate3`). `SHOW=n` limite le nombre de requêtes différentes détaillées par collection.
 """
 import json
 import os
@@ -31,6 +32,8 @@ HOSTS = re.compile(r'https?://[A-Za-z0-9._-]+(:[0-9]+)?')
 
 with open(os.path.join(ROOT, 'crates/core/tests/corpus/manifest.json'), encoding='utf8') as f:
     MANIFEST = json.load(f)
+with open(os.path.join(ROOT, 'crates/runner/tests/fixtures/gate3/divergences.json'), encoding='utf8') as f:
+    DIVERGENCES = {(d['id'], d['path']) for d in json.load(f)}
 
 
 def collection_root(entry):
@@ -79,7 +82,8 @@ def normalize(report):
                 'tests': [(t['description'], t['status']) for t in r.get('testResults', [])],
                 'pre': [(t['description'], t['status']) for t in r.get('preRequestTestResults', [])],
                 'post': [(t['description'], t['status']) for t in r.get('postResponseTestResults', [])],
-                'error': r.get('error'),
+                'error': bool(r.get('error')),
+                'message': r.get('error'),
             })
     return out
 
@@ -95,6 +99,17 @@ def run(command, cwd):
         return Timeout()
 
 
+FIXTURES = os.path.join(ROOT, 'crates', 'runner', 'tests', 'fixtures', 'gate3')
+FREEZE = os.environ.get('FREEZE') == '1'
+
+
+def freeze(entry, results):
+    rows = sorted(({k: v for k, v in r.items() if k != 'message'} for r in results), key=lambda r: r['path'])
+    with open(os.path.join(FIXTURES, entry['id'] + '.json'), 'w', encoding='utf8') as f:
+        json.dump(rows, f, ensure_ascii=False, indent=1)
+        f.write('\n')
+
+
 def compare(entry, show):
     tmp = tempfile.mkdtemp(prefix='gate3-')
     try:
@@ -103,8 +118,8 @@ def compare(entry, show):
         env = pick_env(dest)
         env_args = ['--env', env] if env else []
         bru_json, xc_json = os.path.join(tmp, 'bru.json'), os.path.join(tmp, 'xc.json')
-        bru = run([BRU, 'run', '--reporter-json', bru_json] + env_args, dest)
-        xc = run([XC, 'run', dest, '--reporter-json', xc_json] + env_args, tmp)
+        bru = run([BRU, 'run', '--noproxy', '--reporter-json', bru_json] + env_args, dest)
+        xc = run([XC, 'run', dest, '--noproxy', '--reporter-json', xc_json] + env_args, tmp)
         try:
             with open(bru_json, encoding='utf8') as f:
                 expected = normalize(json.load(f))
@@ -115,10 +130,22 @@ def compare(entry, show):
             print(bru.stderr[-300:])
             print(xc.stderr[-300:])
             return
+        if FREEZE:
+            freeze(entry, expected)
         by_bru = {r['path']: r for r in expected}
         by_xc = {r['path']: r for r in actual}
-        different = [p for p in sorted(set(by_bru) | set(by_xc)) if by_bru.get(p) != by_xc.get(p)]
-        print(f"{entry['id']:32} env={env} bru={len(expected)} xc={len(actual)} diff={len(different)}")
+        def comparable(r):
+            return r and {k: v for k, v in r.items() if k != 'message'}
+        interactive = [p for p in by_xc if 'demande une fenêtre de connexion' in (by_xc[p]['message'] or '')]
+        for p in [p for p in by_xc if (entry['id'], p) in DIVERGENCES]:
+            by_bru.pop(p, None)
+            by_xc.pop(p)
+        for p in interactive:
+            by_bru.pop(p, None)
+            by_xc.pop(p)
+        different = [p for p in sorted(set(by_bru) | set(by_xc)) if comparable(by_bru.get(p)) != comparable(by_xc.get(p))]
+        messages = sum(1 for p in by_bru if p in by_xc and by_bru[p]['message'] != by_xc[p]['message'])
+        print(f"{entry['id']:32} env={env} bru={len(expected)} xc={len(actual)} diff={len(different)} messages={messages} interactif={len(interactive)}")
         for path in different[:show]:
             print('  ', path)
             for key in ['status', 'http', 'assertions', 'tests', 'pre', 'post', 'error']:

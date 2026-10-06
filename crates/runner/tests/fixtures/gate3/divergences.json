@@ -1,0 +1,7 @@
+[
+  {
+    "id": "2526-4ahitm-franklyn",
+    "path": "ws/proctor.yml",
+    "reason": "requête de type websocket dont l'adresse est http : Bruno l'envoie en HTTP, le runner la refuse comme toute requête websocket"
+  }
+]

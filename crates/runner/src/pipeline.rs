@@ -305,11 +305,19 @@ fn sent_request(
     prepared: &xc_engine::HttpRequest,
     headers: Vec<(String, String)>,
 ) -> ScriptRequest {
+    let multipart = headers
+        .iter()
+        .any(|(k, v)| k.eq_ignore_ascii_case("content-type") && v.to_ascii_lowercase().starts_with("multipart/"));
+    let data = if multipart {
+        before.data.clone()
+    } else {
+        prepared.body.as_ref().map(|b| Value::String(xc_engine::lossy_text(b.clone())))
+    };
     ScriptRequest {
         method: prepared.method.clone(),
         url: prepared.url.clone(),
         headers: headers.into_iter().map(|(k, v)| (k, Value::String(v))).collect(),
-        data: prepared.body.as_ref().map(|b| Value::String(xc_engine::lossy_text(b.clone()))),
+        data,
         timeout: Some(prepared.timeout.as_millis() as u64).filter(|_| false),
         ..before.clone()
     }

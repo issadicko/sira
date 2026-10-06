@@ -24,7 +24,10 @@ pub use report::{
     html_page, json, junit, now_iso, AssertionEntry, Entry, Meta, Redact, RequestEntry, ResponseEntry, Summary,
     TestEntry,
 };
-pub use run::{run_collection, select, Event, Halt, Item, Iteration, Job, RequestResult, RunReport, SelectError, Skip};
+pub use run::{
+    run_collection, select, select_sendable, Event, Halt, Item, Iteration, Job, RequestResult, RunReport, SelectError,
+    Skip,
+};
 pub use schema::{fetch_schema, schema_url, SchemaSource};
 pub use scripts::{flow_of, merged_script, Flow};
 pub use sequence::{next_step, Step, MAX_JUMPS};

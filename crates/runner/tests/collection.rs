@@ -340,6 +340,50 @@ async fn ef_run_01_a_request_with_prompt_variables_is_skipped_like_bru_run() {
 }
 
 #[tokio::test]
+async fn ef_run_01_websocket_and_grpc_requests_are_reported_as_errors_not_left_out() {
+    let (base, seen) = serve();
+    let dir = new_collection(&base);
+    request(dir.path(), "a.yml", "A", 1, "{{baseUrl}}/a", &[PASS]);
+    write(
+        dir.path(),
+        "w.yml",
+        "info:\n  name: W\n  type: websocket\n  seq: 2\n\nwebsocket:\n  url: ws://example.test/live\n",
+    );
+    write(dir.path(), "g.yml", "info:\n  name: G\n  type: grpc\n  seq: 3\n\ngrpc:\n  url: example.test:50051\n");
+    request(dir.path(), "b.yml", "B", 4, "{{baseUrl}}/b", &[PASS]);
+    let run = go(dir.path(), &[], &[], false, Duration::ZERO).await;
+
+    assert_eq!(names(&run), ["A", "W", "G", "B"]);
+    assert_eq!(seen.lock().unwrap().len(), 2, "seules A et B partent");
+    assert!(run.report.failed());
+    let report: Value = serde_json::from_str(&xc_runner::json(&run.report, &xc_runner::Redact::default())).unwrap();
+    for (index, kind) in [(1, "websocket"), (2, "grpc")] {
+        let entry = &report["results"][index];
+        assert_eq!(entry["status"], "error");
+        assert_eq!(entry["error"], format!("protocole non pris en charge par le runner : {kind}"));
+    }
+    assert_eq!(report["results"][3]["status"], "pass");
+}
+
+#[tokio::test]
+async fn ef_run_01_a_multipart_body_is_not_copied_into_the_post_response_script() {
+    let (base, _) = serve();
+    let dir = new_collection(&base);
+    fs::write(dir.path().join("payload.bin"), vec![0xFFu8; 4096]).unwrap();
+    write(
+        dir.path(),
+        "up.yml",
+        &format!(
+            "info:\n  name: Up\n  type: http\n  seq: 1\n\nhttp:\n  method: POST\n  url: \"{base}/up\"\n  body:\n    type: multipart-form\n    data:\n      - name: file\n        value:\n          - ./payload.bin\n        type: file\n\nruntime:\n  scripts:\n    - type: tests\n      code: |-\n        test('le corps reste celui de la requête', () => expect(typeof req.getBody()).to.not.equal('string'));\n"
+        ),
+    );
+    let run = go(dir.path(), &[], &[], false, Duration::ZERO).await;
+
+    assert!(!run.report.failed(), "{:?}", run.report.results[0].outcome.error);
+    assert_eq!(run.report.summary().passed_tests, 1);
+}
+
+#[tokio::test]
 async fn ef_run_01_prompt_variables_in_a_variable_value_skip_the_requests_that_see_it() {
     let (base, seen) = serve();
     let dir = tempfile::tempdir().unwrap();

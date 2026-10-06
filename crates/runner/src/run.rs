@@ -23,6 +23,8 @@ pub struct Item {
     pub name: String,
     pub method: String,
     pub url: String,
+    /// `http`, `graphql`, `grpc` ou `websocket` : seuls les deux premiers s'exécutent pour l'instant.
+    pub request_type: String,
     /// Pourquoi le fichier n'a pas pu être lu ; la requête est alors ignorée.
     pub unreadable: Option<String>,
 }
@@ -31,7 +33,7 @@ pub struct Item {
 pub enum SelectError {
     #[error("aucune requête ni aucun dossier à {0}")]
     NotFound(String),
-    #[error("aucune requête HTTP à exécuter dans {0}")]
+    #[error("aucune requête à exécuter dans {0}")]
     Empty(String),
 }
 
@@ -50,12 +52,13 @@ fn collect(items: &[TreeItem], inside: bool, target: &str, out: &mut Vec<Item>, 
             TreeItem::Request { path, name, method, url, request_type, error, .. } => {
                 let hit = path == target || without_extension(path) == target;
                 *found |= hit;
-                if (inside || hit) && matches!(request_type.as_str(), "http" | "graphql") {
+                if inside || hit {
                     out.push(Item {
                         path: path.clone(),
                         name: name.clone(),
                         method: method.clone(),
                         url: url.clone(),
+                        request_type: request_type.clone(),
                         unreadable: error.clone(),
                     });
                 }
@@ -84,6 +87,24 @@ pub fn select(items: &[TreeItem], targets: &[String]) -> Result<Vec<Item>, Selec
     }
     if out.is_empty() {
         return Err(SelectError::Empty("la collection".into()));
+    }
+    Ok(out)
+}
+
+impl Item {
+    /// `true` pour une requête que le runner sait envoyer (HTTP, GraphQL).
+    pub fn is_sendable(&self) -> bool {
+        matches!(self.request_type.as_str(), "http" | "graphql")
+    }
+}
+
+/// Comme [`select`], mais sans les requêtes que le runner ne sait pas envoyer (gRPC, WebSocket) : l'application ne les
+/// propose pas, alors que `xc run` les rapporte en erreur comme `bru run`.
+pub fn select_sendable(items: &[TreeItem], targets: &[String]) -> Result<Vec<Item>, SelectError> {
+    let mut out = select(items, targets)?;
+    out.retain(Item::is_sendable);
+    if out.is_empty() {
+        return Err(SelectError::Empty("la sélection".into()));
     }
     Ok(out)
 }
@@ -231,6 +252,21 @@ async fn cancelled(cancel: &AtomicBool) {
 async fn run_item(job: &Job<'_>, iteration: usize, item: &Item, session: &mut Session) -> Option<RequestResult> {
     if let Some(reason) = &item.unreadable {
         return Some(placeholder(iteration, item, Skip::Unreadable(reason.clone())));
+    }
+    if !item.is_sendable() {
+        let mut outcome = Outcome::placeholder(&item.method, &item.url);
+        outcome.error = Some(RunError {
+            stage: Stage::Prepare,
+            message: format!("protocole non pris en charge par le runner : {}", item.request_type),
+        });
+        return Some(RequestResult {
+            iteration,
+            name: item.name.clone(),
+            path: item.path.clone(),
+            skip: None,
+            duration: Duration::ZERO,
+            outcome,
+        });
     }
     let started = Instant::now();
     let outcome = match read_request(job.root, &item.path) {
