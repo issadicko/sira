@@ -71,7 +71,9 @@ config:
 - Le domaine est un **préfixe** de l'adresse de la requête (schéma facultatif parmi `https://`, `grpc://`, `grpcs://`, `ws://`, `wss://`), où `*` vaut « n'importe quelle suite » ; la casse compte. Le port se met dans le domaine (`example.com:8443`). `example.com` correspond donc aussi à `https://example.com.autre.net` : c'est la règle de Bruno. `*.example.com` ne correspond pas à `example.com`. Les caractères spéciaux d'une expression régulière n'ont pas de sens particulier ici (Bruno les interprète).
 - Les chemins sont relatifs à la collection ; le domaine, les chemins et la passphrase acceptent des variables `{{…}}`.
 - Un fichier illisible fait échouer l'envoi avec la raison.
-- **Pas encore pris en charge** : le PKCS#12 (`pkcs12`/`pfx`) et les clés privées chiffrées. L'envoi échoue en disant quoi faire (`openssl pkcs12 … -nodes`, `openssl pkey …`) plutôt que d'ignorer le certificat.
+- **PKCS#12** (`type: pkcs12`, ou `pfx` dans `--client-cert-config`) : le conteneur `.p12` / `.pfx` est ouvert avec la `passphrase` (vide admise), son certificat et sa chaîne puis sa clé sont rendus au moteur en PEM. Les conteneurs d'OpenSSL 3 (PBES2, AES-256) comme les anciens (`-legacy` : 3DES, RC2) sont lus ; le premier couple clé–certificat est celui qui sert.
+- **Clé privée chiffrée** : une clé PKCS#8 chiffrée (`BEGIN ENCRYPTED PRIVATE KEY`, PBES2 : `openssl pkcs8 -topk8 -v2 aes-256-cbc`) est déchiffrée avec la `passphrase` du même bloc ; une clé en clair est prise telle quelle, passphrase ou non. La clé ne sort jamais déchiffrée du processus : rien n'est écrit sur le disque.
+- **Refusés avec la commande qui convertit** : le très ancien format chiffré d'OpenSSL (`BEGIN RSA PRIVATE KEY` avec `Proc-Type: 4,ENCRYPTED`) et le PKCS#8 chiffré à l'ancienne (PBES1, `PBE-SHA1-3DES`) : `openssl pkcs8 -topk8 …`. Une passphrase fausse ou absente est dite, sans jamais la répéter dans le message.
 
 ## Proxy
 
