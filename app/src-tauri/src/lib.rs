@@ -358,7 +358,8 @@ async fn generate_code(
     for (name, value) in &mut session.secrets {
         *value = format!("<{name}>");
     }
-    let overrides = xc_core::prepare::Overrides { headers: None, vars: session.overrides(env.as_deref()) };
+    let overrides =
+        xc_core::prepare::Overrides { headers: None, vars: session.overrides(env.as_deref()), network: None };
     let runtime = session.runtime_strings();
     let (snippet, unresolved) =
         blocking(move || xc_core::prepare::snippet(Path::new(&root), &path, &doc, env.as_deref(), &runtime, overrides))

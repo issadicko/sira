@@ -25,7 +25,8 @@ pub(crate) async fn send(mut request: HttpRequest, auth: &SendAuth, session: &mu
         SendAuth::Aws(settings) => sign(&mut request, settings)?,
         SendAuth::Digest { username, password } => return digest_send(request, username, password).await,
         SendAuth::Oauth2(config) => {
-            let token = oauth2::token_for(config, &mut session.tokens, session.authorizer.as_ref()).await?;
+            let token =
+                oauth2::token_for(config, &mut session.tokens, session.authorizer.as_ref(), &request.network).await?;
             if let Some(token) = token {
                 oauth2::apply(&mut request, config, &token)?;
             }

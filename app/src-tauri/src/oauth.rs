@@ -10,7 +10,8 @@ use serde::Deserialize;
 use tauri::{AppHandle, Runtime, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tokio::sync::oneshot;
 use xc_core::oauth2::OAuth2;
-use xc_core::{prepare_with, Overrides, RequestDoc, SendAuth};
+use xc_core::{prepare_with, RequestDoc, SendAuth};
+use xc_engine::Network;
 use xc_runner::{
     redirect_params, token_key, Authorization, AuthorizationRequest, Authorizer, Session, SharedAuthorizer, TokenInfo,
 };
@@ -96,9 +97,9 @@ pub struct TokenArgs {
 
 /// La configuration OAuth 2 de la requête telle qu'elle serait envoyée (variables résolues, auth héritée comprise),
 /// avec la session de la collection.
-fn resolve(state: &AppState, args: &TokenArgs) -> Reply<(Box<OAuth2>, Session)> {
+fn resolve(state: &AppState, args: &TokenArgs) -> Reply<(Box<OAuth2>, Session, Network)> {
     let session = state.sessions.lock().map_err(err)?.get(&args.root).cloned().unwrap_or_default();
-    let overrides = Overrides { headers: None, vars: session.overrides(args.env.as_deref()) };
+    let overrides = session.request_overrides(None, args.env.as_deref());
     let prepared = prepare_with(
         Path::new(&args.root),
         &args.path,
@@ -109,7 +110,7 @@ fn resolve(state: &AppState, args: &TokenArgs) -> Reply<(Box<OAuth2>, Session)> 
     )
     .map_err(err)?;
     match prepared.auth {
-        SendAuth::Oauth2(config) => Ok((config, session)),
+        SendAuth::Oauth2(config) => Ok((config, session, prepared.request.network)),
         _ => Err("cette requête n'utilise pas OAuth 2".into()),
     }
 }
@@ -119,7 +120,7 @@ fn resolve(state: &AppState, args: &TokenArgs) -> Reply<(Box<OAuth2>, Session)> 
 pub fn oauth_status(state: State<'_, AppState>, args: TokenArgs) -> Reply<Option<TokenInfo>> {
     Ok(resolve(&state, &args)
         .ok()
-        .and_then(|(config, session)| session.tokens.get(&token_key(&config)).map(xc_runner::Token::info)))
+        .and_then(|(config, session, _)| session.tokens.get(&token_key(&config)).map(xc_runner::Token::info)))
 }
 
 /// Demande un jeton neuf au serveur d'autorisation (ouvre la fenêtre de connexion pour les flux interactifs) et le garde.
@@ -129,8 +130,8 @@ pub async fn oauth_fetch<R: Runtime>(
     state: State<'_, AppState>,
     args: TokenArgs,
 ) -> Reply<TokenInfo> {
-    let (config, _) = resolve(&state, &args)?;
-    let token = xc_runner::fetch_oauth2_token(&config, Some(&authorizer(&app))).await?;
+    let (config, _, network) = resolve(&state, &args)?;
+    let token = xc_runner::fetch_oauth2_token(&config, Some(&authorizer(&app)), &network).await?;
     let info = token.info();
     state.sessions.lock().map_err(err)?.entry(args.root).or_default().tokens.insert(token_key(&config), token);
     Ok(info)
@@ -139,7 +140,7 @@ pub async fn oauth_fetch<R: Runtime>(
 /// Oublie le jeton gardé pour la requête.
 #[tauri::command]
 pub fn oauth_clear(state: State<'_, AppState>, args: TokenArgs) -> Reply<()> {
-    let (config, _) = resolve(&state, &args)?;
+    let (config, _, _) = resolve(&state, &args)?;
     if let Some(session) = state.sessions.lock().map_err(err)?.get_mut(&args.root) {
         session.tokens.remove(&token_key(&config));
     }

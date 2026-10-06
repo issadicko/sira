@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use xc_core::graphql::{self, StoredSchema};
-use xc_core::{prepare_with, Overrides, RequestDoc};
+use xc_core::{prepare_with, RequestDoc};
 
 use crate::session::Session;
 
@@ -28,7 +28,7 @@ fn prepare(source: &SchemaSource<'_>, session: &Session) -> Result<xc_core::Prep
     doc.method = "POST".into();
     doc.body = graphql::introspection();
     doc.timeout_ms = doc.timeout_ms.or(Some(INTROSPECTION_TIMEOUT_MS));
-    let overrides = Overrides { headers: None, vars: session.overrides(source.env) };
+    let overrides = session.request_overrides(None, source.env);
     prepare_with(source.root, source.path, &doc, source.env, &session.runtime_strings(), overrides)
         .map_err(|e| e.to_string())
 }

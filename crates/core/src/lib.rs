@@ -1,6 +1,7 @@
 pub mod collection;
 pub mod graphql;
 pub mod history;
+pub mod network;
 pub mod oauth2;
 pub mod prepare;
 pub mod pretty;
@@ -15,6 +16,7 @@ pub use collection::{
     collection_name, list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request,
     restyle, save_environment, save_request, set_default_environment, CollectionInfo, EnvVar, TreeItem,
 };
+pub use network::{ClientCertificate, NetworkPrefs, ProxyConfig, ProxyMode, ProxyPref};
 pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, SendAuth};
 pub use request::{
     Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable, RequestDoc,
@@ -44,6 +46,8 @@ pub enum CoreError {
     NotARequest { path: String, reason: String },
     #[error("nom d'environnement invalide : {0}")]
     InvalidEnvironment(String),
+    #[error("réglages réseau : {0}")]
+    Network(String),
 }
 
 impl CoreError {

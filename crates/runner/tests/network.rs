@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use xc_core::read_request;
+use xc_core::{read_request, NetworkPrefs, ProxyConfig, ProxyMode, ProxyPref};
 use xc_runner::{run_request, Outcome, Request, Session};
 
 type Seen = Arc<Mutex<Vec<String>>>;
@@ -35,6 +35,10 @@ fn serve() -> (String, Seen) {
 }
 
 async fn run(dir: &tempfile::TempDir, settings: &str) -> Outcome {
+    run_with(dir, settings, &mut Session::default()).await
+}
+
+async fn run_with(dir: &tempfile::TempDir, settings: &str, session: &mut Session) -> Outcome {
     fs::write(
         dir.path().join("r.yml"),
         format!("info:\n  name: R\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: \"{{{{baseUrl}}}}/old\"\n{settings}"),
@@ -50,7 +54,7 @@ async fn run(dir: &tempfile::TempDir, settings: &str) -> Outcome {
         execution_mode: "cli",
         cancel: Arc::new(AtomicBool::new(false)),
     };
-    run_request(req, &mut Session::default()).await
+    run_request(req, session).await
 }
 
 fn collection(base: &str) -> tempfile::TempDir {
@@ -89,4 +93,78 @@ async fn ef_req_04_the_maxredirects_setting_of_the_file_bounds_them() {
     let outcome = run(&collection(&base), "\nsettings:\n  maxRedirects: 0\n").await;
     assert_eq!(outcome.response.expect("une réponse").status, 302);
     assert_eq!(seen.lock().unwrap().len(), 1);
+}
+
+fn through(base: &str) -> NetworkPrefs {
+    let (host, port) = base.trim_start_matches("http://").split_once(':').unwrap();
+    NetworkPrefs {
+        proxy: ProxyPref {
+            mode: ProxyMode::Manual,
+            config: ProxyConfig { hostname: host.into(), port: port.into(), ..ProxyConfig::default() },
+        },
+        ..NetworkPrefs::default()
+    }
+}
+
+#[tokio::test]
+async fn ef_req_04_the_host_proxy_carries_every_hop_of_a_request() {
+    let (proxy, seen) = serve();
+    let dir = collection("http://cible.test");
+    let mut session = Session { network: through(&proxy), ..Session::default() };
+
+    let outcome = run_with(&dir, "", &mut session).await;
+
+    assert_eq!(outcome.response.expect("une réponse").redirects.len(), 1);
+    let seen = seen.lock().unwrap();
+    assert_eq!(
+        seen.iter().map(|l| l.to_lowercase()).collect::<Vec<_>>(),
+        vec!["get http://cible.test/old http/1.1".to_owned(), "get http://cible.test/new http/1.1".to_owned(),]
+    );
+}
+
+#[tokio::test]
+async fn ef_req_04_requests_started_by_scripts_keep_the_host_network_settings() {
+    let (proxy, seen) = serve();
+    let dir = collection("http://cible.test");
+    fs::write(
+        dir.path().join("b.yml"),
+        "info:\n  name: B\n  type: http\n  seq: 2\n\nhttp:\n  method: GET\n  url: http://cible.test/b\n",
+    )
+    .unwrap();
+    let script =
+        "const axios = require('axios');\nawait bru.runRequest('b');\nawait axios.get('http://cible.test/s');\n";
+    let indented = script.lines().map(|l| format!("        {l}\n")).collect::<String>();
+    fs::write(
+        dir.path().join("a.yml"),
+        format!(
+            "info:\n  name: A\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: http://cible.test/a\n\nruntime:\n  scripts:\n    - type: before-request\n      code: |-\n{indented}"
+        ),
+    )
+    .unwrap();
+    let doc = read_request(dir.path(), "a.yml").unwrap();
+    let req = Request {
+        root: dir.path(),
+        path: "a.yml",
+        doc: &doc,
+        env: None,
+        collection_name: "S",
+        execution_mode: "cli",
+        cancel: Arc::new(AtomicBool::new(false)),
+    };
+    let mut session = Session { network: through(&proxy), ..Session::default() };
+
+    let outcome = run_request(req, &mut session).await;
+
+    assert!(outcome.error.is_none(), "{:?}", outcome.error);
+    let seen = seen.lock().unwrap();
+    let mut lines: Vec<String> = seen.iter().map(|l| l.to_lowercase()).collect();
+    lines.sort();
+    assert_eq!(
+        lines,
+        vec![
+            "get http://cible.test/a http/1.1".to_owned(),
+            "get http://cible.test/b http/1.1".to_owned(),
+            "get http://cible.test/s http/1.1".to_owned(),
+        ]
+    );
 }

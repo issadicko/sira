@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::{Map, Value};
 use xc_core::vars::ScopeOverrides;
+use xc_core::{NetworkPrefs, Overrides};
 
 use crate::oauth2::{script_vars, SharedAuthorizer, Token};
 
@@ -19,6 +20,8 @@ pub struct Session {
     pub secrets: Vec<(String, String)>,
     /// Ce qui ouvre la fenêtre de connexion des flux interactifs (code d'autorisation, implicite) ; absent en CLI.
     pub authorizer: Option<SharedAuthorizer>,
+    /// Les réglages réseau de l'hôte : préférences de l'application, ou options de la ligne de commande.
+    pub network: NetworkPrefs,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -55,6 +58,12 @@ impl Session {
                 .map(|vars| pairs(vars).into_iter().filter(|(k, _)| k != xc_script::ENV_NAME).collect()),
             secrets: self.secrets.clone(),
         }
+    }
+
+    /// Ce qu'une requête de cette session ajoute à `doc` pour être préparée : les en-têtes que les scripts ont posés, les
+    /// variables écrites et les réglages réseau de l'hôte.
+    pub fn request_overrides(&self, headers: Option<Vec<(String, String)>>, env: Option<&str>) -> Overrides {
+        Overrides { headers, vars: self.overrides(env), network: Some(self.network.clone()) }
     }
 
     pub fn env_for(&self, name: Option<&str>) -> Option<&Map<String, Value>> {

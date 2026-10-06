@@ -5,8 +5,9 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 use tokio::runtime::Handle;
-use xc_core::read_request;
-use xc_engine::{EngineError, HttpRequest};
+use xc_core::vars::Context;
+use xc_core::{read_request, NetworkPrefs};
+use xc_engine::{EngineError, HttpRequest, Redirects};
 use xc_script::{Callbacks, Vars};
 
 use crate::convert::script_response;
@@ -24,14 +25,16 @@ pub(crate) struct Nested {
     pub collection_name: String,
     pub cancel: Arc<AtomicBool>,
     pub depth: usize,
+    pub network: NetworkPrefs,
 }
 
-fn session_of(vars: &Vars, env: Option<&str>) -> Session {
+fn session_of(vars: &Vars, env: Option<&str>, network: NetworkPrefs) -> Session {
     Session {
         runtime: vars.runtime.clone(),
         global: vars.global.clone(),
         env: Some(EnvWrites { name: env.map(str::to_owned), vars: vars.env.clone() }),
         collection: Some(vars.collection.clone()),
+        network,
         ..Session::default()
     }
 }
@@ -118,9 +121,28 @@ fn error_code(error: &EngineError) -> &'static str {
     }
 }
 
+impl Nested {
+    /// Les réglages réseau de l'hôte et de la collection pour `url`, comme pour une requête de la collection.
+    fn network_for(&self, url: &str) -> Result<xc_engine::Network, String> {
+        let ctx = Context::load(&self.root, "request.yml").map_err(|e| e.to_string())?;
+        xc_core::network::resolve(
+            &self.root,
+            &ctx.collection,
+            &self.network,
+            url,
+            Redirects::default(),
+            &mut |text| text.to_owned(),
+            &|name| std::env::var(name).ok(),
+        )
+        .map_err(|e| e.to_string())
+    }
+}
+
 impl Callbacks for Nested {
     fn send(&self, config: &Value) -> Result<Value, Value> {
-        let request = http_request(config).map_err(|message| json!({ "message": message, "isAxiosError": true }))?;
+        let failure = |message: String| json!({ "message": message, "isAxiosError": true });
+        let mut request = http_request(config).map_err(failure)?;
+        request.network = self.network_for(&request.url).map_err(failure)?;
         let sent = json!({
             "url": request.url,
             "method": request.method.to_lowercase(),
@@ -165,7 +187,7 @@ impl Callbacks for Nested {
         }
         let relative = request_path(path);
         let Ok(doc) = read_request(&self.root, &relative) else { return json!({}) };
-        let mut session = session_of(vars, self.env.as_deref());
+        let mut session = session_of(vars, self.env.as_deref(), self.network.clone());
         let request = Request {
             root: &self.root,
             path: &relative,

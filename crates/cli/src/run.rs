@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Args;
-use xc_core::open_collection;
+use xc_core::{open_collection, ClientCertificate, NetworkPrefs};
 use xc_runner::{
     html_page, json, junit, now_iso, read_rows, run_collection, select, Event, Halt, Job, Meta, PhaseReport, Redact,
     RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
@@ -68,6 +68,21 @@ pub struct RunArgs {
     /// Retire les corps des requêtes et des réponses des rapports
     #[arg(long)]
     reporter_skip_body: bool,
+    /// Ne vérifie ni la chaîne ni le nom d'hôte des certificats des serveurs
+    #[arg(long)]
+    insecure: bool,
+    /// Fichier PEM d'autorités de certification à ajouter à celles du système
+    #[arg(long, value_name = "FICHIER")]
+    cacert: Option<PathBuf>,
+    /// Avec --cacert : seules les autorités de ce fichier font confiance
+    #[arg(long)]
+    ignore_truststore: bool,
+    /// N'utilise aucun proxy, ni celui de la collection ni celui de l'environnement
+    #[arg(long)]
+    noproxy: bool,
+    /// Fichier JSON {"enabled": true, "certs": [...]} de certificats client, après ceux de la collection
+    #[arg(long, value_name = "FICHIER")]
+    client_cert_config: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -84,6 +99,40 @@ pub(crate) fn parse_pair(s: &str) -> Result<(String, String), String> {
 pub(crate) fn input_error(message: impl std::fmt::Display) -> ExitCode {
     eprintln!("erreur : {message}");
     ExitCode::from(2)
+}
+
+/// Les réglages réseau de la ligne de commande : pas de préférences, seulement les options et l'environnement.
+fn network_prefs(args: &RunArgs) -> Result<NetworkPrefs, String> {
+    let mut prefs = NetworkPrefs {
+        verify_tls: !args.insecure,
+        keep_default_roots: !args.ignore_truststore,
+        no_proxy: args.noproxy,
+        ..NetworkPrefs::default()
+    };
+    if let Some(cacert) = &args.cacert {
+        if args.insecure {
+            eprintln!("  ! --cacert est ignoré : --insecure désactive la vérification des certificats");
+        } else if !cacert.is_file() {
+            return Err(format!("le fichier --cacert {} n'existe pas", cacert.display()));
+        }
+        prefs.ca_file = Some(cacert.display().to_string());
+    }
+    if let Some(file) = &args.client_cert_config {
+        let text = fs::read_to_string(file).map_err(|e| format!("lecture de {} impossible : {e}", file.display()))?;
+        let config: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("{} n'est pas du JSON valide : {e}", file.display()))?;
+        match (config.get("enabled").and_then(serde_json::Value::as_bool), config.get("certs")) {
+            (Some(true), Some(certs @ serde_json::Value::Array(_))) => {
+                prefs.client_certificates = serde_json::from_value::<Vec<ClientCertificate>>(certs.clone())
+                    .map_err(|e| format!("{} : certificat client invalide : {e}", file.display()))?;
+            }
+            _ => eprintln!(
+                "  ! {} : \"enabled\" n'est pas vrai ou \"certs\" n'est pas une liste, aucun certificat client ajouté",
+                file.display()
+            ),
+        }
+    }
+    Ok(prefs)
 }
 
 /// Les rapports demandés, chacun avec son fichier : `--output` selon `--format`, puis les `--reporter-*` qui le
@@ -148,7 +197,11 @@ pub async fn run(args: RunArgs) -> ExitCode {
     };
     let env = args.env.clone().or(collection.default_environment.clone());
 
-    let mut session = Session::default();
+    let network = match network_prefs(&args) {
+        Ok(network) => network,
+        Err(e) => return input_error(e),
+    };
+    let mut session = Session { network, ..Session::default() };
     let runtime: HashMap<String, String> = args.env_vars.iter().cloned().collect();
     session.runtime.extend(runtime.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))));
     let job = Job {
@@ -286,5 +339,70 @@ fn summarize(report: &RunReport) {
         Some(Halt::Loop) => println!("Run arrêté : trop de sauts, probablement une boucle sans fin."),
         Some(Halt::Cancelled) => println!("Run annulé."),
         None => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::*;
+
+    #[derive(Parser)]
+    struct Wrapper {
+        #[command(flatten)]
+        args: RunArgs,
+    }
+
+    fn prefs(options: &[&str]) -> Result<NetworkPrefs, String> {
+        let mut argv = vec!["xc", "collection"];
+        argv.extend_from_slice(options);
+        network_prefs(&Wrapper::try_parse_from(argv).unwrap().args)
+    }
+
+    #[test]
+    fn ef_req_04_without_options_the_command_line_verifies_and_keeps_the_defaults() {
+        assert_eq!(prefs(&[]).unwrap(), NetworkPrefs::default());
+    }
+
+    #[test]
+    fn ef_req_04_insecure_and_noproxy_and_ignore_truststore_set_their_preference() {
+        let p = prefs(&["--insecure", "--noproxy", "--ignore-truststore"]).unwrap();
+        assert!(!p.verify_tls && p.no_proxy && !p.keep_default_roots);
+    }
+
+    #[test]
+    fn ef_req_04_cacert_must_exist_unless_insecure_makes_it_moot() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("absent.pem").display().to_string();
+        assert!(prefs(&["--cacert", &missing]).unwrap_err().contains("n'existe pas"));
+        assert_eq!(prefs(&["--insecure", "--cacert", &missing]).unwrap().ca_file.as_deref(), Some(missing.as_str()));
+        let present = dir.path().join("ca.pem");
+        fs::write(&present, "PEM").unwrap();
+        let present = present.display().to_string();
+        assert_eq!(prefs(&["--cacert", &present]).unwrap().ca_file.as_deref(), Some(present.as_str()));
+    }
+
+    #[test]
+    fn ef_req_04_client_cert_config_is_added_only_when_enabled_with_a_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let write = |name: &str, text: &str| {
+            let path = dir.path().join(name);
+            fs::write(&path, text).unwrap();
+            path.display().to_string()
+        };
+        let enabled = write(
+            "on.json",
+            r#"{"enabled": true, "certs": [{"domain": "api.test", "type": "cert", "certFilePath": "c.pem", "keyFilePath": "k.pem"}]}"#,
+        );
+        let certs = prefs(&["--client-cert-config", &enabled]).unwrap().client_certificates;
+        assert_eq!((certs.len(), certs[0].domain.as_str(), certs[0].key_file_path.as_str()), (1, "api.test", "k.pem"));
+
+        let off = write("off.json", r#"{"enabled": false, "certs": [{"domain": "api.test"}]}"#);
+        assert!(prefs(&["--client-cert-config", &off]).unwrap().client_certificates.is_empty());
+        let not_a_list = write("list.json", r#"{"enabled": true, "certs": "x"}"#);
+        assert!(prefs(&["--client-cert-config", &not_a_list]).unwrap().client_certificates.is_empty());
+        let broken = write("broken.json", "{");
+        assert!(prefs(&["--client-cert-config", &broken]).unwrap_err().contains("JSON"));
     }
 }

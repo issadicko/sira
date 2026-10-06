@@ -13,7 +13,7 @@ use serde_json::{Map, Value};
 use url::Url;
 use xc_core::oauth2::{OAuth2, AUTHORIZATION_CODE, CLIENT_CREDENTIALS, IMPLICIT, PASSWORD};
 use xc_engine::digest::client_nonce;
-use xc_engine::{aws::sha256, HttpRequest, HttpResponse};
+use xc_engine::{aws::sha256, HttpRequest, HttpResponse, Network};
 
 /// Un jeton est tenu pour expiré peu avant sa vraie expiration, pour ne pas partir avec un jeton qui meurt en route.
 const SKEW: Duration = Duration::from_secs(10);
@@ -119,7 +119,13 @@ fn with_query(url: &str, name: &str, value: &str) -> String {
 
 /// La requête vers le point d'accès aux jetons : le corps `grant`, l'identification du client et les paramètres que
 /// l'utilisateur ajoute à l'étape `stage`.
-fn token_request(config: &OAuth2, url: &str, stage: &str, mut grant: Vec<(String, String)>) -> HttpRequest {
+fn token_request(
+    config: &OAuth2,
+    url: &str,
+    stage: &str,
+    mut grant: Vec<(String, String)>,
+    network: &Network,
+) -> HttpRequest {
     let mut headers = vec![
         ("Content-Type".to_owned(), "application/x-www-form-urlencoded".to_owned()),
         ("Accept".to_owned(), "application/json".to_owned()),
@@ -151,7 +157,7 @@ fn token_request(config: &OAuth2, url: &str, stage: &str, mut grant: Vec<(String
         body: Some(form(&grant)),
         timeout: TOKEN_TIMEOUT,
         max_response_body: Some(1 << 20),
-        network: xc_engine::Network::default(),
+        network: Network { redirects: xc_engine::Redirects::default(), ..network.clone() },
     }
 }
 
@@ -278,8 +284,8 @@ async fn interact(
     Ok((params, state))
 }
 
-/// Demande un jeton neuf au serveur d'autorisation.
-pub async fn fetch(config: &OAuth2, authorizer: Option<&SharedAuthorizer>) -> Result<Token, String> {
+/// Demande un jeton neuf au serveur d'autorisation ; `network` (TLS, proxy) est celui de la requête qui en a besoin.
+pub async fn fetch(config: &OAuth2, authorizer: Option<&SharedAuthorizer>, network: &Network) -> Result<Token, String> {
     let pair = |k: &str, v: &str| (k.to_owned(), v.to_owned());
     let scope = (!config.scope.is_empty()).then(|| pair("scope", &config.scope));
     if config.flow != IMPLICIT && config.access_token_url.is_empty() {
@@ -288,7 +294,7 @@ pub async fn fetch(config: &OAuth2, authorizer: Option<&SharedAuthorizer>) -> Re
     match config.flow.as_str() {
         CLIENT_CREDENTIALS => {
             let grant = [Some(pair("grant_type", "client_credentials")), scope].into_iter().flatten().collect();
-            exchange(config, token_request(config, &config.access_token_url, "token", grant), None).await
+            exchange(config, token_request(config, &config.access_token_url, "token", grant, network), None).await
         }
         PASSWORD => {
             let grant = [
@@ -300,7 +306,7 @@ pub async fn fetch(config: &OAuth2, authorizer: Option<&SharedAuthorizer>) -> Re
             .into_iter()
             .flatten()
             .collect();
-            exchange(config, token_request(config, &config.access_token_url, "token", grant), None).await
+            exchange(config, token_request(config, &config.access_token_url, "token", grant, network), None).await
         }
         AUTHORIZATION_CODE => {
             let verifier = config.pkce.then(code_verifier);
@@ -316,7 +322,7 @@ pub async fn fetch(config: &OAuth2, authorizer: Option<&SharedAuthorizer>) -> Re
             if let Some(verifier) = &verifier {
                 grant.push(pair("code_verifier", verifier));
             }
-            exchange(config, token_request(config, &config.access_token_url, "token", grant), None).await
+            exchange(config, token_request(config, &config.access_token_url, "token", grant, network), None).await
         }
         IMPLICIT => {
             let (params, _) = interact(config, authorizer, "token", None).await?;
@@ -328,14 +334,14 @@ pub async fn fetch(config: &OAuth2, authorizer: Option<&SharedAuthorizer>) -> Re
 }
 
 /// Échange le jeton de rafraîchissement de `token` contre un nouveau jeton.
-pub async fn refresh(config: &OAuth2, token: &Token) -> Result<Token, String> {
+pub async fn refresh(config: &OAuth2, token: &Token, network: &Network) -> Result<Token, String> {
     let refresh_token = token.refresh_token.as_deref().ok_or("OAuth 2 : pas de jeton de rafraîchissement")?;
     let url = if config.refresh_token_url.is_empty() { &config.access_token_url } else { &config.refresh_token_url };
     let grant = vec![
         ("grant_type".to_owned(), "refresh_token".to_owned()),
         ("refresh_token".to_owned(), refresh_token.to_owned()),
     ];
-    exchange(config, token_request(config, url, "refresh", grant), Some(token)).await
+    exchange(config, token_request(config, url, "refresh", grant, network), Some(token)).await
 }
 
 /// Le jeton à poser sur la requête : celui que la session garde s'il est valide, sinon le jeton rafraîchi ou obtenu de
@@ -344,6 +350,7 @@ pub async fn token_for(
     config: &OAuth2,
     tokens: &mut HashMap<String, Token>,
     authorizer: Option<&SharedAuthorizer>,
+    network: &Network,
 ) -> Result<Option<Token>, String> {
     let key = token_key(config);
     if let Some(token) = tokens.get(&key).cloned() {
@@ -351,7 +358,7 @@ pub async fn token_for(
             return Ok(Some(token));
         }
         if config.auto_refresh_token && token.refresh_token.is_some() {
-            if let Ok(fresh) = refresh(config, &token).await {
+            if let Ok(fresh) = refresh(config, &token, network).await {
                 tokens.insert(key, fresh.clone());
                 return Ok(Some(fresh));
             }
@@ -361,7 +368,7 @@ pub async fn token_for(
     if !config.auto_fetch_token {
         return Ok(None);
     }
-    let token = fetch(config, authorizer).await?;
+    let token = fetch(config, authorizer, network).await?;
     tokens.insert(key, token.clone());
     Ok(Some(token))
 }

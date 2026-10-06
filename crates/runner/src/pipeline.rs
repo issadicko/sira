@@ -5,7 +5,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use xc_core::vars::{dynamic_value, Context, Scope};
-use xc_core::{prepare_with, Overrides, RequestDoc};
+use xc_core::{prepare_with, NetworkPrefs, RequestDoc};
 use xc_engine::HttpResponse;
 use xc_script::{AssertionSpec, Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
 
@@ -213,7 +213,7 @@ impl Phases<'_> {
         }
     }
 
-    fn with_nested_requests(&self, mut input: Input) -> Input {
+    fn with_nested_requests(&self, mut input: Input, network: &NetworkPrefs) -> Input {
         let r = self.request;
         input.callbacks = Some(Arc::new(Nested {
             handle: tokio::runtime::Handle::current(),
@@ -222,6 +222,7 @@ impl Phases<'_> {
             collection_name: r.collection_name.to_owned(),
             cancel: Arc::clone(&r.cancel),
             depth: self.depth,
+            network: network.clone(),
         }));
         input
     }
@@ -239,7 +240,7 @@ impl Phases<'_> {
         if kind == AFTER_RESPONSE {
             code = format!("{}{code}", post_variables_call(r.doc));
         }
-        script(self.with_nested_requests(self.input(phase, code, session, request, response))).await
+        script(self.with_nested_requests(self.input(phase, code, session, request, response), &session.network)).await
     }
 
     async fn assertions(
@@ -353,7 +354,7 @@ pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, dept
     }
 
     let (doc, headers) = apply_request(req.doc, &before, &pre.request);
-    let overrides = Overrides { headers, vars: session.overrides(req.env) };
+    let overrides = session.request_overrides(headers, req.env);
     let prepared = match prepare_with(req.root, req.path, &doc, req.env, &session.runtime_strings(), overrides) {
         Ok(prepared) => prepared,
         Err(e) => return out.fail(Stage::Prepare, e),

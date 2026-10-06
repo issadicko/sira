@@ -10,6 +10,7 @@ use xc_engine::{HttpRequest, Network, Redirects};
 
 use crate::collection::resolve_visible_path;
 use crate::graphql;
+use crate::network::{self, NetworkPrefs};
 use crate::oauth2::OAuth2;
 use crate::request::{
     auth_from, key_values, Auth, Body, KeyValue, MultipartField, MultipartValue, ParamKind, RequestDoc,
@@ -54,11 +55,15 @@ pub struct AwsSettings {
 }
 
 /// Ce qu'un script pré-requête a changé et que `doc` ne dit pas : les en-têtes de la collection, des dossiers et de la
-/// requête, déjà fusionnés (sans l'auth ni le `Content-Type` automatique), et les variables écrites.
+/// requête, déjà fusionnés (sans l'auth ni le `Content-Type` automatique), et les variables écrites. Porte aussi les
+/// réglages réseau de l'hôte.
 #[derive(Debug, Clone, Default)]
 pub struct Overrides {
     pub headers: Option<Vec<(String, String)>>,
     pub vars: ScopeOverrides,
+    /// Les réglages réseau de l'hôte (TLS, autorité, proxy, certificats) ; avec ceux de la collection, ils s'appliquent
+    /// à l'envoi. `None` pour ce qui n'envoie rien (extrait de code) : rien n'est résolu ni lu sur le disque.
+    pub network: Option<NetworkPrefs>,
 }
 
 /// En-têtes activés de la collection, des dossiers puis de la requête, fusionnés comme le fait Bruno : une clé garde sa
@@ -194,6 +199,14 @@ pub fn prepare_with(
         }
     }
 
+    let redirects = redirects_of(doc);
+    let network = match &overrides.network {
+        Some(prefs) => network::resolve(root, &ctx.collection, prefs, &url, redirects, &mut fill, &|name| {
+            std::env::var(name).ok()
+        })?,
+        None => Network { redirects, ..Network::default() },
+    };
+
     Ok(Prepared {
         request: HttpRequest {
             method: doc.method.to_uppercase(),
@@ -202,7 +215,7 @@ pub fn prepare_with(
             body: body.map(|(bytes, _)| bytes),
             timeout: doc.timeout_ms.map(Duration::from_millis).unwrap_or(NO_TIMEOUT),
             max_response_body: None,
-            network: Network { redirects: redirects_of(doc), ..Network::default() },
+            network,
         },
         unresolved,
         auth: send_auth,
