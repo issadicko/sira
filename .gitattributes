@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+# Extraits de référence de la génération de code : leurs retours chariot sont du contenu, pas des fins de ligne.
+crates/codegen/tests/golden/* -text
