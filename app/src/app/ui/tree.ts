@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
 import { TreeItem } from '../core/model';
+import { isRunnable } from '../core/runner';
 import { Workspace } from '../core/store';
 import { SyncStore } from '../core/sync-store';
 import { cloneName, matchesQuery } from '../core/tree-ops';
@@ -22,7 +23,7 @@ function count(item: TreeItem): number {
   template: `
     @for (item of visible(); track item.path; let index = $index) {
       @if (tree.renaming() === item.path) {
-        <app-tree-edit [kind]="item.kind" [depth]="depth()" [initial]="item.name" [method]="item.kind === 'request' ? item.method : 'GET'" />
+        <app-tree-edit [kind]="item.kind" [depth]="depth()" [initial]="item.name" [method]="badge(item)" />
       } @else if (item.kind === 'folder') {
         <div
           class="row folder"
@@ -47,15 +48,15 @@ function count(item: TreeItem): number {
           [attr.aria-level]="depth() + 1"
           [attr.aria-posinset]="index + 1"
           [attr.aria-setsize]="visible().length"
-          [attr.aria-disabled]="item.requestType !== 'http' && !item.error"
+          [attr.aria-disabled]="!runnable(item.requestType) && !item.error"
           [title]="item.error ?? (item.deprecated ? 'Retirée de la spec' : item.path)"
         >
           @if (item.error) {
             <span class="m m-delete">ERR</span>
-          } @else if (item.requestType !== 'http') {
+          } @else if (!runnable(item.requestType)) {
             <span class="m">{{ item.requestType.slice(0, 4).toUpperCase() }}</span>
           } @else {
-            <span [class]="methodClass(item.method)">{{ shortMethod(item.method) }}</span>
+            <span [class]="methodClass(badge(item))">{{ shortMethod(badge(item)) }}</span>
           }
           <span class="row-name">{{ item.name }}</span>
           @if (item.deprecated) {
@@ -76,7 +77,7 @@ function count(item: TreeItem): number {
       }
     }
     @if (adding(); as a) {
-      <app-tree-edit [kind]="a.kind" [depth]="depth()" [initial]="a.initial" />
+      <app-tree-edit [kind]="a.kind" [depth]="depth()" [initial]="a.initial" [method]="a.method" />
     }
   `,
 })
@@ -92,13 +93,20 @@ export class Tree {
   protected readonly visible = computed(() => this.items().filter((i) => matchesQuery(i, this.tree.query())));
   protected readonly adding = computed(() => {
     const edit = this.tree.edit();
-    if (edit?.mode === 'create') return edit.parent === this.parent() ? { kind: edit.kind, initial: '' } : null;
+    if (edit?.mode === 'create') {
+      return edit.parent === this.parent() ? { kind: edit.kind, initial: '', method: edit.requestType === 'graphql' ? 'GQL' : 'GET' } : null;
+    }
     const copied = edit?.mode === 'clone' ? this.items().find((i) => i.path === edit.path) : undefined;
-    return copied ? { kind: copied.kind, initial: cloneName(copied.name) } : null;
+    return copied ? { kind: copied.kind, initial: cloneName(copied.name), method: copied.kind === 'request' ? this.badge(copied) : 'GET' } : null;
   });
   protected readonly count = count;
+  protected readonly runnable = isRunnable;
   protected readonly methodClass = methodClass;
   protected readonly shortMethod = shortMethod;
+
+  protected badge(item: TreeItem) {
+    return item.kind === 'request' ? (item.requestType === 'graphql' ? 'GQL' : item.method) : 'GET';
+  }
 
   protected isOpen(path: string) {
     return this.tree.query() !== '' || this.ws.openFolders().has(path);

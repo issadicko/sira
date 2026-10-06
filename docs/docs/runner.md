@@ -73,6 +73,6 @@ Côté Tauri, `start_run` annonce l'avancement par l'événement `run-event` (`b
 ## 7. Ce qui reste
 
 - `--tests-only`, `--tags` / `--exclude-tags`, `--env-file`, `--global-env`, `--sandbox`, `--insecure`, `--cacert` : options de `bru run` non reprises (les réglages réseau viennent avec le lot « réglages réseau »).
-- Les requêtes GraphQL, gRPC et WebSocket ne sont pas exécutées par le runner (GraphQL avec le lot EF-GQL-01).
+- Les requêtes gRPC et WebSocket ne sont pas exécutées par le runner ; les requêtes GraphQL le sont, avec les requêtes HTTP (voir `graphql.md`).
 - Bruno ne lance un dossier que sans ses sous-dossiers, sauf `-r` ; ici un dossier est toujours parcouru récursivement.
 - Le nom d'hôte des suites JUnit vient de `HOSTNAME`, `COMPUTERNAME` ou `/etc/hostname` ; à défaut, `localhost`.

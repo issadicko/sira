@@ -9,6 +9,7 @@ mod oauth2;
 mod pipeline;
 mod report;
 mod run;
+mod schema;
 mod scripts;
 mod sequence;
 mod session;
@@ -24,6 +25,7 @@ pub use report::{
     TestEntry,
 };
 pub use run::{run_collection, select, Event, Halt, Item, Iteration, Job, RequestResult, RunReport, SelectError, Skip};
+pub use schema::{fetch_schema, schema_url, SchemaSource};
 pub use scripts::{flow_of, merged_script, Flow};
 pub use sequence::{next_step, Step, MAX_JUMPS};
 pub use session::{EnvWrites, Session};

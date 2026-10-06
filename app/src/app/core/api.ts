@@ -21,6 +21,7 @@ import {
   RunDone,
   RunEvent,
   SendResult,
+  StoredSchema,
   SyncDecisions,
   SyncPlan,
   SyncReport,
@@ -43,6 +44,7 @@ export interface Api {
   /** S'abonne aux changements du disque ; renvoie la fonction qui se désabonne. */
   onDiskChange(handler: (change: DiskChange) => void): Promise<() => void>;
   createRequest(root: string, folder: string, name: string): Promise<string>;
+  createGraphqlRequest(root: string, folder: string, name: string): Promise<string>;
   createFolder(root: string, parent: string, name: string): Promise<string>;
   renameItem(root: string, path: string, name: string): Promise<string>;
   cloneItem(root: string, path: string, name: string): Promise<string>;
@@ -62,6 +64,10 @@ export interface Api {
   variables(root: string, path: string, doc: RequestDoc, env: string | null): Promise<VariableInfo[]>;
   /** Le code de la requête dans `language`, variables résolues ; les secrets y sont des repères `<nom>`. */
   generateCode(root: string, path: string, doc: RequestDoc, env: string | null, language: CodeLanguage): Promise<GeneratedCode>;
+  /** Le schéma GraphQL déjà gardé pour l'URL de la requête, sans appel réseau ; `null` s'il n'y en a pas. */
+  graphqlSchema(root: string, path: string, doc: RequestDoc, env: string | null): Promise<StoredSchema | null>;
+  /** Demande le schéma au serveur de la requête (introspection) et le garde pour les prochaines ouvertures. */
+  graphqlFetchSchema(root: string, path: string, doc: RequestDoc, env: string | null): Promise<StoredSchema>;
   send(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<SendResult>;
   cancel(id: string): Promise<boolean>;
   parseCurl(command: string): Promise<RequestDoc | null>;
@@ -127,6 +133,7 @@ const tauriApi: Api = {
     return listen<DiskChange>('collection-changed', (event) => handler(event.payload));
   },
   createRequest: (root, folder, name) => invoke('create_request', { root, folder, name }),
+  createGraphqlRequest: (root, folder, name) => invoke('create_graphql_request', { root, folder, name }),
   createFolder: (root, parent, name) => invoke('create_folder', { root, parent, name }),
   renameItem: (root, path, name) => invoke('rename_item', { root, path, name }),
   cloneItem: (root, path, name) => invoke('clone_item', { root, path, name }),
@@ -143,6 +150,8 @@ const tauriApi: Api = {
   setDefaultEnvironment: (root, name) => invoke('set_default_environment', { root, name }),
   variables: (root, path, doc, env) => invoke('variables', { root, path, doc, env }),
   generateCode: (root, path, doc, env, language) => invoke('generate_code', { root, path, doc, env, language }),
+  graphqlSchema: (root, path, doc, env) => invoke('graphql_schema', { root, path, doc, env }),
+  graphqlFetchSchema: (root, path, doc, env) => invoke('graphql_fetch_schema', { root, path, doc, env }),
   send: (id, root, path, doc, env) => invoke('send_request', { args: { id, root, path, doc, env } }),
   cancel: (id) => invoke('cancel_request', { id }),
   parseCurl: (command) => invoke('parse_curl', { command }),

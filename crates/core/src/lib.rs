@@ -1,4 +1,5 @@
 pub mod collection;
+pub mod graphql;
 pub mod oauth2;
 pub mod prepare;
 pub mod pretty;
@@ -36,6 +37,8 @@ pub enum CoreError {
     BodyTooLarge { path: String, max_mb: u64 },
     #[error("type de requête non pris en charge pour l'instant : {0}")]
     UnsupportedRequestType(String),
+    #[error("variables GraphQL invalides (JSON attendu) : {0}")]
+    GraphqlVariables(String),
     #[error("{path} n'est pas une requête : {reason}")]
     NotARequest { path: String, reason: String },
     #[error("nom d'environnement invalide : {0}")]

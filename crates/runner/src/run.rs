@@ -50,7 +50,7 @@ fn collect(items: &[TreeItem], inside: bool, target: &str, out: &mut Vec<Item>, 
             TreeItem::Request { path, name, method, url, request_type, error, .. } => {
                 let hit = path == target || without_extension(path) == target;
                 *found |= hit;
-                if (inside || hit) && request_type == "http" {
+                if (inside || hit) && matches!(request_type.as_str(), "http" | "graphql") {
                     out.push(Item {
                         path: path.clone(),
                         name: name.clone(),

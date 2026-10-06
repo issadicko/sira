@@ -15,6 +15,7 @@ import {
 import { COMMANDS, shortcutLabel } from '../core/commands';
 import { Segment, rank, segments } from '../core/fuzzy';
 import { TreeItem } from '../core/model';
+import { isRunnable } from '../core/runner';
 import { Workspace } from '../core/store';
 import { restoreFocus } from './focus';
 import { Icon } from './icon';
@@ -43,7 +44,7 @@ interface Group {
 
 function requests(items: TreeItem[]): RequestItem[] {
   return items.flatMap((i) =>
-    i.kind === 'folder' ? requests(i.children) : i.requestType === 'http' && !i.error ? [i] : [],
+    i.kind === 'folder' ? requests(i.children) : isRunnable(i.requestType) && !i.error ? [i] : [],
   );
 }
 

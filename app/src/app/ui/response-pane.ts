@@ -9,7 +9,7 @@ import { Icon } from './icon';
 import { ScriptReportView } from './script-report';
 
 type Section = 'body' | 'headers' | 'timeline' | 'tests';
-const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 'YAML', javascript: 'JavaScript', text: 'Texte' };
+const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 'YAML', javascript: 'JavaScript', graphql: 'GraphQL', text: 'Texte' };
 
 @Component({
   selector: 'app-response-pane',

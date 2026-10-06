@@ -116,15 +116,19 @@ export interface Scope {
   requests: number;
 }
 
-const countHttp = (items: TreeItem[]): number => items.reduce((n, i) => n + (i.kind === 'folder' ? countHttp(i.children) : i.requestType === 'http' ? 1 : 0), 0);
+/** Types de requête que l'application sait envoyer ; les autres (gRPC, WebSocket) s'affichent mais ne s'ouvrent pas. */
+const RUNNABLE_TYPES: readonly string[] = ['http', 'graphql'];
+export const isRunnable = (requestType: string): boolean => RUNNABLE_TYPES.includes(requestType);
 
-/** La collection entière puis chaque dossier qui contient au moins une requête HTTP, dans l'ordre de l'arbre. */
+const countRunnable = (items: TreeItem[]): number => items.reduce((n, i) => n + (i.kind === 'folder' ? countRunnable(i.children) : isRunnable(i.requestType) ? 1 : 0), 0);
+
+/** La collection entière puis chaque dossier qui contient au moins une requête qui se lance, dans l'ordre de l'arbre. */
 export function scopes(items: TreeItem[], collectionName: string): Scope[] {
-  const out: Scope[] = [{ path: '', name: collectionName, depth: 0, requests: countHttp(items) }];
+  const out: Scope[] = [{ path: '', name: collectionName, depth: 0, requests: countRunnable(items) }];
   const walk = (list: TreeItem[], depth: number) => {
     for (const item of list) {
       if (item.kind !== 'folder') continue;
-      const requests = countHttp(item.children);
+      const requests = countRunnable(item.children);
       if (requests) out.push({ path: item.path, name: item.name, depth, requests });
       walk(item.children, depth + 1);
     }

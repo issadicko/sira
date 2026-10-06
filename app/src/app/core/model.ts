@@ -26,6 +26,7 @@ export type Body =
   | { type: 'json' | 'text' | 'xml'; data: string }
   | { type: 'form-urlencoded'; fields: KeyValue[] }
   | { type: 'multipart-form'; fields: MultipartField[] }
+  | { type: 'graphql'; query: string; variables: string }
   | { type: 'other'; label: string; config?: string };
 
 /** Un paramètre ajouté à une des requêtes du flux OAuth 2. */
@@ -108,6 +109,13 @@ export interface RequestDoc {
   postVariables?: { name: string; expression: string; enabled: boolean }[];
   docs?: string | null;
   timeoutMs?: number | null;
+}
+
+/** Le schéma GraphQL d'un serveur, tel que l'introspection l'a donné, gardé dans `.oc-sync/graphql/`. */
+export interface StoredSchema {
+  url: string;
+  fetchedAt: string;
+  introspection: unknown;
 }
 
 export type TreeItem =

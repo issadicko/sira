@@ -56,6 +56,21 @@ fn ef_gen_01_the_snippet_carries_the_resolved_request_headers_and_body() {
 }
 
 #[test]
+fn ef_gql_01_a_graphql_request_generates_the_json_body_it_would_send() {
+    let (dir, doc) = collection(
+        "info:\n  name: Q\n  type: graphql\n\ngraphql:\n  method: POST\n  url: \"{{base}}/graphql\"\n  body:\n    query: \"query Me { me { name } }\"\n    variables: '{\"who\": \"{{who}}\"}'\n  auth: inherit\n",
+    );
+    let (snippet, unresolved) = build(dir.path(), &doc, secrets_as_placeholders());
+    assert!(unresolved.is_empty(), "{unresolved:?}");
+    assert_eq!((snippet.method.as_str(), snippet.url.as_str()), ("POST", "https://shop.test/graphql"));
+    assert!(snippet.headers.contains(&("Content-Type".into(), "application/json".into())), "{:?}", snippet.headers);
+    assert_eq!(
+        snippet.body,
+        SnippetBody::Raw("{\"query\":\"query Me { me { name } }\",\"variables\":{\"who\":\"Ada\"}}".into())
+    );
+}
+
+#[test]
 fn ef_gen_01_a_secret_without_a_value_stays_visible_as_unresolved() {
     let (dir, doc) = collection("info:\n  name: Get\n  type: http\n\nhttp:\n  method: GET\n  url: \"{{base}}/me?x={{nope}}\"\n  auth: inherit\n");
     let (snippet, unresolved) = build(dir.path(), &doc, Overrides::default());

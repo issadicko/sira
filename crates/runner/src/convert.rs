@@ -26,13 +26,14 @@ fn raw_body(body: &Body) -> Option<Value> {
     Some(match body {
         Body::Json { data } | Body::Text { data } | Body::Xml { data } => Value::String(data.clone()),
         Body::FormUrlEncoded { fields } => pairs(fields),
+        Body::Graphql { query, variables } => json!({ "query": query, "variables": variables }),
         Body::None | Body::MultipartForm { .. } | Body::Other { .. } => return None,
     })
 }
 
 fn content_type_of(body: &Body) -> Option<&'static str> {
     match body {
-        Body::Json { .. } => Some("application/json"),
+        Body::Json { .. } | Body::Graphql { .. } => Some("application/json"),
         Body::Text { .. } => Some("text/plain"),
         Body::Xml { .. } => Some("application/xml"),
         _ => None,
@@ -85,6 +86,10 @@ pub fn apply_request(
     if after.data != before.data {
         next.body = match (&after.data, &doc.body) {
             (None, _) => Body::None,
+            (Some(Value::Object(m)), Body::Graphql { .. }) => Body::Graphql {
+                query: m.get("query").map(text).unwrap_or_default(),
+                variables: m.get("variables").map(text).unwrap_or_default(),
+            },
             (Some(Value::String(data)), Body::Json { .. }) => Body::Json { data: data.clone() },
             (Some(Value::String(data)), Body::Xml { .. }) => Body::Xml { data: data.clone() },
             (Some(Value::String(data)), Body::Text { .. }) => Body::Text { data: data.clone() },

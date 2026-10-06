@@ -11,7 +11,7 @@ export interface DemoCollection {
 
 type DemoTree = Pick<
   Api,
-  'inspectFolder' | 'createCollection' | 'initCollection' | 'createRequest' | 'createFolder' | 'renameItem' | 'cloneItem' | 'deleteItem' | 'moveItem'
+  'inspectFolder' | 'createCollection' | 'initCollection' | 'createRequest' | 'createGraphqlRequest' | 'createFolder' | 'renameItem' | 'cloneItem' | 'deleteItem' | 'moveItem'
 >;
 
 /** Dossiers que le sélecteur simulé propose en plus de la collection de démo ; tout autre dossier est vide. */
@@ -137,6 +137,17 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
     return root;
   };
 
+  const addRequest = (root: string, folder: string, name: string, requestType: 'http' | 'graphql') => {
+    const c = at(root);
+    const title = checked(name, 'request');
+    const list = childrenOf(c, folder);
+    const path = join(folder, uniqueName(list, sanitizeName(title), EXT));
+    const seq = list.length + 1;
+    const method = requestType === 'graphql' ? 'POST' : 'GET';
+    c.files[path] = { ...blank(title, seq), requestType, method };
+    return created(c, list, { kind: 'request', path, name: title, seq, method, requestType, url: '', deprecated: false });
+  };
+
   return {
     inspectFolder: async (path) => (collections.has(path) ? 'collection' : DEMO_FOLDERS[path] ?? 'empty'),
 
@@ -154,15 +165,9 @@ export function createDemoTree(collections: Map<string, DemoCollection>): DemoTr
       return register(dir, title);
     },
 
-    createRequest: async (root, folder, name) => {
-      const c = at(root);
-      const title = checked(name, 'request');
-      const list = childrenOf(c, folder);
-      const path = join(folder, uniqueName(list, sanitizeName(title), EXT));
-      const seq = list.length + 1;
-      c.files[path] = blank(title, seq);
-      return created(c, list, { kind: 'request', path, name: title, seq, method: 'GET', requestType: 'http', url: '', deprecated: false });
-    },
+    createRequest: async (root, folder, name) => addRequest(root, folder, name, 'http'),
+
+    createGraphqlRequest: async (root, folder, name) => addRequest(root, folder, name, 'graphql'),
 
     createFolder: async (root, parent, name) => {
       const c = at(root);

@@ -119,6 +119,12 @@ La vue **Environnements** (barre d'activité) liste les fichiers de `environment
 - **Secrets** : une variable `secret: true` n'a jamais sa valeur dans le fichier. Sa valeur se saisit dans le tableau d'environnement et vit dans le trousseau du système (Keychain, Gestionnaire d'identifiants, Secret Service), hors fichier et hors interface ; `{{process.env.NOM}}` lit le fichier `.env` de la collection.
 - **Brouillon** : les modifications n'agissent sur aucune requête tant qu'elles ne sont pas enregistrées (un point sur l'onglet et sur la barre d'activité les signale). Changer d'environnement ou ouvrir une autre collection les fait confirmer ; un fichier modifié sur le disque entre-temps ne sera écrasé qu'après confirmation (voir « Rechargement à chaud »).
 
+## GraphQL
+
+- **Nouvelle requête GraphQL** (menu de l'arbre, palette ⌘⇧P) : l'onglet Corps montre la requête et ses variables JSON. Les `{{variables}}` sont résolues avant l'envoi, comme dans Bruno.
+- **Charger le schéma** interroge le serveur de la requête (introspection, sans script) et le garde dans `.oc-sync/graphql/` : autocomplétion (Ctrl+Espace), erreurs soulignées et coloration suivent le schéma, hors ligne comme en ligne. Détail dans `docs/docs/graphql.md`.
+- Le runner, `xc run` et le code généré (`</>`, `xc code`) prennent en charge les requêtes GraphQL comme les requêtes HTTP.
+
 ## Importer
 
 - **Coller un cURL** dans la barre d'URL : une commande qui commence par `curl` n'est pas collée telle quelle, elle est analysée comme Bruno le fait puis appliquée à la requête ouverte (URL, méthode, puis en-têtes, corps et authentification s'ils sont présents). L'onglet passe à « non enregistré ».

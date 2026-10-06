@@ -2,6 +2,7 @@ import { Injectable, Injector, afterNextRender, computed, effect, inject, signal
 
 import { api } from './api';
 import { DropPosition, TreeItem } from './model';
+import { isRunnable } from './runner';
 import { dirname } from './paths';
 import { Workspace } from './store';
 import { SyncStore } from './sync-store';
@@ -26,7 +27,7 @@ import {
 } from './tree-ops';
 
 export type Edit =
-  | { mode: 'create'; kind: ItemKind; parent: string }
+  | { mode: 'create'; kind: ItemKind; parent: string; requestType?: 'graphql' }
   | { mode: 'clone'; path: string }
   | { mode: 'rename'; path: string };
 
@@ -148,7 +149,7 @@ export class TreeStore {
   activate(item: TreeItem, pin: boolean) {
     this.select(item.path);
     if (item.kind === 'folder') this.ws.toggleFolder(item.path);
-    else if (item.requestType === 'http' || item.error) void this.ws.openRequest(item.path, pin);
+    else if (isRunnable(item.requestType) || item.error) void this.ws.openRequest(item.path, pin);
   }
 
   /** Touche de déplacement depuis la ligne `path` : le focus et la sélection suivent, un dossier s'ouvre ou se ferme, Entrée active. */
@@ -179,13 +180,13 @@ export class TreeStore {
     return !item ? '' : item.kind === 'folder' ? item.path : dirname(item.path);
   }
 
-  beginCreate(kind: ItemKind, parent = this.createParent()) {
+  beginCreate(kind: ItemKind, parent = this.createParent(), requestType?: 'graphql') {
     if (!this.ws.collection() || this.busy()) return;
     this.closeMenu();
     this.showTree();
     if (parent) this.ws.reveal(parent, true);
     this.editError.set(null);
-    this.edit.set({ mode: 'create', kind, parent });
+    this.edit.set({ mode: 'create', kind, parent, requestType });
   }
 
   beginRename(path = this.target()) {
@@ -252,7 +253,8 @@ export class TreeStore {
   private write(edit: Edit, root: string, name: string): Promise<string> {
     switch (edit.mode) {
       case 'create':
-        return edit.kind === 'request' ? api.createRequest(root, edit.parent, name) : api.createFolder(root, edit.parent, name);
+        if (edit.kind === 'folder') return api.createFolder(root, edit.parent, name);
+        return edit.requestType === 'graphql' ? api.createGraphqlRequest(root, edit.parent, name) : api.createRequest(root, edit.parent, name);
       case 'clone':
         return api.cloneItem(root, edit.path, name);
       case 'rename':

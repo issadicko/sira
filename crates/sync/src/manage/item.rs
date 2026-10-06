@@ -64,16 +64,33 @@ fn blank_request(name: &str, seq: i64) -> Json {
     })
 }
 
+fn blank_graphql_request(name: &str, seq: i64) -> Json {
+    let mut item = blank_request(name, seq);
+    item["type"] = json!("graphql-request");
+    item["request"]["method"] = json!("POST");
+    item["request"]["body"] = json!({ "mode": "graphql", "graphql": { "query": "", "variables": "" } });
+    item
+}
+
 /// Crée une requête HTTP vierge `name` dans `folder` (relatif à la racine, `""` pour la racine), à la fin de la liste
 /// du dossier, et renvoie son chemin relatif avec des `/`. Un nom de fichier pris reçoit un suffixe ` 1`, ` 2`… ;
 /// `info.name` garde le nom saisi. Les noms `collection` et `folder`, et ceux de `extensions.bruno.ignore`, sont
 /// refusés.
 pub fn create_request(root: &Path, folder: &str, name: &str) -> Result<String, ManageError> {
+    create_blank(root, folder, name, blank_request)
+}
+
+/// Comme [`create_request`], pour une requête GraphQL (`newGraphQLRequest` de Bruno) : méthode POST, requête vide.
+pub fn create_graphql_request(root: &Path, folder: &str, name: &str) -> Result<String, ManageError> {
+    create_blank(root, folder, name, blank_graphql_request)
+}
+
+fn create_blank(root: &Path, folder: &str, name: &str, blank: fn(&str, i64) -> Json) -> Result<String, ManageError> {
     let file = request_file_name(name).map_err(ManageError::InvalidName)?;
     let scope = Scope::open(root)?;
     let (dir, seq) = destination(&scope, folder)?;
     scope.check_name(&file)?;
-    let text = stringify::item(&blank_request(name, seq));
+    let text = stringify::item(&blank(name, seq));
     let stem = file.strip_suffix(REQUEST_EXT).unwrap_or(&file);
     let names = scope.directory(&dir, folder.is_empty(), None)?;
     let created = claim_unique(&dir, names, Wanted::new(stem, REQUEST_EXT), |path| {

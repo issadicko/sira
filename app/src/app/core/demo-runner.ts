@@ -2,7 +2,7 @@ import type { Api } from './api';
 import { DemoCollection, collectionAt } from './demo-tree';
 import { emptyReport } from './scripts';
 import { DataInfo, ReportFormat, RunArgs, RunDone, RunEvent, RunHalt, RunResult, RunSummary, TreeItem } from './model';
-import { tallyResults } from './runner';
+import { isRunnable, tallyResults } from './runner';
 
 type DemoRunner = Pick<Api, 'pickDataFile' | 'pickSavePath' | 'inspectRunData' | 'startRun' | 'cancelRun' | 'onRunEvent' | 'exportRun'>;
 
@@ -15,13 +15,13 @@ const ROWS: Record<string, unknown>[] = [
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Les requêtes HTTP sous `targets` (toute la collection si vide), dans l'ordre de l'arbre. */
+/** Les requêtes qui se lancent (HTTP et GraphQL) sous `targets` (toute la collection si vide), dans l'ordre de l'arbre. */
 function requestsUnder(items: TreeItem[], targets: string[]): TreeItem[] {
   const out: TreeItem[] = [];
   const walk = (list: TreeItem[], inside: boolean) => {
     for (const item of list) {
       if (item.kind === 'folder') walk(item.children, inside || targets.includes(item.path));
-      else if (item.requestType === 'http' && (inside || targets.includes(item.path))) out.push(item);
+      else if (isRunnable(item.requestType) && (inside || targets.includes(item.path))) out.push(item);
     }
   };
   walk(items, !targets.length);

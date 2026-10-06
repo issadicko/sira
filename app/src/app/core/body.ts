@@ -2,10 +2,10 @@ import type { Body, MultipartField } from './model';
 
 /**
  * Passe à un autre type de corps : le texte est conservé entre json, texte et xml, les champs texte entre formulaires.
- * Un corps `other` (GraphQL, SPARQL, fichier…) n'est pas éditable ici : il reste tel quel.
+ * Un corps `other` (SPARQL, fichier…) n'est pas éditable ici : il reste tel quel, comme le corps GraphQL, qui a son propre éditeur.
  */
 export function switchBody(body: Body, type: Body['type']): Body {
-  if (type === body.type || body.type === 'other') return body;
+  if (type === body.type || body.type === 'other' || body.type === 'graphql') return body;
   if (type === 'json' || type === 'text' || type === 'xml') {
     return { type, data: 'data' in body ? body.data : type === 'json' ? '{\n  \n}' : '' };
   }

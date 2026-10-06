@@ -9,6 +9,7 @@ use xc_codegen::{Auth as SnippetAuth, Body as SnippetBody, Part, PartValue, Snip
 use xc_engine::HttpRequest;
 
 use crate::collection::resolve_visible_path;
+use crate::graphql;
 use crate::oauth2::OAuth2;
 use crate::request::{
     auth_from, key_values, Auth, Body, KeyValue, MultipartField, MultipartValue, ParamKind, RequestDoc,
@@ -100,7 +101,7 @@ pub fn prepare_with(
     runtime: &HashMap<String, String>,
     overrides: Overrides,
 ) -> Result<Prepared, CoreError> {
-    if doc.request_type != "http" {
+    if doc.request_type != "http" && doc.request_type != "graphql" {
         return Err(CoreError::UnsupportedRequestType(doc.request_type.clone()));
     }
     let ctx = Context::load(root, request_path)?;
@@ -171,6 +172,9 @@ pub fn prepare_with(
         Body::MultipartForm { fields } => {
             let (content_type, boundary) = multipart_type(current_type.as_deref());
             Some((multipart(root, fields, &boundary, &mut fill)?, content_type))
+        }
+        Body::Graphql { query, variables } => {
+            Some((graphql::payload(&fill(query), &fill(variables))?.into_bytes(), typed("application/json")))
         }
         Body::None | Body::Other { .. } => None,
     };

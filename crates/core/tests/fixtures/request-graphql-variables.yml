@@ -1,0 +1,24 @@
+info:
+  name: Add Cart Item
+  type: graphql
+  seq: 12
+
+graphql:
+  method: POST
+  url: "{{base}}/graphql"
+  body:
+    query: |-
+      query Product($sku: String!) {
+        product(sku: $sku) {
+          name
+        }
+      }
+    variables: |-
+      {
+        "sku": "{{sku}}"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0

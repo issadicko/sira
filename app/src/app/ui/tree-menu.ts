@@ -39,7 +39,10 @@ export class TreeMenu {
   private build({ path }: MenuState): MenuEntry[] {
     const item = path ? findItem(this.ws.collection()?.items ?? [], path) : null;
     const parent = !item ? '' : item.kind === 'folder' ? item.path : dirname(item.path);
-    const create: MenuEntry[] = [{ label: 'Nouvelle requête', icon: 'file', run: () => this.tree.beginCreate('request', parent) }];
+    const create: MenuEntry[] = [
+      { label: 'Nouvelle requête', icon: 'file', run: () => this.tree.beginCreate('request', parent) },
+      { label: 'Nouvelle requête GraphQL', icon: 'file', run: () => this.tree.beginCreate('request', parent, 'graphql') },
+    ];
     if (!item || item.kind === 'folder') create.push({ label: 'Nouveau dossier', icon: 'folder', run: () => this.tree.beginCreate('folder', parent) });
     const run: MenuEntry[] = item?.kind === 'request' ? [] : [{ label: item ? 'Exécuter le dossier…' : 'Exécuter la collection…', icon: 'play', run: () => this.runner.openFor(item?.path ?? '') }];
     if (!item) return [...create, 'sep', ...run];

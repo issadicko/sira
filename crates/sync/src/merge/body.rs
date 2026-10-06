@@ -71,6 +71,7 @@ fn show(body: &Body) -> Option<String> {
         Body::Json { data } | Body::Text { data } | Body::Xml { data } => Some(data.clone()),
         Body::FormUrlEncoded { .. } => Some("form-urlencoded".into()),
         Body::MultipartForm { .. } => Some("multipart-form".into()),
+        Body::Graphql { query, variables } => Some(format!("{query}\n{variables}")),
         Body::Other { label, config } => Some(show_other(label, config)),
     }
 }

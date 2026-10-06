@@ -9,6 +9,7 @@ import { Workspace } from '../core/store';
 import { prettyJson } from '../core/highlight';
 import { AuthEditor } from './auth-editor';
 import { CodeEditor } from './code-editor';
+import { GraphqlEditor } from './graphql-editor';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
 import { MultipartTable } from './multipart-table';
@@ -28,7 +29,7 @@ const BODY_TYPES: { type: Body['type']; label: string }[] = [
   { type: 'form-urlencoded', label: 'Formulaire' },
   { type: 'multipart-form', label: 'Multipart' },
 ];
-const BODY_BADGES: Partial<Record<Body['type'], string>> = { 'form-urlencoded': 'FORM', 'multipart-form': 'MULTIPART' };
+const BODY_BADGES: Partial<Record<Body['type'], string>> = { 'form-urlencoded': 'FORM', 'multipart-form': 'MULTIPART', graphql: 'GQL' };
 const TEXT_BODIES = new Set<Body['type']>(['json', 'text', 'xml']);
 
 const OUTSIDE_COLLECTION =
@@ -37,7 +38,7 @@ const OUTSIDE_COLLECTION =
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor],
   host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -70,7 +71,11 @@ const OUTSIDE_COLLECTION =
           </div>
         }
         @case ('body') {
-          @if (tab.doc.body.type === 'other') {
+          @if (tab.doc.requestType === 'graphql') {
+            @defer (on immediate) {
+              <app-graphql-editor />
+            }
+          } @else if (tab.doc.body.type === 'other') {
             <div class="pane-body">
               <div class="banner"><app-ic name="alert" [size]="15" /><span><b>Corps {{ $any(tab.doc.body).label }}.</b> Ce type n'est pas encore éditable ici ; il est conservé tel quel dans le fichier.</span></div>
             </div>

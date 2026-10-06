@@ -101,11 +101,12 @@ const tree: TreeItem[] = [
     ],
   },
   { kind: 'folder', path: 'vide', name: 'vide', children: [] },
+  { kind: 'folder', path: 'flux', name: 'flux', children: [{ kind: 'request', path: 'flux/s.yml', name: 'S', method: 'GET', requestType: 'grpc', url: '', deprecated: false }] },
 ];
 
-test('ef_run_01 les portées sont la collection puis les dossiers qui ont des requêtes HTTP', () => {
+test('ef_run_01 les portées sont la collection puis les dossiers qui ont des requêtes HTTP ou GraphQL, pas gRPC', () => {
   const list = scopes(tree, 'Shop');
-  assert.deepEqual(list.map((s) => [s.path, s.depth, s.requests]), [['', 0, 2], ['users', 1, 1]]);
+  assert.deepEqual(list.map((s) => [s.path, s.depth, s.requests]), [['', 0, 3], ['users', 1, 2], ['users/admin', 2, 1]]);
   assert.equal(list[0]?.name, 'Shop');
 });
 

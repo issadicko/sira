@@ -1,10 +1,11 @@
 import type { Api } from './api';
+import { DEMO_INTROSPECTION } from './demo-graphql';
 import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { emptyReport } from './scripts';
-import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TokenInfo, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -79,6 +80,15 @@ const files: Record<string, RequestDoc> = {
       ],
     },
   }),
+  'graphql/produit.yml': doc('Fiche produit', 'POST', '{{baseUrl}}/graphql', {
+    requestType: 'graphql',
+    headers: [header('X-Canal', '{{canal}}')],
+    body: {
+      type: 'graphql',
+      query: 'query Produit($sku: String!) {\n  product(sku: $sku) {\n    name\n    price\n    category\n  }\n}',
+      variables: '{\n  "sku": "DS4-B"\n}',
+    },
+  }),
   [EXPORT]: doc('Export des transactions (10 Mo)', 'GET', '{{baseUrl}}/transactions/export'),
   'transactions/supprimer.yml': doc('Supprimer une transaction', 'DELETE', '{{baseUrl}}/transactions/:id', {
     params: [pathParam('id', '{{txId}}')],
@@ -90,7 +100,7 @@ const DEPRECATED = new Set(['transactions/supprimer.yml']);
 
 function treeRequest(path: string): TreeItem {
   const { name, method, url } = files[path];
-  return { kind: 'request', path, name, method, requestType: 'http', url, deprecated: DEPRECATED.has(path) };
+  return { kind: 'request', path, name, method, requestType: files[path].requestType, url, deprecated: DEPRECATED.has(path) };
 }
 
 const collection: CollectionInfo = {
@@ -98,9 +108,10 @@ const collection: CollectionInfo = {
   name: 'API Paiements (démo)',
   environments: ['dev', 'prod'],
   defaultEnvironment: 'dev',
-  requestCount: 8,
+  requestCount: 9,
   items: [
     { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: ['connexion', 'jeton'].map((f) => treeRequest(`auth/${f}.yml`)) },
+    { kind: 'folder', path: 'graphql', name: 'GraphQL', seq: 3, children: [treeRequest('graphql/produit.yml')] },
     {
       kind: 'folder',
       path: 'transactions',
@@ -149,7 +160,9 @@ function variables(path: string, env: string | null): VariableInfo[] {
 }
 
 const body = (path: string) =>
-  path === 'transactions/detail.yml'
+  path === 'graphql/produit.yml'
+    ? { data: { product: { name: 'Manette DualShock', price: 45000, category: 'GAMEPAD' } } }
+    : path === 'transactions/detail.yml'
     ? { id: 'TX-2026-0042', montant: 15000, frais: 150, devise: 'XOF', statut: 'CONFIRMEE', client: { id: 'CL-00318', nom: 'Aminata Ouédraogo' }, creeLe: '2026-09-29T10:42:11Z' }
     : { ok: true, source: 'mode démo du navigateur' };
 
@@ -193,6 +206,8 @@ const SPEC: OpenApiPreview = {
 };
 
 const timers = new Map<string, () => void>();
+/** Les schémas GraphQL chargés pendant la session, par URL : le mode démo n'écrit rien sur disque. */
+const schemas = new Map<string, StoredSchema>();
 /** Les jetons OAuth 2 de la démo, par requête : rien n'est demandé à un serveur. */
 const tokens = new Map<string, TokenInfo>();
 
@@ -228,8 +243,16 @@ export const demoApi: Api = {
     const parts = [`--request ${doc.method.toUpperCase()}`, `--url '${fill(doc.url)}'`];
     for (const h of doc.headers.filter((h) => h.enabled)) parts.push(`--header '${h.name}: ${fill(h.value)}'`);
     if (doc.body.type === 'json' || doc.body.type === 'text' || doc.body.type === 'xml') parts.push(`--data-raw '${fill(doc.body.data)}'`);
+    if (doc.body.type === 'graphql') parts.push(`--data-raw '${JSON.stringify({ query: fill(doc.body.query), variables: JSON.parse(fill(doc.body.variables || '{}')) })}'`);
     const note = language === 'curl' ? '' : "# Mode démo : seul cURL est généré ici, l'application desktop génère les neuf langages.\n";
     return { code: `${note}curl ${parts.join(' \\\n  ')}\n`, unresolved: [] };
+  },
+  graphqlSchema: async (_root, _path, doc) => structuredClone(schemas.get(doc.url) ?? null),
+  graphqlFetchSchema: async (_root, _path, doc) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const schema: StoredSchema = { url: doc.url, fetchedAt: new Date().toISOString(), introspection: DEMO_INTROSPECTION };
+    schemas.set(doc.url, schema);
+    return structuredClone(schema);
   },
   oauthStatus: async (_root, path) => structuredClone(tokens.get(path) ?? null),
   oauthFetch: async (_root, path, doc) => {

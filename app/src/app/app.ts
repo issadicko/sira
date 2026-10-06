@@ -100,6 +100,7 @@ export class App {
       { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.send() },
       { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
       { id: 'item.new-request', title: 'Nouvelle requête', group: 'Requête', icon: 'file', when: opened, run: () => tree.beginCreate('request') },
+      { id: 'item.new-graphql', title: 'Nouvelle requête GraphQL', group: 'Requête', icon: 'file', when: opened, run: () => tree.beginCreate('request', undefined, 'graphql') },
       { id: 'request.code', title: 'Générer du code…', group: 'Requête', icon: 'code', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.dialog.set('code') },
       { id: 'request.curl', title: 'Nouvelle requête depuis cURL…', group: 'Requête', icon: 'terminal', when: opened, run: () => ws.dialog.set('curl') },
       { id: 'request.save', title: 'Enregistrer la requête', group: 'Requête', icon: 'download', keys: 'mod+s', when: () => ws.view() !== 'env' && !!ws.active(), run: () => ws.save() },

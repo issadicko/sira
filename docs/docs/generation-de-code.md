@@ -37,7 +37,7 @@ Le premier argument est le dossier de la collection, le second le chemin de la r
 
 ## Limites connues
 
-- Les requêtes GraphQL, gRPC et WebSocket ne sont pas transcrites (la V1 les envoie après la gestion GraphQL).
+- Les requêtes gRPC et WebSocket ne sont pas transcrites. Une requête GraphQL l'est comme une requête HTTP : le corps JSON `{"query": …, "variables": …}` tel qu'il partirait (voir `graphql.md`).
 - Un nom d'en-tête répété n'est gardé qu'une fois en Python et en Dart (dictionnaires) ; l'extrait le dit en commentaire.
 - Un caractère hors ASCII dans un en-tête : OkHttp (`addUnsafeNonAscii`) et les autres l'acceptent, Dart le refuse (commentaire dans l'extrait).
 - Le mode démo du navigateur ne produit que du cURL simplifié.

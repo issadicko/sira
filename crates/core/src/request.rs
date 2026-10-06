@@ -92,6 +92,11 @@ pub enum Body {
     MultipartForm {
         fields: Vec<MultipartField>,
     },
+    /// Corps d'une requête GraphQL : la requête et ses variables (texte JSON).
+    Graphql {
+        query: String,
+        variables: String,
+    },
     /// Type non édité ici : son nom, et le texte YAML canonique du reste de sa configuration.
     Other {
         label: String,
@@ -444,6 +449,9 @@ fn body_of(b: &Map) -> Body {
         "xml" => Body::Xml { data: text(b.get("data")) },
         "form-urlencoded" => Body::FormUrlEncoded { fields: key_values(b.seq("data")) },
         "multipart-form" => Body::MultipartForm { fields: read_list(b.seq("data")) },
+        "" if b.get("query").is_some() || b.get("variables").is_some() => {
+            Body::Graphql { query: text(b.get("query")), variables: text(b.get("variables")) }
+        }
         other => Body::Other { label: other.into(), config: canonical(b) },
     }
 }
@@ -629,7 +637,7 @@ const AUTH_ORDER: &[&str] = &[
 /// Type et contenu texte du corps ; les champs d'un formulaire sont écrits à part, par [`set_list`].
 fn body_scalars(body: &Body) -> Option<Map> {
     let (kind, data) = match body {
-        Body::None | Body::Other { .. } => return None,
+        Body::None | Body::Other { .. } | Body::Graphql { .. } => return None,
         Body::Json { data } => ("json", Some(data)),
         Body::Text { data } => ("text", Some(data)),
         Body::Xml { data } => ("xml", Some(data)),
@@ -641,7 +649,31 @@ fn body_scalars(body: &Body) -> Option<Map> {
     Some(table(pairs))
 }
 
+const GRAPHQL_ORDER: &[&str] = &["query", "variables"];
+
+fn write_graphql(http: &mut Map, query: &str, variables: &str) {
+    if query.is_empty() && variables.is_empty() {
+        http.remove("body");
+        return;
+    }
+    let mut merged = http.map("body").cloned().unwrap_or_default();
+    for (key, value) in [("query", query), ("variables", variables)] {
+        match (value.is_empty(), merged.get(key).is_some()) {
+            (true, true) => {
+                merged.remove(key);
+            }
+            (true, false) => {}
+            (false, _) if text(merged.get(key)) == value => {}
+            (false, _) => merged.set(key, Value::str(value), GRAPHQL_ORDER),
+        }
+    }
+    http.set("body", Value::Map(merged), HTTP_ORDER);
+}
+
 fn write_body(http: &mut Map, body: &Body) {
+    if let Body::Graphql { query, variables } = body {
+        return write_graphql(http, query, variables);
+    }
     let Some(new) = body_scalars(body) else {
         if *body == Body::None {
             http.remove("body");

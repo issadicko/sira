@@ -14,8 +14,8 @@ use xc_core::request::BLANK_BEFORE;
 use xc_core::{normalize, read_request, CoreError};
 use xc_sync::import::import_spec;
 use xc_sync::manage::{
-    clone_item, create_collection, create_folder, create_request, delete_item, init_collection, inspect_folder,
-    move_item, rename_item, DropPosition, FolderKind, ManageError,
+    clone_item, create_collection, create_folder, create_graphql_request, create_request, delete_item, init_collection,
+    inspect_folder, move_item, rename_item, DropPosition, FolderKind, ManageError,
 };
 use xc_sync::openapi::GroupBy;
 use xc_sync::store::{self, Entry};
@@ -291,6 +291,26 @@ fn ef_col_04_create_request_matches_the_blank_request_bruno_writes() {
     assert_eq!(w.read(&nested), fixture("request-seq3.yml").replace("seq: 3", "seq: 1"));
     let doc = read_request(&w.root, &nested).unwrap();
     assert_eq!((doc.name.as_str(), doc.method.as_str(), doc.url.as_str()), ("Lister les commandes", "GET", ""));
+}
+
+#[test]
+fn ef_gql_01_create_graphql_request_writes_a_blank_graphql_request() {
+    let w = World::new();
+    w.requests(&[("Une", 1)]);
+    let created = create_graphql_request(&w.root, "", "Produit").unwrap();
+    assert_eq!(created, "Produit.yml");
+    let text = w.read(&created);
+    assert!(
+        text.starts_with(
+            "info:\n  name: Produit\n  type: graphql\n  seq: 2\n\ngraphql:\n  method: POST\n  url: \"\"\n"
+        ),
+        "{text}"
+    );
+    assert!(!text.contains("http:") && !text.contains("body:"), "{text}");
+    let doc = read_request(&w.root, &created).unwrap();
+    assert_eq!((doc.request_type.as_str(), doc.method.as_str()), ("graphql", "POST"));
+    let again = create_graphql_request(&w.root, "", "Produit").unwrap();
+    assert_eq!(again, "Produit 1.yml", "un nom pris reçoit un suffixe, comme pour une requête HTTP");
 }
 
 #[test]

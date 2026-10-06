@@ -5,11 +5,12 @@ use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
+use xc_core::graphql::StoredSchema;
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, RequestDoc};
 use xc_engine::Timings;
-use xc_runner::{AssertionResult, PhaseReport, Request, RunError, Session};
+use xc_runner::{AssertionResult, PhaseReport, Request, RunError, SchemaSource, Session};
 use xc_sync::import::{fetch_spec, OpenApiPreview};
 use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
@@ -303,6 +304,14 @@ async fn set_default_environment(state: State<'_, AppState>, root: String, name:
     writing(&state, move || xc_core::set_default_environment(Path::new(&root), name.as_deref())).await
 }
 
+/// La session de la collection, avec les secrets du trousseau pour `env`.
+async fn loaded_session(state: &AppState, root: &str, env: Option<&str>) -> Reply<Session> {
+    let mut session = state.sessions.lock().map_err(err)?.get(root).cloned().unwrap_or_default();
+    let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.to_owned(), env.map(str::to_owned));
+    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
+    Ok(session)
+}
+
 #[tauri::command]
 async fn variables(
     state: State<'_, AppState>,
@@ -312,9 +321,7 @@ async fn variables(
     env: Option<String>,
 ) -> Reply<Vec<VariableInfo>> {
     let dir = Path::new(&root);
-    let mut session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
-    let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.clone(), env.clone());
-    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
+    let session = loaded_session(&state, &root, env.as_deref()).await?;
     let ctx = Context::load(dir, &path).map_err(err)?;
     let scope = Scope::build(dir, &ctx, &path, &doc, env.as_deref(), &session.runtime_strings()).map_err(err)?;
     Ok(scope.with_overrides(session.overrides(env.as_deref())).infos())
@@ -340,9 +347,7 @@ async fn generate_code(
     language: String,
 ) -> Reply<GeneratedCode> {
     let language = xc_codegen::Language::from_id(&language).ok_or_else(|| format!("langage inconnu : {language}"))?;
-    let mut session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
-    let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.clone(), env.clone());
-    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
+    let mut session = loaded_session(&state, &root, env.as_deref()).await?;
     for (name, value) in &mut session.secrets {
         *value = format!("<{name}>");
     }
@@ -361,10 +366,8 @@ async fn send_request<R: tauri::Runtime>(
     args: SendArgs,
 ) -> Reply<SendResult> {
     let SendArgs { id, root: root_path, path, doc, env } = args;
-    let mut session = state.sessions.lock().map_err(err)?.get(&root_path).cloned().unwrap_or_default();
+    let mut session = loaded_session(&state, &root_path, env.as_deref()).await?;
     session.authorizer = Some(oauth::authorizer(&app));
-    let (store, dir, picked) = (Arc::clone(&state.secrets.0), root_path.clone(), env.clone());
-    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &dir, picked.as_deref()))).await?;
     let cancel = Arc::new(AtomicBool::new(false));
     let (dir, flag) = (root(&root_path), Arc::clone(&cancel));
     let task = tokio::spawn(async move {
@@ -416,6 +419,42 @@ async fn send_request<R: tauri::Runtime>(
         error: outcome.error,
         skipped: outcome.skipped,
     })
+}
+
+/// Le schéma GraphQL déjà gardé pour l'URL de la requête, sans appel réseau ; `None` s'il n'y en a pas.
+#[tauri::command]
+async fn graphql_schema(
+    state: State<'_, AppState>,
+    root: String,
+    path: String,
+    doc: RequestDoc,
+    env: Option<String>,
+) -> Reply<Option<StoredSchema>> {
+    let session = loaded_session(&state, &root, env.as_deref()).await?;
+    blocking(move || {
+        let source = SchemaSource { root: Path::new(&root), path: &path, doc: &doc, env: env.as_deref() };
+        let url = xc_runner::schema_url(&source, &session)?;
+        Ok::<_, String>(xc_core::graphql::read_stored(Path::new(&root), &url))
+    })
+    .await
+}
+
+/// Demande le schéma au serveur de la requête (introspection) et le garde pour les prochaines ouvertures.
+#[tauri::command]
+async fn graphql_fetch_schema<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, AppState>,
+    root: String,
+    path: String,
+    doc: RequestDoc,
+    env: Option<String>,
+) -> Reply<StoredSchema> {
+    let mut session = loaded_session(&state, &root, env.as_deref()).await?;
+    session.authorizer = Some(oauth::authorizer(&app));
+    let source = SchemaSource { root: Path::new(&root), path: &path, doc: &doc, env: env.as_deref() };
+    let schema = xc_runner::fetch_schema(source, &mut session).await?;
+    state.sessions.lock().map_err(err)?.entry(root).or_default().tokens.extend(session.tokens);
+    Ok(schema)
 }
 
 #[tauri::command]
@@ -528,6 +567,16 @@ async fn init_collection(state: State<'_, AppState>, dir: String, name: String) 
 #[tauri::command]
 async fn create_request(state: State<'_, AppState>, root: String, folder: String, name: String) -> Reply<String> {
     writing(&state, move || manage::create_request(Path::new(&root), &folder, &name)).await
+}
+
+#[tauri::command]
+async fn create_graphql_request(
+    state: State<'_, AppState>,
+    root: String,
+    folder: String,
+    name: String,
+) -> Reply<String> {
+    writing(&state, move || manage::create_graphql_request(Path::new(&root), &folder, &name)).await
 }
 
 #[tauri::command]
@@ -647,6 +696,8 @@ pub fn run() {
             variables,
             send_request,
             cancel_request,
+            graphql_schema,
+            graphql_fetch_schema,
             parse_curl,
             create_request_from_curl,
             preview_openapi,
@@ -660,6 +711,7 @@ pub fn run() {
             create_collection,
             init_collection,
             create_request,
+            create_graphql_request,
             create_folder,
             rename_item,
             clone_item,
@@ -1026,6 +1078,70 @@ paths:
             .await
             .unwrap_err();
         assert!(unknown.contains("langage inconnu"), "{unknown}");
+    }
+
+    #[tokio::test]
+    async fn ef_gql_01_command_fetches_keeps_and_rereads_a_schema_with_the_keychain_secrets() {
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let seen = Arc::new(Mutex::new(String::new()));
+        let log = Arc::clone(&seen);
+        std::thread::spawn(move || {
+            let reply = r#"{"data":{"__schema":{"queryType":{"name":"Query"},"types":[]}}}"#;
+            let Ok((mut stream, _)) = listener.accept() else { return };
+            let mut buf = [0u8; 16384];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            *log.lock().unwrap() = String::from_utf8_lossy(&buf[..n]).into_owned();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
+                reply.len()
+            );
+        });
+
+        let store = Arc::new(xc_secrets::MemoryStore::default());
+        let app = tauri::test::mock_app();
+        app.manage(AppState { secrets: secrets::Secrets(store.clone()), ..AppState::default() });
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: S\n").unwrap();
+        fs::create_dir(root.join("environments")).unwrap();
+        fs::write(
+            root.join("environments/dev.yml"),
+            format!("name: dev\nvariables:\n  - name: base\n    value: {base}\n  - secret: true\n    name: token\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("req.yml"),
+            "info:\n  name: Q\n  type: graphql\n\ngraphql:\n  method: POST\n  url: \"{{base}}/graphql\"\n  headers:\n    - name: Authorization\n      value: \"Bearer {{token}}\"\n  body:\n    query: \"{ me { id } }\"\n",
+        )
+        .unwrap();
+        let root_path = root.display().to_string();
+        secrets::put(&*store, &root_path, "dev", &[("token".into(), "s3cr3t-value".into())]).unwrap();
+        let doc = xc_core::read_request(root, "req.yml").unwrap();
+        let env = Some("dev".to_owned());
+
+        let before = graphql_schema(state(), root_path.clone(), "req.yml".into(), doc.clone(), env.clone()).await;
+        assert_eq!(before.unwrap(), None);
+
+        let fetched = graphql_fetch_schema(
+            app.handle().clone(),
+            state(),
+            root_path.clone(),
+            "req.yml".into(),
+            doc.clone(),
+            env.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(fetched.introspection["__schema"]["queryType"]["name"], "Query");
+        assert!(seen.lock().unwrap().contains("Bearer s3cr3t-value"), "le secret du trousseau part avec la requête");
+
+        let kept = graphql_schema(state(), root_path, "req.yml".into(), doc, env).await.unwrap();
+        assert_eq!(kept, Some(fetched));
     }
 
     #[test]

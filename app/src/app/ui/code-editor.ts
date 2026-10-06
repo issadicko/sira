@@ -11,7 +11,7 @@ import { tagHighlighter, tags as t } from '@lezer/highlight';
 
 import type { FoldRange, Lens, LineMark } from '../core/sync';
 
-export type CodeLanguage = 'json' | 'xml' | 'yaml' | 'javascript' | 'text';
+export type CodeLanguage = 'json' | 'xml' | 'yaml' | 'javascript' | 'graphql' | 'text';
 
 const YAML = StreamLanguage.define({
   name: 'yaml',
@@ -64,7 +64,7 @@ const JAVASCRIPT = StreamLanguage.define<{ block: boolean }>({
   },
 });
 
-const LANGUAGES: Record<CodeLanguage, Extension> = { json: json(), xml: xml(), yaml: YAML, javascript: JAVASCRIPT, text: [] };
+const LANGUAGES: Record<Exclude<CodeLanguage, 'graphql'>, Extension> = { json: json(), xml: xml(), yaml: YAML, javascript: JAVASCRIPT, text: [] };
 /** Raccourcis globaux de l'application (⌘↵ envoie) que l'éditeur ne doit pas capturer. */
 const APP_SHORTCUTS = new Set(['Mod-Enter']);
 const external = Annotation.define<boolean>();
@@ -72,7 +72,7 @@ const external = Annotation.define<boolean>();
 const HIGHLIGHTER = tagHighlighter([
   { tag: t.propertyName, class: 't-key' },
   { tag: [t.string, t.attributeValue], class: 't-str' },
-  { tag: [t.number, t.character], class: 't-num' },
+  { tag: [t.number, t.character, t.variableName], class: 't-num' },
   { tag: [t.bool, t.null, t.keyword, t.tagName], class: 't-kw' },
   { tag: [t.comment, t.meta], class: 't-com' },
 ]);
@@ -135,6 +135,21 @@ const THEME = EditorView.theme({
   '.cm-searchMatch': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent-line)', borderRadius: '4px' },
   '.cm-searchMatch-selected': { backgroundColor: 'var(--accent-line)' },
   '.cm-specialChar': { color: 'var(--bad)' },
+  '.cm-tooltip': { border: '1px solid var(--line-strong)', borderRadius: '8px', backgroundColor: 'var(--pop)', color: 'var(--ink)', boxShadow: 'var(--shadow)', overflow: 'hidden' },
+  '.cm-tooltip-autocomplete > ul': { maxHeight: '230px', padding: '3px', font: 'calc(12 * var(--px)) var(--font-mono)', fontVariantLigatures: 'none' },
+  '.cm-tooltip-autocomplete > ul > li': { padding: '3px 8px', borderRadius: '5px', lineHeight: '1.5', color: 'var(--ink)' },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--accent-soft)', color: 'var(--ink)' },
+  '.cm-completionMatchedText': { textDecoration: 'none', color: 'var(--accent)', fontWeight: '600' },
+  '.cm-completionDetail': { marginLeft: '14px', color: 'var(--faint)', fontStyle: 'normal' },
+  '.cm-completionInfo': { maxWidth: '320px', padding: '8px 10px', font: 'calc(12 * var(--px)) var(--font-ui)', lineHeight: '1.45', color: 'var(--muted)', whiteSpace: 'pre-wrap' },
+  '.cm-tooltip.cm-completionInfo': { border: '1px solid var(--line-strong)', backgroundColor: 'var(--pop)' },
+  '.cm-diagnostic': { padding: '5px 10px', borderLeft: '3px solid var(--bad)', font: 'calc(12 * var(--px)) var(--font-ui)', lineHeight: '1.45' },
+  '.cm-diagnostic-warning': { borderLeftColor: 'var(--warn)' },
+  '.cm-diagnostic-info': { borderLeftColor: 'var(--info)' },
+  '.cm-lintRange-error, .cm-lintRange-warning, .cm-lintRange-info': { backgroundImage: 'none', textDecorationLine: 'underline', textDecorationStyle: 'wavy', textUnderlineOffset: '3px' },
+  '.cm-lintRange-error': { textDecorationColor: 'var(--bad)' },
+  '.cm-lintRange-warning': { textDecorationColor: 'var(--warn)' },
+  '.cm-lintRange-info': { textDecorationColor: 'var(--info)' },
   '.cm-panels': { backgroundColor: 'var(--raised)', color: 'var(--ink)' },
   '.cm-panels-top': { borderBottom: '1px solid var(--line)' },
   '.cm-panel.cm-search': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px', padding: '6px 40px 6px 8px', font: 'calc(12 * var(--px)) var(--font-ui)' },
@@ -326,6 +341,8 @@ export class CodeEditor {
   readonly marks = input<LineMark[]>([]);
   /** Plages de lignes à masquer derrière une ligne qui les résume ; un clic les déplie. */
   readonly folds = input<FoldRange[]>([]);
+  /** Le schéma d'introspection (`{ __schema }`) que suivent l'autocomplétion et les diagnostics GraphQL. */
+  readonly schema = input<unknown>(null);
   /** Barres de choix posées au-dessus d'une ligne. */
   readonly lenses = input<Lens[]>([]);
   /** Ligne à amener au centre de la vue ; un nouvel objet relance le défilement. */
@@ -337,6 +354,7 @@ export class CodeEditor {
   private readonly mode = new Compartment();
   private readonly wrapping = new Compartment();
   private current = '';
+  private graphqlLoad = 0;
   private readonly expanded = signal<ReadonlySet<string>>(new Set());
   private readonly view = new EditorView({
     parent: inject<ElementRef<HTMLElement>>(ElementRef).nativeElement,
@@ -346,19 +364,33 @@ export class CodeEditor {
   });
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.view.destroy());
+    inject(DestroyRef).onDestroy(() => {
+      this.graphqlLoad++;
+      this.view.destroy();
+    });
     effect(() => {
       this.setValue(this.value());
       this.decorate();
     });
     effect(() => this.scrollTo(this.reveal()));
-    effect(() => this.configure(this.lang, LANGUAGES[this.language()]));
+    effect(() => {
+      const language = this.language();
+      if (language === 'graphql') void this.loadGraphql(this.schema());
+      else this.configure(this.lang, LANGUAGES[language]);
+    });
     effect(() => this.configure(this.mode, [this.readonly() ? EditorState.readOnly.of(true) : history(), EditorView.contentAttributes.of({ 'aria-label': this.label() })]));
     effect(() => this.configure(this.wrapping, this.wrap() ? EditorView.lineWrapping : []));
   }
 
   focus() {
     this.view.focus();
+  }
+
+  private async loadGraphql(schema: unknown) {
+    const load = ++this.graphqlLoad;
+    const { graphqlSupport } = await import('./graphql-language');
+    const extension = await graphqlSupport(schema);
+    if (load === this.graphqlLoad) this.configure(this.lang, extension);
   }
 
   private configure(compartment: Compartment, extension: Extension) {
