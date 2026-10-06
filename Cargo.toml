@@ -16,7 +16,7 @@ xc-sync = { path = "crates/sync" }
 xc-watch = { path = "crates/watch" }
 xc-script = { path = "crates/script" }
 xc-runner = { path = "crates/runner" }
-xc-secrets = { path = "crates/secrets" }
+xc-secrets = { path = "crates/secrets", default-features = false }
 xc-codegen = { path = "crates/codegen" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

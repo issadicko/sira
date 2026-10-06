@@ -19,13 +19,8 @@ impl Default for Secrets {
     }
 }
 
-/// Un trousseau est lié au chemin réel de la collection : deux chemins vers le même dossier partagent leurs secrets.
-fn collection_id(root: &str) -> String {
-    std::fs::canonicalize(root).map_or_else(|_| root.to_owned(), |path| path.display().to_string())
-}
-
 fn key(root: &str, env: &str, name: &str) -> SecretKey {
-    SecretKey::new(&collection_id(root), env, name)
+    SecretKey::new(&xc_secrets::collection_id(root), env, name)
 }
 
 /// Noms des variables que l'environnement déclare secrètes ; un environnement illisible n'en a aucune.

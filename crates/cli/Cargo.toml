@@ -17,7 +17,13 @@ xc-codegen.workspace = true
 xc-core.workspace = true
 xc-engine.workspace = true
 xc-runner.workspace = true
+xc-secrets.workspace = true
 xc-sync.workspace = true
+
+[features]
+default = ["keychain"]
+# Le trousseau du système pour les secrets des environnements ; l'image Docker, sans service de trousseau, s'en passe.
+keychain = ["xc-secrets/keychain"]
 
 [dev-dependencies]
 tempfile = "3"
