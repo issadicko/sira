@@ -3,37 +3,51 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { api } from '../core/api';
 import { shortcutLabel } from '../core/commands';
 import { ImportIssue } from '../core/model';
-import { postmanSummary } from '../core/openapi';
+import { importSummary } from '../core/openapi';
 import { Workspace } from '../core/store';
 import { Dialog } from './dialog';
 import { Icon } from './icon';
 
+type Source = 'postman' | 'insomnia';
 type Mode = 'collection' | 'environment';
 
-/** Importe un export Postman : une collection (v2.0 ou v2.1) dans un nouveau dossier, ou un environnement dans la collection ouverte. */
+/**
+ * Importe l'export d'un autre client : une collection Postman (v2.0 ou v2.1) ou Insomnia (v4 ou v5) dans un nouveau
+ * dossier, ou un environnement Postman dans la collection ouverte (ceux d'Insomnia viennent avec la collection).
+ */
 @Component({
-  selector: 'app-postman-dialog',
+  selector: 'app-import-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Dialog, Icon],
   template: `
-    <app-dialog heading="Importer depuis Postman" [busy]="importing()" (closed)="close()" (confirmed)="done() ? close() : run()">
+    <app-dialog [heading]="'Importer depuis ' + label()" [busy]="importing()" (closed)="close()" (confirmed)="done() ? close() : run()">
       @if (ws.demo) {
         <div class="note"><app-ic name="alert" [size]="14" /><span>Mode démo : l'import lit un fichier de ton disque et n'est disponible que dans l'application desktop.</span></div>
       }
 
       @if (!done()) {
         <section class="fld">
-          <div class="sec-head"><span class="sec-title">Ce que tu importes</span></div>
-          <div class="seg" role="group" aria-label="Type d'import">
-            <button [attr.aria-pressed]="mode() === 'collection'" (click)="setMode('collection')">Une collection</button>
-            <button [attr.aria-pressed]="mode() === 'environment'" [disabled]="!ws.collection()" (click)="setMode('environment')" [title]="ws.collection() ? '' : 'Ouvre d’abord une collection'">Un environnement</button>
+          <div class="sec-head"><span class="sec-title">Importer depuis</span></div>
+          <div class="seg" role="group" aria-label="Application d'origine">
+            <button [attr.aria-pressed]="source() === 'postman'" (click)="setSource('postman')">Postman</button>
+            <button [attr.aria-pressed]="source() === 'insomnia'" (click)="setSource('insomnia')">Insomnia</button>
           </div>
         </section>
+
+        @if (source() === 'postman') {
+          <section class="fld">
+            <div class="sec-head"><span class="sec-title">Ce que tu importes</span></div>
+            <div class="seg" role="group" aria-label="Type d'import">
+              <button [attr.aria-pressed]="mode() === 'collection'" (click)="setMode('collection')">Une collection</button>
+              <button [attr.aria-pressed]="mode() === 'environment'" [disabled]="!ws.collection()" (click)="setMode('environment')" [title]="ws.collection() ? '' : 'Ouvre d’abord une collection'">Un environnement</button>
+            </div>
+          </section>
+        }
 
         <section class="fld">
           <div class="sec-head">
             <span class="sec-title">Fichier</span>
-            <span class="sec-meta">{{ mode() === 'collection' ? 'export de collection Postman (.json)' : 'export d’environnement Postman (.json)' }}</span>
+            <span class="sec-meta">{{ fileHint() }}</span>
           </div>
           <div class="row-fields">
             <span class="input mono path-box" [class.is-empty]="!file()" [title]="file() ?? ''">{{ file() ?? 'Aucun fichier choisi' }}</span>
@@ -49,7 +63,11 @@ type Mode = 'collection' | 'environment';
               <button class="btn" (click)="chooseParent()"><app-ic name="folder-open" [size]="14" />Choisir…</button>
             </div>
           </section>
-          <p class="hint"><app-ic name="shield" [size]="13" /><span>Les scripts <span class="mono">pm.*</span> sont traduits en <span class="mono">bru.*</span> pour les appels courants ; un script plus complexe garde ses <span class="mono">pm.*</span> et se relit à la main.</span></p>
+          @if (source() === 'postman') {
+            <p class="hint"><app-ic name="shield" [size]="13" /><span>Les scripts <span class="mono">pm.*</span> sont traduits en <span class="mono">bru.*</span> pour les appels courants ; un script plus complexe garde ses <span class="mono">pm.*</span> et se relit à la main.</span></p>
+          } @else {
+            <p class="hint"><app-ic name="shield" [size]="13" /><span>Les environnements de l'export sont importés avec la collection ; le sous-environnement hérite des variables de l'environnement de base. Les types d'auth qu'Insomnia connaît et pas Sira sont listés à la fin.</span></p>
+          }
         } @else {
           <p class="hint"><app-ic name="lock" [size]="13" /><span>L'environnement est ajouté à <b>{{ ws.collection()?.name }}</b> sans en remplacer un autre. Les variables de type « secret » sont importées <b>sans leur valeur</b> : saisis-la ensuite dans le tableau de l'environnement, elle ira dans le trousseau.</span></p>
         }
@@ -99,9 +117,11 @@ type Mode = 'collection' | 'environment';
     .where { overflow-wrap: anywhere; color: var(--warn); }
   `,
 })
-export class PostmanDialog {
+export class ImportDialog {
   protected readonly ws = inject(Workspace);
   protected readonly confirmKey = shortcutLabel('mod+enter');
+  protected readonly source = signal<Source>(this.ws.dialog() === 'insomnia' ? 'insomnia' : 'postman');
+  protected readonly label = computed(() => (this.source() === 'insomnia' ? 'Insomnia' : 'Postman'));
   protected readonly mode = signal<Mode>('collection');
   protected readonly file = signal<string | null>(null);
   protected readonly parent = signal<string | null>(null);
@@ -110,10 +130,22 @@ export class PostmanDialog {
   protected readonly issues = signal<ImportIssue[]>([]);
   protected readonly summary = signal('');
   protected readonly done = signal(false);
+  protected readonly fileHint = computed(() => {
+    if (this.source() === 'insomnia') return 'export Insomnia v4 (.json) ou v5 (.yaml)';
+    return this.mode() === 'collection' ? 'export de collection Postman (.json)' : 'export d’environnement Postman (.json)';
+  });
   protected readonly ready = computed(() => !!this.file() && (this.mode() === 'environment' ? !!this.ws.collection() : !!this.parent()));
 
   protected close() {
     if (!this.importing()) this.ws.dialog.set(null);
+  }
+
+  protected setSource(source: Source) {
+    if (this.source() === source) return;
+    this.source.set(source);
+    this.mode.set('collection');
+    this.file.set(null);
+    this.importError.set(null);
   }
 
   protected setMode(mode: Mode) {
@@ -122,7 +154,7 @@ export class PostmanDialog {
   }
 
   protected async chooseFile() {
-    const picked = await api.pickPostmanFile();
+    const picked = await (this.source() === 'insomnia' ? api.pickInsomniaFile() : api.pickPostmanFile());
     if (picked) this.file.set(picked);
   }
 
@@ -139,12 +171,13 @@ export class PostmanDialog {
     try {
       if (this.mode() === 'environment') return await this.importEnvironment(file);
       if (!(await this.ws.confirmReplace())) return;
-      const { root, issues } = await api.importPostman(file, this.parent()!);
+      const parent = this.parent()!;
+      const { root, issues } = await (this.source() === 'insomnia' ? api.importInsomnia(file, parent) : api.importPostman(file, parent));
       if (!(await this.ws.open(root, true))) {
         this.importError.set(`Collection créée dans ${root}, mais impossible de l'ouvrir : ${this.ws.error()}`);
         return;
       }
-      this.finish(postmanSummary(this.ws.collection()?.requestCount ?? 0, issues), issues);
+      this.finish(importSummary(this.ws.collection()?.requestCount ?? 0, issues), issues);
     } catch (e) {
       this.importError.set(String(e));
     } finally {

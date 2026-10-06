@@ -1,0 +1,45 @@
+type: collection.insomnia.rest/5.0
+name: Shop v5
+meta:
+  id: wrk_x
+collection:
+  - name: Users
+    children:
+      - name: List users
+        method: GET
+        url: "{{ _.base_url }}/users"
+        headers:
+          - name: Accept
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{{ _.token }}"
+      - name: List users
+        method: GET
+        url: "{{ _.base_url }}/users?again=1"
+        settings:
+          encodeUrl: false
+  - name: Create
+    method: POST
+    url: "{{ _.base_url }}/users"
+    body:
+      mimeType: application/json
+      text: '{"name": "x"}'
+  - name: Note
+    meta:
+      id: note_1
+  - name: Plain
+    method: POST
+    url: "{{ _.base_url }}/plain"
+    body:
+      mimeType: ""
+      text: hello
+environments:
+  name: Base Environment
+  data:
+    base_url: https://shop.test
+    retries: 3
+  subEnvironments:
+    - name: Staging
+      data:
+        base_url: https://shop.staging

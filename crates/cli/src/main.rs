@@ -6,9 +6,13 @@ use clap::{ArgGroup, Parser, Subcommand};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::restyle;
-use xc_sync::import::{fetch_spec, import_postman as postman_collection, import_postman_environment, import_spec};
+use xc_sync::import::{
+    fetch_spec, import_insomnia as insomnia_collection, import_postman as postman_collection,
+    import_postman_environment, import_spec, ImportError,
+};
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
+use xc_sync::postman::Issue;
 use xc_sync::sync::{self, Decisions, OpStatus, Operation, Plan, Report, SyncError};
 
 mod run;
@@ -57,6 +61,14 @@ enum Command {
         #[arg(long)]
         environment: bool,
     },
+    /// Importe un export Insomnia (v4 JSON ou v5 YAML) dans une nouvelle collection, environnements compris, et affiche
+    /// son chemin ; ce qui n'a pas pu être converti est listé sur la sortie d'erreur
+    ImportInsomnia {
+        /// Fichier exporté par Insomnia (JSON ou YAML)
+        file: PathBuf,
+        /// Dossier parent où créer le dossier de la collection (il doit exister)
+        location: PathBuf,
+    },
     /// Compare la collection à la spec OpenAPI (fusion à 3 voies) : `--check` pour la CI, `--apply` pour écrire
     #[command(group(ArgGroup::new("mode").required(true).args(["check", "apply"])))]
     Sync {
@@ -98,6 +110,7 @@ fn main() -> ExitCode {
             runtime.block_on(import(&source, &location, group_by))
         }
         Command::ImportPostman { file, location, environment } => import_postman(&file, &location, environment),
+        Command::ImportInsomnia { file, location } => import_insomnia(&file, &location),
         Command::Sync { collection, apply, source, keep_team, take_spec, forget_missing, recreate_missing, .. } => {
             if !apply && (keep_team || take_spec || forget_missing || recreate_missing) {
                 eprintln!(
@@ -263,18 +276,34 @@ async fn import(source: &str, location: &Path, group_by: GroupBy) -> ExitCode {
 }
 
 fn import_postman(file: &Path, location: &Path, environment: bool) -> ExitCode {
-    let text = match fs::read_to_string(file) {
+    let text = match read_export(file) {
         Ok(text) => text,
-        Err(e) => {
-            eprintln!("erreur : {} illisible : {e}", file.display());
-            return ExitCode::from(2);
-        }
+        Err(code) => return code,
     };
-    let result = if environment {
+    report_import(if environment {
         import_postman_environment(&text, location).map(|name| (name, Vec::new()))
     } else {
         postman_collection(&text, location).map(|(root, issues)| (root.display().to_string(), issues))
+    })
+}
+
+fn import_insomnia(file: &Path, location: &Path) -> ExitCode {
+    let text = match read_export(file) {
+        Ok(text) => text,
+        Err(code) => return code,
     };
+    report_import(insomnia_collection(&text, location).map(|(root, issues)| (root.display().to_string(), issues)))
+}
+
+fn read_export(file: &Path) -> Result<String, ExitCode> {
+    fs::read_to_string(file).map_err(|e| {
+        eprintln!("erreur : {} illisible : {e}", file.display());
+        ExitCode::from(2)
+    })
+}
+
+/// Affiche ce qui a été créé sur la sortie standard et ce qui n'a pas pu être converti sur la sortie d'erreur.
+fn report_import(result: Result<(String, Vec<Issue>), ImportError>) -> ExitCode {
     match result {
         Ok((created, issues)) => {
             for issue in &issues {

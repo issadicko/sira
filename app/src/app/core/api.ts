@@ -11,7 +11,7 @@ import {
   FolderKind,
   GroupBy,
   OpenApiPreview,
-  PostmanImport,
+  ImportedCollection,
   OpView,
   ReportFormat,
   RequestDoc,
@@ -66,9 +66,12 @@ export interface Api {
   importOpenApi(source: string, location: string, groupBy: GroupBy): Promise<string>;
   pickPostmanFile(): Promise<string | null>;
   /** Importe un export Postman (collection v2.0 ou v2.1) dans un nouveau dossier de `location`. */
-  importPostman(source: string, location: string): Promise<PostmanImport>;
+  importPostman(source: string, location: string): Promise<ImportedCollection>;
   /** Ajoute un environnement Postman à la collection `root` ; renvoie son nom. */
   importPostmanEnvironment(root: string, source: string): Promise<string>;
+  pickInsomniaFile(): Promise<string | null>;
+  /** Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location`. */
+  importInsomnia(source: string, location: string): Promise<ImportedCollection>;
   syncStatus(root: string): Promise<SyncStatus>;
   syncPlan(root: string, source: string | null, pairings: [string, string][]): Promise<SyncPlan>;
   syncOpView(planId: string, key: string, decisions: SyncDecisions): Promise<OpView>;
@@ -142,6 +145,8 @@ const tauriApi: Api = {
   pickPostmanFile: () => pick({ title: 'Choisir un export Postman', filters: [{ name: 'Export Postman (JSON)', extensions: ['json'] }] }),
   importPostman: (source, location) => invoke('import_postman', { source, location }),
   importPostmanEnvironment: (root, source) => invoke('import_postman_environment', { root, source }),
+  pickInsomniaFile: () => pick({ title: 'Choisir un export Insomnia', filters: [{ name: 'Export Insomnia (JSON ou YAML)', extensions: ['json', 'yaml', 'yml'] }] }),
+  importInsomnia: (source, location) => invoke('import_insomnia', { source, location }),
   syncStatus: (root) => invoke('sync_status', { root }),
   syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),
   syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),

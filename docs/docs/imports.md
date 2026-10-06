@@ -8,7 +8,8 @@ Chaque import produit la **collection JSON de Bruno** (celle que ses convertisse
 | Commande cURL | Fait | « Nouvelle requête depuis cURL » |
 | Collection Postman v2.0 et v2.1 | Fait | `xc import-postman`, dialogue « Importer depuis Postman » |
 | Environnement Postman | Fait | `xc import-postman --environment`, même dialogue |
-| Insomnia, collections `.bru` | À faire | |
+| Export Insomnia v4 (JSON) et v5 (YAML), environnements compris | Fait | `xc import-insomnia`, dialogue « Importer depuis Insomnia » |
+| Collections `.bru` | À faire | |
 
 ## Postman
 
@@ -46,3 +47,30 @@ Les appels courants de `pm.*` (et du vieux `postman.*`) sont traduits en `bru.*`
 ### Écarts avec Bruno
 
 Aucun `uid` n'est produit (l'écriture n'en a pas besoin), les paquets `pm.require` ne sont pas inventoriés, et l'import ne crée pas de `.oc-sync/` (il n'y a pas de spec à synchroniser).
+
+## Insomnia
+
+Port de `insomnia-to-bruno.js` et de `env-utils.js` (convertisseurs de Bruno, même commit). Le format est reconnu tout seul : un export v5 (`type: collection.insomnia.rest/5.0`, en YAML) ou un export v4 (`resources`, en JSON ou en YAML).
+
+```bash
+xc import-insomnia boutique.insomnia.json ~/collections
+```
+
+La commande crée `~/collections/Boutique/` avec ses environnements et affiche son chemin ; ce qui n'a pas pu être converti est listé sur la sortie d'erreur, et le code de sortie est 2 pour un fichier illisible ou sans collection (`workspace`).
+
+### Ce qui est converti
+
+- **Arbre** : espaces de travail, dossiers (`request_group`) et requêtes de l'export v4 ; `collection` et `children` de l'export v5. Les éléments d'un dossier gardent l'ordre qu'Insomnia affiche (`metaSortKey` en v4, ordre de la liste en v5), sous-dossiers d'abord. Deux requêtes de même nom dans un dossier deviennent `Nom` et `Nom_1`. Un élément v5 qui n'est ni une requête (`method` et `url`) ni un dossier (`children`) est écarté et signalé.
+- **Variables** : `{{ _.base_url }}` devient `{{base_url}}` (préfixe `_.` et espaces retirés) partout : adresse, en-têtes, paramètres, corps, auth.
+- **Requêtes** : méthode, adresse, en-têtes, paramètres de requête et de chemin (désactivés compris). Le réglage « encoder l'URL » est repris (`settingEncodeUrl` en v4, `settings.encodeUrl` en v5).
+- **Corps** : JSON, `x-www-form-urlencoded`, `multipart/form-data` (champs texte), texte, XML et GraphQL (la requête devient une requête GraphQL, ses variables sont conservées).
+- **Auth** : `basic`, `bearer`, `digest`, `apikey` (en-tête ou paramètre d'adresse), `iam` (AWS Signature V4) et `oauth2` (client credentials, password, code d'autorisation avec ou sans PKCE, implicite). Les autres types (`hawk`, `ntlm`, `oauth1`, `netrc`, `asap`…) ne sont pas importés : la requête est créée sans auth et signalée. Une auth **désactivée** dans Insomnia reste sans effet après l'import.
+- **Environnements** : un environnement est aplati en variables à clés pointées (`nested.list[0]`), les valeurs sont écrites en texte. L'environnement de base d'Insomnia devient un environnement ; chaque sous-environnement est fusionné sur lui (ses clés remplacent celles de la base, les autres sont héritées). Un environnement sans nom s'appelle `Environment N`.
+
+### Écarts avec Bruno
+
+- Bruno écrit **deux fois** les requêtes d'un dossier de l'export v4 (une fois dans le dossier, une fois à la racine) ; ici chaque requête n'apparaît qu'à sa place.
+- Bruno garde l'ordre du tableau `resources` ; ici l'ordre est celui d'Insomnia.
+- Bruno ne convertit que `basic` et `bearer` ; ici `digest`, `apikey`, `iam` et `oauth2` le sont aussi, et ce qui ne l'est pas est signalé au lieu de disparaître en silence.
+- Un dossier garde son nom exact dans `folder.yml` même quand le nom du répertoire doit être assaini.
+- Aucun `uid` n'est produit et l'import ne crée pas de `.oc-sync/`.

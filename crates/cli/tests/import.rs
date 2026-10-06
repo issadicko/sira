@@ -214,3 +214,56 @@ fn ef_imp_01_cli_import_postman_refuses_an_unreadable_or_unsupported_file_with_c
     assert_eq!(code, 2);
     assert!(stderr.contains("v2.0 et v2.1"), "{stderr}");
 }
+
+const INSOMNIA_V5: &str = r#"type: collection.insomnia.rest/5.0
+name: Boutique Insomnia
+collection:
+  - name: Produits
+    children:
+      - name: Lister
+        method: GET
+        url: "{{ _.base }}/produits"
+  - name: Orpheline
+    meta:
+      id: x
+environments:
+  name: Base
+  data:
+    base: https://api.boutique.test
+"#;
+
+#[test]
+fn ef_imp_02_cli_import_insomnia_creates_the_collection_with_its_environments_and_lists_what_it_skipped() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("boutique.insomnia.yaml");
+    fs::write(&file, INSOMNIA_V5).unwrap();
+    let out = dir.path().join("collections");
+    fs::create_dir(&out).unwrap();
+
+    let (code, stdout, stderr) = xc(&["import-insomnia", file.to_str().unwrap(), out.to_str().unwrap()]);
+    assert_eq!(code, 0, "{stderr}");
+    let root = Path::new(stdout.trim());
+    assert_eq!(root.file_name().unwrap(), "Boutique Insomnia");
+    assert_eq!(names(root), ["Produits", "environments", "opencollection.yml"]);
+    assert!(fs::read_to_string(root.join("Produits/Lister.yml")).unwrap().contains("{{base}}/produits"));
+    assert!(root.join("environments/Base.yml").is_file());
+    assert!(stderr.contains("Orpheline : Élément ignoré"), "{stderr}");
+
+    let (code, checked, _) = xc(&["check", root.to_str().unwrap()]);
+    assert_eq!(code, 0, "{checked}");
+}
+
+#[test]
+fn ef_imp_02_cli_import_insomnia_refuses_an_unreadable_or_workspace_less_file_with_code_2() {
+    let dir = tempfile::tempdir().unwrap();
+    let (code, _, stderr) =
+        xc(&["import-insomnia", dir.path().join("absent.json").to_str().unwrap(), dir.path().to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(stderr.contains("illisible"), "{stderr}");
+
+    let empty = dir.path().join("empty.json");
+    fs::write(&empty, r#"{"resources": []}"#).unwrap();
+    let (code, _, stderr) = xc(&["import-insomnia", empty.to_str().unwrap(), dir.path().to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(stderr.contains("workspace"), "{stderr}");
+}

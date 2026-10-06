@@ -431,9 +431,9 @@ async fn import_openapi(
     Ok(created.display().to_string())
 }
 
-/// Ce qu'a donné l'import d'une collection Postman : sa racine, et ce qui n'a pas pu être converti.
+/// Ce qu'a donné l'import d'une collection (Postman, Insomnia) : sa racine, et ce qui n'a pas pu être converti.
 #[derive(Debug, Serialize)]
-struct PostmanImport {
+struct ImportedCollection {
     root: String,
     issues: Vec<xc_sync::postman::Issue>,
 }
@@ -444,10 +444,18 @@ fn read_source(path: &str) -> Reply<String> {
 
 /// Importe une collection Postman (v2.0 ou v2.1, fichier JSON) dans un nouveau dossier de `location`.
 #[tauri::command]
-async fn import_postman(state: State<'_, AppState>, source: String, location: String) -> Reply<PostmanImport> {
+async fn import_postman(state: State<'_, AppState>, source: String, location: String) -> Reply<ImportedCollection> {
     let text = blocking(move || read_source(&source)).await?;
     let (root, issues) = writing(&state, move || xc_sync::import::import_postman(&text, Path::new(&location))).await?;
-    Ok(PostmanImport { root: root.display().to_string(), issues })
+    Ok(ImportedCollection { root: root.display().to_string(), issues })
+}
+
+/// Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location`.
+#[tauri::command]
+async fn import_insomnia(state: State<'_, AppState>, source: String, location: String) -> Reply<ImportedCollection> {
+    let text = blocking(move || read_source(&source)).await?;
+    let (root, issues) = writing(&state, move || xc_sync::import::import_insomnia(&text, Path::new(&location))).await?;
+    Ok(ImportedCollection { root: root.display().to_string(), issues })
 }
 
 /// Ajoute un environnement Postman à la collection `root` ; renvoie son nom.
@@ -602,6 +610,7 @@ pub fn run() {
             import_openapi,
             import_postman,
             import_postman_environment,
+            import_insomnia,
             inspect_folder,
             create_collection,
             init_collection,
@@ -856,6 +865,45 @@ paths:
         let refused =
             import_postman(state(), unsupported.display().to_string(), parent.display().to_string()).await.unwrap_err();
         assert!(refused.contains("v2.0 et v2.1"), "{refused}");
+    }
+
+    #[tokio::test]
+    async fn ef_imp_02_command_imports_an_insomnia_export_with_its_environments() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let export = dir.path().join("insomnia.json");
+        fs::write(
+            &export,
+            r#"{"_type":"export","__export_format":4,"resources":[
+                {"_id":"wrk_1","_type":"workspace","name":"Shop"},
+                {"_id":"req_1","_type":"request","parentId":"wrk_1","name":"List","method":"GET","url":"{{ _.base }}/items","authentication":{"type":"hawk"}},
+                {"_id":"env_1","_type":"environment","parentId":"wrk_1","name":"Base","data":{"base":"https://shop.test"}}]}"#,
+        )
+        .unwrap();
+        let parent = dir.path().join("out");
+        fs::create_dir(&parent).unwrap();
+
+        let imported =
+            import_insomnia(state(), export.display().to_string(), parent.display().to_string()).await.unwrap();
+        assert_eq!(
+            fs::read_to_string(Path::new(&imported.root).join("List.yml")).unwrap().matches("{{base}}/items").count(),
+            1
+        );
+        assert_eq!(xc_core::read_environment(Path::new(&imported.root), "Base").unwrap().len(), 1);
+        assert_eq!(imported.issues.len(), 1);
+        assert_eq!(imported.issues[0].path, "List");
+
+        let missing =
+            import_insomnia(state(), dir.path().join("none.json").display().to_string(), parent.display().to_string())
+                .await
+                .unwrap_err();
+        assert!(missing.contains("illisible"), "{missing}");
+        let empty = dir.path().join("empty.json");
+        fs::write(&empty, r#"{"resources":[]}"#).unwrap();
+        let refused =
+            import_insomnia(state(), empty.display().to_string(), parent.display().to_string()).await.unwrap_err();
+        assert!(refused.contains("workspace"), "{refused}");
     }
 
     #[tokio::test]

@@ -456,7 +456,8 @@ export interface ImportIssue {
   message: string;
 }
 
-export interface PostmanImport {
+/** Ce qu'a donné l'import d'une collection (Postman, Insomnia) : sa racine, et ce qui a été écarté ou corrigé. */
+export interface ImportedCollection {
   root: string;
   issues: ImportIssue[];
 }

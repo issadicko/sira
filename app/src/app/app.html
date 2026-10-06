@@ -200,7 +200,10 @@
     @defer (on immediate) { <app-openapi-dialog /> }
   }
   @case ('postman') {
-    @defer (on immediate) { <app-postman-dialog /> }
+    @defer (on immediate) { <app-import-dialog /> }
+  }
+  @case ('insomnia') {
+    @defer (on immediate) { <app-import-dialog /> }
   }
   @case ('collection') {
     @defer (on immediate) { <app-collection-dialog /> }

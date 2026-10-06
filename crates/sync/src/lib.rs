@@ -6,6 +6,7 @@
 
 pub mod curl;
 pub mod import;
+pub mod insomnia;
 mod js;
 pub mod manage;
 pub mod merge;

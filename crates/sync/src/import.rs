@@ -24,6 +24,7 @@ use serde_json::Value;
 use xc_core::CoreError;
 
 use crate::curl::MAX_COMMAND_BYTES;
+use crate::insomnia::{self, InsomniaError};
 use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSummary};
 use crate::postman::{self, Issue, PostmanError};
 
@@ -58,6 +59,8 @@ pub enum ImportError {
     #[error(transparent)]
     Postman(#[from] PostmanError),
     #[error(transparent)]
+    Insomnia(#[from] InsomniaError),
+    #[error(transparent)]
     Manage(#[from] crate::manage::ManageError),
     #[error(transparent)]
     Core(#[from] CoreError),
@@ -87,6 +90,7 @@ impl ImportError {
                 | Self::GroupBy(_)
                 | Self::Spec(OpenApiError::Syntax(_) | OpenApiError::Empty)
                 | Self::Postman(_)
+                | Self::Insomnia(_)
         )
     }
 }
@@ -122,6 +126,14 @@ pub fn import_spec(text: &str, source: &str, location: &Path, group_by: GroupBy)
 /// n'a pas pu être converti.
 pub fn import_postman(text: &str, location: &Path) -> Result<(PathBuf, Vec<Issue>), ImportError> {
     let converted = postman::collection_from_text(text)?;
+    let root = write_plain_collection(&converted.collection, location)?;
+    Ok((root, converted.issues))
+}
+
+/// Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location` ;
+/// renvoie sa racine et ce qui n'a pas pu être converti.
+pub fn import_insomnia(text: &str, location: &Path) -> Result<(PathBuf, Vec<Issue>), ImportError> {
+    let converted = insomnia::collection_from_text(text)?;
     let root = write_plain_collection(&converted.collection, location)?;
     Ok((root, converted.issues))
 }

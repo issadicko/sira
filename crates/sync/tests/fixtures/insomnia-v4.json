@@ -1,0 +1,75 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "resources": [
+    { "_id": "wrk_1", "_type": "workspace", "name": "Shop Insomnia", "parentId": null },
+    { "_id": "fld_users", "_type": "request_group", "parentId": "wrk_1", "name": "Users", "metaSortKey": -2 },
+    { "_id": "fld_admin", "_type": "request_group", "parentId": "fld_users", "name": "Admin", "metaSortKey": -1 },
+    {
+      "_id": "req_list", "_type": "request", "parentId": "fld_users", "name": "List users", "metaSortKey": -20,
+      "method": "GET", "url": "{{ _.base_url }}/users/:team?page=1",
+      "headers": [
+        { "name": "Accept", "value": "application/json" },
+        { "name": "X-Debug", "value": "{{ _.debug }}", "disabled": true, "description": "Pour le support" }
+      ],
+      "parameters": [ { "name": "verbose", "value": "true", "disabled": true } ],
+      "pathParameters": [ { "name": "team", "value": "core" } ],
+      "authentication": { "type": "bearer", "token": "{{ _.token }}" },
+      "settingEncodeUrl": false
+    },
+    {
+      "_id": "req_create", "_type": "request", "parentId": "fld_users", "name": "Create user", "metaSortKey": -10,
+      "method": "POST", "url": "{{ _.base_url }}/users",
+      "body": { "mimeType": "application/json", "text": "{\"name\": \"{{ _.who }}\"}" },
+      "authentication": { "type": "basic", "username": "admin", "password": "{{ _.pwd }}" }
+    },
+    {
+      "_id": "req_admin", "_type": "request", "parentId": "fld_admin", "name": "Ban", "metaSortKey": -1,
+      "method": "DELETE", "url": "{{ _.base_url }}/ban"
+    },
+    {
+      "_id": "req_login", "_type": "request", "parentId": "wrk_1", "name": "Login", "metaSortKey": -3,
+      "method": "POST", "url": "{{ _.base_url }}/login",
+      "body": { "mimeType": "application/x-www-form-urlencoded", "params": [
+        { "name": "grant", "value": "password" }, { "name": "user", "value": "x", "disabled": true } ] }
+    },
+    {
+      "_id": "req_login2", "_type": "request", "parentId": "wrk_1", "name": "Login", "metaSortKey": -2,
+      "method": "POST", "url": "{{ _.base_url }}/login2",
+      "body": { "mimeType": "multipart/form-data", "params": [ { "name": "photo", "value": "Photo" } ] },
+      "authentication": { "type": "digest", "username": "d", "password": "p" }
+    },
+    {
+      "_id": "req_xml", "_type": "request", "parentId": "wrk_1", "name": "Soap", "metaSortKey": -1,
+      "method": "POST", "url": "{{ _.base_url }}/soap",
+      "body": { "mimeType": "text/xml; charset=utf-8", "text": "<a/>" },
+      "authentication": { "type": "apikey", "key": "api_key", "value": "{{ _.key }}", "addTo": "queryParams" }
+    },
+    {
+      "_id": "req_gql", "_type": "request", "parentId": "wrk_1", "name": "Products", "metaSortKey": 0,
+      "method": "POST", "url": "{{ _.base_url }}/graphql",
+      "body": { "mimeType": "application/graphql", "text": "{\"query\": \"{ products { id } }\", \"variables\": {\"first\": 3}}" }
+    },
+    {
+      "_id": "req_oauth", "_type": "request", "parentId": "wrk_1", "name": "Token", "metaSortKey": 1,
+      "method": "GET", "url": "{{ _.base_url }}/me",
+      "authentication": { "type": "oauth2", "grantType": "client_credentials", "accessTokenUrl": "{{ _.base_url }}/oauth/token",
+        "clientId": "shop", "clientSecret": "s3cret", "scope": "read", "credentialsInBody": true }
+    },
+    {
+      "_id": "req_hawk", "_type": "request", "parentId": "wrk_1", "name": "Hawk", "metaSortKey": 2,
+      "method": "GET", "url": "{{ _.base_url }}/hawk",
+      "authentication": { "type": "hawk", "id": "x" }
+    },
+    {
+      "_id": "req_off", "_type": "request", "parentId": "wrk_1", "name": "Off", "metaSortKey": 3,
+      "method": "GET", "url": "{{ _.base_url }}/off",
+      "authentication": { "type": "bearer", "token": "t", "disabled": true }
+    },
+    { "_id": "env_base", "_type": "environment", "parentId": "wrk_1", "name": "Base Environment",
+      "data": { "base_url": "https://shop.test", "debug": false, "nested": { "a": 1, "list": ["x", "y"] } } },
+    { "_id": "env_prod", "_type": "environment", "parentId": "env_base", "name": "Prod",
+      "data": { "base_url": "https://shop.prod", "extra": "e" } },
+    { "_id": "env_unnamed", "_type": "environment", "parentId": "env_base", "name": " ", "data": { "z": "1" } }
+  ]
+}

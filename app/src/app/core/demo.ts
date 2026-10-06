@@ -280,6 +280,8 @@ export const demoApi: Api = {
   pickPostmanFile: async () => '~/démo/shop.postman_collection.json',
   importPostman: desktopOnly,
   importPostmanEnvironment: desktopOnly,
+  pickInsomniaFile: async () => '~/démo/shop.insomnia.json',
+  importInsomnia: desktopOnly,
   ...createDemoTree(collections),
   ...createDemoEnvironments(collections),
   ...createDemoRunner(collections),
