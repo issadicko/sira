@@ -60,6 +60,32 @@ impl History {
         Ok(entries)
     }
 
+    /// Les entrées d'un élément renommé ou déplacé le suivent : celles de la requête `from` passent à `to`, celles des
+    /// requêtes d'un dossier `from` à `to/…`. `name` est le nouveau nom d'une requête renommée (le nom affiché change
+    /// même quand son fichier garde le sien). Rien n'est écrit quand aucune entrée n'est touchée ; rend le nombre
+    /// d'entrées modifiées.
+    pub fn follow(&self, from: &str, to: &str, name: Option<&str>) -> Result<usize, CoreError> {
+        let mut entries = self.list();
+        let inside = format!("{from}/");
+        let mut touched = 0;
+        for entry in &mut entries {
+            let before = entry.clone();
+            if entry.path == from {
+                to.clone_into(&mut entry.path);
+                if let Some(name) = name {
+                    name.clone_into(&mut entry.name);
+                }
+            } else if let Some(rest) = entry.path.strip_prefix(&inside) {
+                entry.path = format!("{to}/{rest}");
+            }
+            touched += usize::from(*entry != before);
+        }
+        if touched > 0 {
+            self.save(&entries)?;
+        }
+        Ok(touched)
+    }
+
     pub fn clear(&self) -> Result<(), CoreError> {
         match fs::remove_file(&self.file) {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(CoreError::io(&self.file, e)),
