@@ -1,0 +1,10 @@
+target
+node_modules
+.git
+.claude
+tools
+docs
+examples
+app/node_modules
+app/dist
+app/.angular

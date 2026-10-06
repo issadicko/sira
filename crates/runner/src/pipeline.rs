@@ -59,6 +59,9 @@ pub struct Outcome {
     pub method: String,
     pub url: String,
     pub unresolved: Vec<String>,
+    /// En-têtes et corps de la requête telle qu'elle est partie (vides si elle n'a pas pu être préparée).
+    pub sent_headers: Vec<(String, String)>,
+    pub sent_body: Option<String>,
     pub response: Option<HttpResponse>,
     pub pre: PhaseReport,
     pub post: PhaseReport,
@@ -72,10 +75,17 @@ pub struct Outcome {
 
 impl Outcome {
     pub(crate) fn new(doc: &RequestDoc) -> Self {
+        Self::placeholder(&doc.method, &doc.url)
+    }
+
+    /// Le résultat d'une requête qui n'a pas été exécutée (arrêt du run, fichier illisible).
+    pub fn placeholder(method: &str, url: &str) -> Self {
         Self {
-            method: doc.method.to_uppercase(),
-            url: doc.url.clone(),
+            method: method.to_uppercase(),
+            url: url.to_owned(),
             unresolved: Vec::new(),
+            sent_headers: Vec::new(),
+            sent_body: None,
             response: None,
             pre: PhaseReport::default(),
             post: PhaseReport::default(),
@@ -347,6 +357,8 @@ pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, dept
     out.url.clone_from(&prepared.request.url);
     out.unresolved = prepared.unresolved;
     let sent = sent_request(&pre.request, &prepared.request);
+    out.sent_headers.clone_from(&prepared.request.headers);
+    out.sent_body = prepared.request.body.clone().map(xc_engine::lossy_text);
 
     let mut response = match xc_engine::send(prepared.request).await {
         Ok(response) => response,

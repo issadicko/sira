@@ -31,7 +31,7 @@ Le crate `xc-script` exécute les scripts d'une requête dans un sandbox QuickJS
 - **Envoi** : `xc-runner` enchaîne script pré-requête (collection, dossiers, requête), envoi, script post-réponse, assertions et tests, dans l'ordre de Bruno (`sandwich` par défaut, `sequential` selon `extensions.bruno.scripts.flow`). Une erreur avant l'envoi l'annule ; après, assertions et tests s'exécutent quand même.
 - **Réponse, onglet Tests** : résumé (assertions et tests de script comptés ensemble), résultats par phase avec « attendu · reçu », erreurs de script, console. Un script qui ignore la requête (`bru.runner.skipRequest()`) ou qui échoue avant l'envoi affiche tout de même sa console et ses tests.
 - **Variables** : ce que les scripts écrivent (`bru.setVar`, `setEnvVar`, `setGlobalEnvVar`, variables de collection) reste en mémoire pour les requêtes suivantes de la collection, et apparaît dans la résolution des variables. Rien n'est écrit dans les fichiers : Bruno CLI réécrit l'environnement et la collection, ce n'est pas repris ici.
-- **`xc run`** affiche la console, les tests et les erreurs de script de chaque requête, suit `bru.setNextRequest(nom)` (garde de 10 000 sauts), `bru.runner.skipRequest()` et `bru.runner.stopExecution()` ; le code de sortie est 1 si une requête, un test ou une assertion échoue.
+- **`xc run`** affiche la console, les tests et les erreurs de script de chaque requête, suit `bru.setNextRequest(nom)`, `bru.runner.skipRequest()` et `bru.runner.stopExecution()` ; le code de sortie est 1 si une requête, un test ou une assertion échoue. Détail du runner et des rapports : `runner.md`.
 
 ## 4. Ce qui reste
 

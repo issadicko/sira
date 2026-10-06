@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -6,12 +5,13 @@ use std::process::ExitCode;
 use clap::{ArgGroup, Parser, Subcommand};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
-use xc_core::{open_collection, read_request, restyle, RequestDoc, TreeItem};
-use xc_runner::{next_step, run_request, Outcome, PhaseReport, Request, Session, Stage};
+use xc_core::restyle;
 use xc_sync::import::{fetch_spec, import_spec};
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpStatus, Operation, Plan, Report, SyncError};
+
+mod run;
 
 #[derive(Parser)]
 #[command(
@@ -26,22 +26,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Exécute une requête, un dossier ou toute la collection
-    Run {
-        /// Dossier de la collection (contient opencollection.yml)
-        collection: PathBuf,
-        /// Chemin relatif d'une requête ou d'un dossier ; toute la collection si absent
-        target: Option<String>,
-        /// Environnement à utiliser (nom du fichier dans environments/)
-        #[arg(long)]
-        env: Option<String>,
-        /// Variable runtime, répétable : --env-var nom=valeur
-        #[arg(long = "env-var", value_parser = parse_pair)]
-        env_vars: Vec<(String, String)>,
-        /// S'arrête au premier échec
-        #[arg(long)]
-        bail: bool,
-    },
+    /// Exécute des requêtes, un dossier ou toute la collection, et écrit les rapports JSON, JUnit et HTML
+    Run(Box<run::RunArgs>),
     /// Relit et réécrit chaque fichier en mémoire pour vérifier l'aller-retour sans diff
     Check {
         collection: PathBuf,
@@ -88,15 +74,11 @@ enum Command {
     },
 }
 
-fn parse_pair(s: &str) -> Result<(String, String), String> {
-    s.split_once('=').map(|(k, v)| (k.to_owned(), v.to_owned())).ok_or_else(|| format!("attendu nom=valeur, reçu {s}"))
-}
-
 fn main() -> ExitCode {
     match Cli::parse().command {
-        Command::Run { collection, target, env, env_vars, bail } => {
+        Command::Run(args) => {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
-            runtime.block_on(run(&collection, target.as_deref(), env.as_deref(), env_vars.into_iter().collect(), bail))
+            runtime.block_on(run::run(*args))
         }
         Command::Check { collection, diff } => check(&collection, diff),
         Command::Import { source, location, group_by } => {
@@ -265,145 +247,6 @@ async fn import(source: &str, location: &Path, group_by: GroupBy) -> ExitCode {
             ExitCode::from(if e.is_input() { 2 } else { 1 })
         }
     }
-}
-
-fn collect_requests(items: &[TreeItem], prefix: Option<&str>, out: &mut Vec<(String, String)>) {
-    for item in items {
-        match item {
-            TreeItem::Folder { path, children, .. } => {
-                let inside = prefix.is_none_or(|p| path == p || path.starts_with(&format!("{p}/")));
-                collect_requests(children, if inside { None } else { prefix }, out);
-            }
-            TreeItem::Request { path, name, request_type, .. } => {
-                if request_type == "http" && prefix.is_none_or(|p| path == p) {
-                    out.push((path.clone(), name.clone()));
-                }
-            }
-        }
-    }
-}
-
-async fn run(
-    root: &Path,
-    target: Option<&str>,
-    env: Option<&str>,
-    runtime: HashMap<String, String>,
-    bail: bool,
-) -> ExitCode {
-    let collection = match open_collection(root) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("erreur : {e}");
-            return ExitCode::from(2);
-        }
-    };
-    let env = env.map(str::to_owned).or(collection.default_environment.clone());
-    let mut requests = Vec::new();
-    collect_requests(&collection.items, target, &mut requests);
-    if requests.is_empty() {
-        eprintln!("erreur : aucune requête HTTP pour {}", target.unwrap_or("la collection"));
-        return ExitCode::from(2);
-    }
-
-    let mut session = Session::default();
-    session.runtime.extend(runtime.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))));
-    let names: Vec<String> = requests.iter().map(|(_, name)| name.clone()).collect();
-    let (mut passed, mut failed, mut skipped, mut jumps, mut at) = (0, 0, 0, 0, Some(0));
-    while let Some(index) = at {
-        let (path, name) = &requests[index];
-        let outcome = run_one(root, path, name, env.as_deref(), &collection.name, &mut session).await;
-        if outcome.skipped {
-            skipped += 1;
-        } else if outcome.passed() {
-            passed += 1;
-        } else {
-            failed += 1;
-        }
-        if !outcome.passed() && !outcome.skipped && bail {
-            break;
-        }
-        let step = next_step(&names, index, &outcome, &mut jumps);
-        if let Some(warning) = step.warning {
-            eprintln!("  ! {warning}");
-        }
-        at = step.next;
-    }
-    let skipped_note = if skipped > 0 { format!(", {skipped} ignorée(s)") } else { String::new() };
-    println!("\n{passed} réussie(s), {failed} en échec{skipped_note}, {} au total", passed + failed + skipped);
-    if failed == 0 {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    }
-}
-
-fn print_phase(label: &str, phase: &PhaseReport) {
-    for line in &phase.logs {
-        let args: Vec<String> = line.args.as_array().map_or_else(Vec::new, |a| {
-            a.iter().map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_owned)).collect()
-        });
-        println!("    [{}] {}", line.level, args.join(" "));
-    }
-    for result in &phase.results {
-        if result.status == "pass" {
-            println!("    ✓ {}", result.description);
-        } else {
-            println!("    ✗ {}  {}", result.description, result.error.as_deref().unwrap_or(""));
-        }
-    }
-    if let Some(error) = &phase.error {
-        println!("    ✗ {label} : {error}");
-    }
-}
-
-async fn run_one(
-    root: &Path,
-    path: &str,
-    name: &str,
-    env: Option<&str>,
-    collection_name: &str,
-    session: &mut Session,
-) -> Outcome {
-    let doc = match read_request(root, path) {
-        Ok(d) => d,
-        Err(e) => {
-            println!("✗ {name}  {e}");
-            return Outcome::failed(&RequestDoc::from_tree(&Default::default()), Stage::Prepare, e);
-        }
-    };
-    let request =
-        Request { root, path, doc: &doc, env, collection_name, execution_mode: "cli", cancel: Default::default() };
-    let outcome = run_request(request, session).await;
-    let method = outcome.method.clone();
-    if outcome.skipped {
-        print_phase("script pré-requête", &outcome.pre);
-        println!("- {method} {name}  ignorée par un script");
-        return outcome;
-    }
-    if !outcome.unresolved.is_empty() {
-        println!("  ! variables non résolues : {}", outcome.unresolved.join(", "));
-    }
-    match (&outcome.error, &outcome.response) {
-        (Some(error), _) => {
-            print_phase("script pré-requête", &outcome.pre);
-            println!("✗ {method} {name}  {}", error.message);
-        }
-        (None, Some(res)) => {
-            let mark = if outcome.passed() { "✓" } else { "✗" };
-            println!("{mark} {method} {name}  {} {}  {:.0} ms", res.status, res.reason, res.timings.total_ms);
-            print_phase("script pré-requête", &outcome.pre);
-            print_phase("script post-réponse", &outcome.post);
-            for r in &outcome.assertions {
-                let mark = if r.passed { "✓" } else { "✗" };
-                let expected = r.expected.as_deref().unwrap_or("");
-                let detail = r.error.as_ref().map(|e| format!("  {e}")).unwrap_or_default();
-                println!("    {mark} {} {} {expected}{detail}", r.expression, r.operator);
-            }
-            print_phase("tests", &outcome.tests);
-        }
-        (None, None) => {}
-    }
-    outcome
 }
 
 fn check(root: &Path, diff: bool) -> ExitCode {

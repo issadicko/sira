@@ -11,28 +11,31 @@ pub struct Step {
     /// Position de la requête suivante ; `None` termine le run.
     pub next: Option<usize>,
     pub warning: Option<String>,
+    /// Plus de `MAX_JUMPS` sauts : le run s'arrête, il boucle sans doute.
+    pub endless: bool,
 }
 
-/// Où va le run après la requête `at` de `names` : à la suivante, ou là où les scripts l'ont envoyé
+/// Où va le run après la requête `at` de `names` (au-delà de `limit` sauts, il s'arrête) : à la suivante, ou là où les scripts l'ont envoyé
 /// (`bru.setNextRequest(nom)` : première requête de ce nom, avant ou après ; `null` ou `stopExecution` l'arrête).
-pub fn next_step(names: &[String], at: usize, outcome: &Outcome, jumps: &mut usize) -> Step {
-    let done = |warning: Option<String>| Step { next: None, warning };
+pub fn next_step(names: &[String], at: usize, outcome: &Outcome, jumps: &mut usize, limit: usize) -> Step {
+    let done = |warning: Option<String>| Step { next: None, warning, endless: false };
     if outcome.stop {
         return done(None);
     }
     match &outcome.next_request {
-        NextRequest::Unset => Step { next: Some(at + 1).filter(|n| *n < names.len()), warning: None },
+        NextRequest::Unset => Step { next: Some(at + 1).filter(|n| *n < names.len()), warning: None, endless: false },
         NextRequest::Stop => done(None),
         NextRequest::Named(name) => {
             *jumps += 1;
-            if *jumps > MAX_JUMPS {
-                return done(Some("Too many jumps, possible infinite loop".into()));
+            if *jumps > limit {
+                return Step { endless: true, ..done(Some("Too many jumps, possible infinite loop".into())) };
             }
             match names.iter().position(|n| n == name) {
-                Some(index) => Step { next: Some(index), warning: None },
+                Some(index) => Step { next: Some(index), warning: None, endless: false },
                 None => Step {
                     next: Some(at + 1).filter(|n| *n < names.len()),
                     warning: Some(format!("Could not find request with name '{name}'")),
+                    endless: false,
                 },
             }
         }
@@ -58,13 +61,13 @@ mod tests {
     }
 
     fn step(at: usize, next: NextRequest, stop: bool) -> Step {
-        next_step(&names(), at, &outcome(next, stop), &mut 0)
+        next_step(&names(), at, &outcome(next, stop), &mut 0, MAX_JUMPS)
     }
 
     #[test]
     fn ef_run_02_without_instruction_the_run_goes_on_then_ends() {
-        assert_eq!(step(0, NextRequest::Unset, false), Step { next: Some(1), warning: None });
-        assert_eq!(step(2, NextRequest::Unset, false), Step { next: None, warning: None });
+        assert_eq!(step(0, NextRequest::Unset, false), Step { next: Some(1), warning: None, endless: false });
+        assert_eq!(step(2, NextRequest::Unset, false), Step { next: None, warning: None, endless: false });
     }
 
     #[test]
@@ -90,8 +93,9 @@ mod tests {
     fn ef_run_02_endless_jumping_is_cut() {
         let out = outcome(NextRequest::Named("A".into()), false);
         let mut jumps = MAX_JUMPS;
-        let step = next_step(&names(), 0, &out, &mut jumps);
+        let step = next_step(&names(), 0, &out, &mut jumps, MAX_JUMPS);
         assert_eq!(step.next, None);
+        assert!(step.endless);
         assert!(step.warning.unwrap().contains("Too many jumps"));
     }
 }

@@ -1,0 +1,290 @@
+//! `xc run` : exécute une collection, un dossier ou des requêtes, affiche le détail au fil de l'eau et écrit les
+//! rapports JSON, JUnit et HTML demandés.
+
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use std::time::Duration;
+
+use clap::Args;
+use xc_core::open_collection;
+use xc_runner::{
+    html_page, json, junit, now_iso, read_rows, run_collection, select, Event, Halt, Job, Meta, PhaseReport, Redact,
+    RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
+};
+
+#[derive(Args)]
+pub struct RunArgs {
+    /// Dossier de la collection (contient opencollection.yml)
+    collection: PathBuf,
+    /// Chemins relatifs de requêtes ou de dossiers, exécutés l'un après l'autre ; toute la collection si absents
+    targets: Vec<String>,
+    /// Environnement à utiliser (nom du fichier dans environments/)
+    #[arg(long)]
+    env: Option<String>,
+    /// Variable runtime, répétable : --env-var nom=valeur
+    #[arg(long = "env-var", value_parser = parse_pair)]
+    env_vars: Vec<(String, String)>,
+    /// S'arrête au premier échec d'une requête, d'un test ou d'une assertion ; le reste est ignoré
+    #[arg(long)]
+    bail: bool,
+    /// Attente, en millisecondes, entre deux requêtes
+    #[arg(long, value_name = "MS", default_value_t = 0)]
+    delay: u64,
+    /// Fichier CSV (en-têtes en première ligne) ou JSON (tableau d'objets) : une itération par ligne, dont les champs
+    /// deviennent des variables runtime
+    #[arg(long, value_name = "FICHIER")]
+    data: Option<PathBuf>,
+    /// Fichier de résultats, au format de --format
+    #[arg(short, long, value_name = "FICHIER")]
+    output: Option<PathBuf>,
+    /// Format de --output : json, junit ou html
+    #[arg(short, long, default_value = "json")]
+    format: Format,
+    /// Écrit les résultats JSON dans ce fichier
+    #[arg(long, value_name = "FICHIER")]
+    reporter_json: Option<PathBuf>,
+    /// Écrit les résultats JUnit dans ce fichier
+    #[arg(long, value_name = "FICHIER")]
+    reporter_junit: Option<PathBuf>,
+    /// Écrit le rapport HTML dans ce fichier
+    #[arg(long, value_name = "FICHIER")]
+    reporter_html: Option<PathBuf>,
+    /// Retire tous les en-têtes des rapports
+    #[arg(long)]
+    reporter_skip_all_headers: bool,
+    /// Retire ces en-têtes des rapports (sans tenir compte de la casse)
+    #[arg(long, value_name = "NOM", num_args = 1..)]
+    reporter_skip_headers: Vec<String>,
+    /// Retire le corps des requêtes des rapports
+    #[arg(long)]
+    reporter_skip_request_body: bool,
+    /// Retire le corps des réponses des rapports
+    #[arg(long)]
+    reporter_skip_response_body: bool,
+    /// Retire les corps des requêtes et des réponses des rapports
+    #[arg(long)]
+    reporter_skip_body: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum Format {
+    Json,
+    Junit,
+    Html,
+}
+
+fn parse_pair(s: &str) -> Result<(String, String), String> {
+    s.split_once('=').map(|(k, v)| (k.to_owned(), v.to_owned())).ok_or_else(|| format!("attendu nom=valeur, reçu {s}"))
+}
+
+fn input_error(message: impl std::fmt::Display) -> ExitCode {
+    eprintln!("erreur : {message}");
+    ExitCode::from(2)
+}
+
+/// Les rapports demandés, chacun avec son fichier : `--output` selon `--format`, puis les `--reporter-*` qui le
+/// remplacent pour leur format.
+fn reporters(args: &RunArgs) -> Vec<(Format, PathBuf)> {
+    let mut out: Vec<(Format, PathBuf)> = Vec::new();
+    let mut set = |format: Format, path: &Option<PathBuf>| {
+        if let Some(path) = path {
+            out.retain(|(f, _)| *f != format);
+            out.push((format, path.clone()));
+        }
+    };
+    set(args.format, &args.output);
+    set(Format::Html, &args.reporter_html);
+    set(Format::Json, &args.reporter_json);
+    set(Format::Junit, &args.reporter_junit);
+    out
+}
+
+fn redact(args: &RunArgs) -> Redact {
+    Redact {
+        all_headers: args.reporter_skip_all_headers,
+        headers: args.reporter_skip_headers.clone(),
+        request_body: args.reporter_skip_request_body || args.reporter_skip_body,
+        response_body: args.reporter_skip_response_body || args.reporter_skip_body,
+    }
+}
+
+pub async fn run(args: RunArgs) -> ExitCode {
+    let reporters = reporters(&args);
+    for (_, path) in &reporters {
+        let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+        if !dir.is_dir() {
+            return input_error(format!("le dossier {} n'existe pas", dir.display()));
+        }
+    }
+    let rows: Vec<Row> = match args.data.as_deref().map(read_rows).transpose() {
+        Ok(rows) => rows.unwrap_or_default(),
+        Err(e) => return input_error(e),
+    };
+    if args.data.is_some() && rows.is_empty() {
+        return input_error("le fichier de données ne contient aucune ligne");
+    }
+    let root = args.collection.as_path();
+    let collection = match open_collection(root) {
+        Ok(c) => c,
+        Err(e) => return input_error(e),
+    };
+    if let Some(env) = &args.env {
+        if !collection.environments.contains(env) {
+            let known = if collection.environments.is_empty() {
+                "aucun".to_owned()
+            } else {
+                collection.environments.join(", ")
+            };
+            return input_error(format!("environnement « {env} » introuvable (disponibles : {known})"));
+        }
+    }
+    let items = match select(&collection.items, &args.targets) {
+        Ok(items) => items,
+        Err(e) => return input_error(e),
+    };
+    let env = args.env.clone().or(collection.default_environment.clone());
+
+    let mut session = Session::default();
+    let runtime: HashMap<String, String> = args.env_vars.iter().cloned().collect();
+    session.runtime.extend(runtime.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))));
+    let job = Job {
+        root,
+        collection_name: &collection.name,
+        env: env.as_deref(),
+        items: &items,
+        rows: &rows,
+        bail: args.bail,
+        delay: Duration::from_millis(args.delay),
+        max_jumps: MAX_JUMPS,
+        execution_mode: "cli",
+        cancel: Arc::new(AtomicBool::new(false)),
+    };
+    let report = run_collection(job, &mut session, &mut |event| show(&event)).await;
+    summarize(&report);
+
+    let redact = redact(&args);
+    let meta = Meta { collection: collection.name.clone(), completed_at: now_iso() };
+    for (format, path) in &reporters {
+        let text = match format {
+            Format::Json => json(&report, &redact),
+            Format::Junit => junit(&report, &redact),
+            Format::Html => html_page(&report, &redact, &meta),
+        };
+        if let Err(e) = fs::write(path, text) {
+            return input_error(format!("écriture de {} impossible : {e}", path.display()));
+        }
+        println!("Résultats écrits dans {}", path.display());
+    }
+    if report.failed() {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn show(event: &Event<'_>) {
+    match event {
+        Event::Iteration { index, total, row } if *total > 1 => {
+            let data = row.map(|r| format!("  {}", serde_json::Value::Object((*r).clone()))).unwrap_or_default();
+            println!("\n── itération {}/{total}{data}", index + 1);
+        }
+        Event::Iteration { .. } | Event::Started { .. } => {}
+        Event::Finished(result) => print_result(result),
+        Event::Waiting(delay) => println!("  … attente de {} ms avant la requête suivante", delay.as_millis()),
+        Event::Warning(warning) => eprintln!("  ! {warning}"),
+    }
+}
+
+fn print_phase(label: &str, phase: &PhaseReport) {
+    for line in &phase.logs {
+        let args: Vec<String> = line.args.as_array().map_or_else(Vec::new, |a| {
+            a.iter().map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_owned)).collect()
+        });
+        println!("    [{}] {}", line.level, args.join(" "));
+    }
+    for result in &phase.results {
+        if result.status == "pass" {
+            println!("    ✓ {}", result.description);
+        } else {
+            println!("    ✗ {}  {}", result.description, result.error.as_deref().unwrap_or(""));
+        }
+    }
+    if let Some(error) = &phase.error {
+        println!("    ✗ {label} : {error}");
+    }
+}
+
+fn print_result(result: &RequestResult) {
+    let outcome = &result.outcome;
+    let (method, name) = (&outcome.method, &result.name);
+    match &result.skip {
+        Some(Skip::Script) => {
+            print_phase("script pré-requête", &outcome.pre);
+            println!("- {method} {name}  ignorée par un script");
+            return;
+        }
+        Some(Skip::Bail | Skip::StopExecution) => return,
+        Some(Skip::Unreadable(why)) => {
+            println!("- {name}  ignorée, fichier illisible : {why}");
+            return;
+        }
+        None => {}
+    }
+    if !outcome.unresolved.is_empty() {
+        println!("  ! variables non résolues : {}", outcome.unresolved.join(", "));
+    }
+    match (&outcome.error, &outcome.response) {
+        (Some(error), _) => {
+            print_phase("script pré-requête", &outcome.pre);
+            println!("✗ {method} {name}  {}", error.message);
+        }
+        (None, Some(res)) => {
+            let mark = if outcome.passed() { "✓" } else { "✗" };
+            println!("{mark} {method} {name}  {} {}  {:.0} ms", res.status, res.reason, res.timings.total_ms);
+            print_phase("script pré-requête", &outcome.pre);
+            print_phase("script post-réponse", &outcome.post);
+            for r in &outcome.assertions {
+                let mark = if r.passed { "✓" } else { "✗" };
+                let expected = r.expected.as_deref().unwrap_or("");
+                let detail = r.error.as_ref().map(|e| format!("  {e}")).unwrap_or_default();
+                println!("    {mark} {} {} {expected}{detail}", r.expression, r.operator);
+            }
+            print_phase("tests", &outcome.tests);
+        }
+        (None, None) => {}
+    }
+}
+
+fn summarize(report: &RunReport) {
+    let s = report.summary();
+    let skipped = if s.skipped_requests > 0 { format!(", {} ignorée(s)", s.skipped_requests) } else { String::new() };
+    println!(
+        "\n{} réussie(s), {} en échec{skipped}, {} au total",
+        s.passed_requests,
+        s.failed_requests + s.error_requests,
+        s.total_requests
+    );
+    let tests = s.passed_tests + s.passed_pre_request_tests + s.passed_post_response_tests;
+    let total = s.total_tests + s.total_pre_request_tests + s.total_post_response_tests;
+    println!(
+        "Tests : {tests}/{total} · Assertions : {}/{} · Durée : {:.2} s",
+        s.passed_assertions,
+        s.total_assertions,
+        report.elapsed.as_secs_f64()
+    );
+    match &report.halt {
+        Some(Halt::Bail { request, reason, remaining }) => {
+            println!("Arrêt au premier échec : {reason} dans « {request} », {remaining} requête(s) ignorée(s).");
+        }
+        Some(Halt::StopExecution { request, remaining }) => {
+            println!("Run arrêté par un script dans « {request} », {remaining} requête(s) ignorée(s).");
+        }
+        Some(Halt::Loop) => println!("Run arrêté : trop de sauts, probablement une boucle sans fin."),
+        Some(Halt::Cancelled) => println!("Run annulé."),
+        None => {}
+    }
+}
