@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-cookie_store = { version = "0.22", default-features = false, features = ["public_suffix"] }
+base64 = "0.22"
 bytes = "1"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["client", "http1"] }
@@ -23,6 +23,7 @@ url = "2"
 webpki-roots = "0.26"
 
 [dev-dependencies]
+rcgen = "0.14"
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util"] }
 
 [lints]

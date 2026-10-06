@@ -202,7 +202,7 @@ pub fn prepare_with(
             body: body.map(|(bytes, _)| bytes),
             timeout: doc.timeout_ms.map(Duration::from_millis).unwrap_or(NO_TIMEOUT),
             max_response_body: None,
-            network: Network { redirects: redirects_of(doc) },
+            network: Network { redirects: redirects_of(doc), ..Network::default() },
         },
         unresolved,
         auth: send_auth,

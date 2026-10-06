@@ -1,6 +1,7 @@
 pub mod aws;
 pub mod digest;
 mod network;
+mod proxy;
 mod redirect;
 mod time;
 mod tls;
@@ -18,9 +19,10 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use url::Url;
 
+use proxy::Stream;
 use redirect::Hop;
 
-pub use network::{Network, Redirects};
+pub use network::{ClientIdentity, Network, Proxy, ProxyScheme, Redirects, Tls};
 pub use time::{amz_date, iso_from_millis, millis};
 
 #[derive(Debug, Clone)]
@@ -155,20 +157,34 @@ async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
         .to_owned();
     let port = url.port_or_known_default().unwrap_or(if secure { 443 } else { 80 });
 
-    let (addrs, dns) = resolve(&host, port).await?;
+    let proxy = request.network.proxy.clone().filter(|proxy| proxy.applies_to(&url));
+    let proxy = proxy.as_ref();
+    let (dial_host, dial_port) = proxy.map_or((host.as_str(), port), |proxy| (proxy.host.as_str(), proxy.port));
+    let (addrs, dns) = resolve(dial_host, dial_port).await?;
 
     let t = Instant::now();
-    let (stream, addr) = connect(&addrs).await?;
+    let (tcp_stream, addr) = connect(&addrs).await?;
+    let mut stream: Stream = Box::new(tcp_stream);
+    if let Some(proxy) = proxy {
+        if proxy.scheme == ProxyScheme::Https {
+            let own = Tls { client: None, ..request.network.tls.clone() };
+            stream = Box::new(tls::handshake(stream, &proxy.host, &own).await?);
+        }
+        if secure || proxy.is_socks() {
+            proxy::tunnel(&mut stream, proxy, &host, port).await?;
+        }
+    }
     let tcp = t.elapsed();
 
+    let forward = proxy.filter(|proxy| !secure && !proxy.is_socks());
     let mut timings = Timings { dns_ms: ms(dns), tcp_ms: ms(tcp), ..Timings::default() };
     let response = if secure {
         let t = Instant::now();
-        let tls = tls::handshake(stream, &host).await?;
+        let tls = tls::handshake(stream, &host, &request.network.tls).await?;
         timings.tls_ms = ms(t.elapsed());
-        exchange(tls, &url, request, &mut timings).await?
+        exchange(tls, &url, forward, request, &mut timings).await?
     } else {
-        exchange(stream, &url, request, &mut timings).await?
+        exchange(stream, &url, forward, request, &mut timings).await?
     };
     timings.total_ms = ms(start.elapsed());
     Ok(HttpResponse { remote_addr: addr.to_string(), timings, ..response })
@@ -206,6 +222,7 @@ async fn connect(addrs: &[SocketAddr]) -> Result<(TcpStream, SocketAddr), Engine
 async fn exchange<S>(
     stream: S,
     url: &Url,
+    forward: Option<&Proxy>,
     request: HttpRequest,
     timings: &mut Timings,
 ) -> Result<HttpResponse, EngineError>
@@ -219,11 +236,15 @@ where
 
     let method = hyper::Method::from_bytes(request.method.as_bytes())
         .map_err(|_| EngineError::InvalidMethod(request.method.clone()))?;
-    let target = match url.query() {
-        Some(q) => format!("{}?{}", url.path(), q),
-        None => url.path().to_owned(),
+    let target = match (forward, url.query()) {
+        (Some(_), _) => url.as_str().to_owned(),
+        (None, Some(q)) => format!("{}?{}", url.path(), q),
+        (None, None) => url.path().to_owned(),
     };
     let mut builder = Request::builder().method(method).uri(target);
+    if let Some(authorization) = forward.and_then(Proxy::authorization) {
+        builder = builder.header("proxy-authorization", authorization);
+    }
     if !request.headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("host")) {
         let host = match url.port() {
             Some(p) => format!("{}:{p}", url.host_str().unwrap_or_default()),

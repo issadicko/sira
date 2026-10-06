@@ -43,7 +43,7 @@ pub async fn fetch_spec(source: &str) -> Result<String, ImportError> {
             body: None,
             timeout: TIMEOUT,
             max_response_body: Some(MAX_SPEC_BYTES),
-            network: Network { redirects: Redirects::none() },
+            network: Network { redirects: Redirects::none(), ..Network::default() },
         };
         let response = xc_engine::send(request).await.map_err(|e| source_error(format!("{url} : {e}")))?;
         if (200..300).contains(&response.status) {
