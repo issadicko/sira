@@ -16,7 +16,7 @@ Partir de zéro et organiser une collection comme dans Bruno.
 | --- | --- | --- |
 | `collection` | `opencollection.yml` présent | Ouverture normale |
 | `empty` | Aucune entrée (hors fichiers cachés du système comme `.DS_Store`) | « Créer une collection ici » : nom proposé = nom du dossier |
-| `bru` | `bruno.json` présent | « Collection au format .bru : lecture prévue en V1 » |
+| `bru` | `bruno.json` présent | Le dialogue de conversion s'ouvre (`imports.md`) : la collection est convertie en YAML dans un nouveau dossier |
 | `other` | Autre contenu | « Créer une collection ici » avec un avertissement : le dossier n'est pas vide, rien d'existant n'est modifié |
 
 Dans l'arbre, un fichier `.yml` n'est un élément que si son `info.type` est un type que Bruno lit : `http`, `graphql`, `grpc`, `websocket` (requêtes), `script` ou `app`. Comme dans Bruno, un autre fichier YAML (une spec OpenAPI rangée dans la collection, un `info.type` absent ou inconnu) reste visible mais en erreur, avec la raison. Il n'est ni ouvert comme requête, ni enregistré, ni compté parmi les requêtes, et la synchro ne l'apparie jamais.

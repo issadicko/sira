@@ -1,0 +1,74 @@
+meta {
+  name: List users
+  type: http
+  seq: 1
+  tags: [
+    smoke
+    users
+  ]
+}
+
+get {
+  url: {{baseUrl}}/users/:team?page=1
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  ~verbose: true
+}
+
+params:path {
+  team: core
+}
+
+headers {
+  Accept: application/json
+  ~X-Debug: 1
+}
+
+assert {
+  res.status: eq 200
+  res.body.length: gt 0
+}
+
+tests {
+  test("returns users", function () {
+    expect(res.getBody()).to.be.an("array");
+  });
+}
+
+docs {
+  Liste les utilisateurs
+}
+
+settings {
+  encodeUrl: true
+  timeout: 3000
+}
+
+example {
+  name: Two users
+  description: Réponse nominale
+  request: {
+    url: {{baseUrl}}/users?page=1
+    method: GET
+    mode: none
+  }
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+    status: {
+      code: 200
+      text: OK
+    }
+    body: {
+      type: json
+      content: '''
+        [{"id": 1}, {"id": 2}]
+      '''
+    }
+  }
+}

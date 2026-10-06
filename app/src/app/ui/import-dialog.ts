@@ -8,19 +8,22 @@ import { Workspace } from '../core/store';
 import { Dialog } from './dialog';
 import { Icon } from './icon';
 
-type Source = 'postman' | 'insomnia';
+type Source = 'postman' | 'insomnia' | 'bruno';
 type Mode = 'collection' | 'environment';
+
+const sourceOf = (dialog: string | null): Source => (dialog === 'insomnia' || dialog === 'bruno' ? dialog : 'postman');
 
 /**
  * Importe l'export d'un autre client : une collection Postman (v2.0 ou v2.1) ou Insomnia (v4 ou v5) dans un nouveau
- * dossier, ou un environnement Postman dans la collection ouverte (ceux d'Insomnia viennent avec la collection).
+ * dossier, ou un environnement Postman dans la collection ouverte (ceux d'Insomnia viennent avec la collection). Une
+ * collection Bruno au format `.bru` est convertie en YAML dans un nouveau dossier, sans toucher à la source.
  */
 @Component({
   selector: 'app-import-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Dialog, Icon],
   template: `
-    <app-dialog [heading]="'Importer depuis ' + label()" [busy]="importing()" (closed)="close()" (confirmed)="done() ? close() : run()">
+    <app-dialog [heading]="heading()" [busy]="importing()" (closed)="close()" (confirmed)="done() ? close() : run()">
       @if (ws.demo) {
         <div class="note"><app-ic name="alert" [size]="14" /><span>Mode démo : l'import lit un fichier de ton disque et n'est disponible que dans l'application desktop.</span></div>
       }
@@ -31,6 +34,7 @@ type Mode = 'collection' | 'environment';
           <div class="seg" role="group" aria-label="Application d'origine">
             <button [attr.aria-pressed]="source() === 'postman'" (click)="setSource('postman')">Postman</button>
             <button [attr.aria-pressed]="source() === 'insomnia'" (click)="setSource('insomnia')">Insomnia</button>
+            <button [attr.aria-pressed]="source() === 'bruno'" (click)="setSource('bruno')">Bruno (.bru)</button>
           </div>
         </section>
 
@@ -46,11 +50,11 @@ type Mode = 'collection' | 'environment';
 
         <section class="fld">
           <div class="sec-head">
-            <span class="sec-title">Fichier</span>
+            <span class="sec-title">{{ source() === 'bruno' ? 'Collection à convertir' : 'Fichier' }}</span>
             <span class="sec-meta">{{ fileHint() }}</span>
           </div>
           <div class="row-fields">
-            <span class="input mono path-box" [class.is-empty]="!file()" [title]="file() ?? ''">{{ file() ?? 'Aucun fichier choisi' }}</span>
+            <span class="input mono path-box" [class.is-empty]="!file()" [title]="file() ?? ''">{{ file() ?? (source() === 'bruno' ? 'Aucun dossier choisi' : 'Aucun fichier choisi') }}</span>
             <button class="btn" (click)="chooseFile()"><app-ic name="folder-open" [size]="14" />Choisir…</button>
           </div>
         </section>
@@ -65,6 +69,8 @@ type Mode = 'collection' | 'environment';
           </section>
           @if (source() === 'postman') {
             <p class="hint"><app-ic name="shield" [size]="13" /><span>Les scripts <span class="mono">pm.*</span> sont traduits en <span class="mono">bru.*</span> pour les appels courants ; un script plus complexe garde ses <span class="mono">pm.*</span> et se relit à la main.</span></p>
+          } @else if (source() === 'bruno') {
+            <p class="hint"><app-ic name="shield" [size]="13" /><span>La collection est copiée en YAML dans un nouveau dossier : la source n'est <b>pas modifiée</b>. Les fichiers qui ne sont pas des <span class="mono">.bru</span> (jeux de données, <span class="mono">.env</span>, scripts importés) ne sont pas copiés ; ils sont listés à la fin.</span></p>
           } @else {
             <p class="hint"><app-ic name="shield" [size]="13" /><span>Les environnements de l'export sont importés avec la collection ; le sous-environnement hérite des variables de l'environnement de base. Les types d'auth qu'Insomnia connaît et pas Sira sont listés à la fin.</span></p>
           }
@@ -120,10 +126,13 @@ type Mode = 'collection' | 'environment';
 export class ImportDialog {
   protected readonly ws = inject(Workspace);
   protected readonly confirmKey = shortcutLabel('mod+enter');
-  protected readonly source = signal<Source>(this.ws.dialog() === 'insomnia' ? 'insomnia' : 'postman');
-  protected readonly label = computed(() => (this.source() === 'insomnia' ? 'Insomnia' : 'Postman'));
+  protected readonly source = signal<Source>(sourceOf(this.ws.dialog()));
+  protected readonly heading = computed(() => {
+    const source = this.source();
+    return source === 'bruno' ? 'Convertir une collection .bru' : `Importer depuis ${source === 'insomnia' ? 'Insomnia' : 'Postman'}`;
+  });
   protected readonly mode = signal<Mode>('collection');
-  protected readonly file = signal<string | null>(null);
+  protected readonly file = signal<string | null>(this.source() === 'bruno' ? this.ws.importSource() : null);
   protected readonly parent = signal<string | null>(null);
   protected readonly importing = signal(false);
   protected readonly importError = signal<string | null>(null);
@@ -132,6 +141,7 @@ export class ImportDialog {
   protected readonly done = signal(false);
   protected readonly fileHint = computed(() => {
     if (this.source() === 'insomnia') return 'export Insomnia v4 (.json) ou v5 (.yaml)';
+    if (this.source() === 'bruno') return 'dossier qui contient bruno.json';
     return this.mode() === 'collection' ? 'export de collection Postman (.json)' : 'export d’environnement Postman (.json)';
   });
   protected readonly ready = computed(() => !!this.file() && (this.mode() === 'environment' ? !!this.ws.collection() : !!this.parent()));
@@ -154,8 +164,19 @@ export class ImportDialog {
   }
 
   protected async chooseFile() {
-    const picked = await (this.source() === 'insomnia' ? api.pickInsomniaFile() : api.pickPostmanFile());
+    const picked = await this.pick();
     if (picked) this.file.set(picked);
+  }
+
+  private pick(): Promise<string | null> {
+    switch (this.source()) {
+      case 'insomnia':
+        return api.pickInsomniaFile();
+      case 'bruno':
+        return api.pickFolder('Collection Bruno à convertir');
+      default:
+        return api.pickPostmanFile();
+    }
   }
 
   protected async chooseParent() {
@@ -172,7 +193,7 @@ export class ImportDialog {
       if (this.mode() === 'environment') return await this.importEnvironment(file);
       if (!(await this.ws.confirmReplace())) return;
       const parent = this.parent()!;
-      const { root, issues } = await (this.source() === 'insomnia' ? api.importInsomnia(file, parent) : api.importPostman(file, parent));
+      const { root, issues } = await this.importCollection(file, parent);
       if (!(await this.ws.open(root, true))) {
         this.importError.set(`Collection créée dans ${root}, mais impossible de l'ouvrir : ${this.ws.error()}`);
         return;
@@ -182,6 +203,17 @@ export class ImportDialog {
       this.importError.set(String(e));
     } finally {
       this.importing.set(false);
+    }
+  }
+
+  private importCollection(file: string, parent: string) {
+    switch (this.source()) {
+      case 'insomnia':
+        return api.importInsomnia(file, parent);
+      case 'bruno':
+        return api.importBru(file, parent);
+      default:
+        return api.importPostman(file, parent);
     }
   }
 

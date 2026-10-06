@@ -23,6 +23,7 @@ use serde::Serialize;
 use serde_json::Value;
 use xc_core::CoreError;
 
+use crate::bru::{self, BruError};
 use crate::curl::MAX_COMMAND_BYTES;
 use crate::insomnia::{self, InsomniaError};
 use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSummary};
@@ -61,6 +62,8 @@ pub enum ImportError {
     #[error(transparent)]
     Insomnia(#[from] InsomniaError),
     #[error(transparent)]
+    Bru(#[from] BruError),
+    #[error(transparent)]
     Manage(#[from] crate::manage::ManageError),
     #[error(transparent)]
     Core(#[from] CoreError),
@@ -91,6 +94,7 @@ impl ImportError {
                 | Self::Spec(OpenApiError::Syntax(_) | OpenApiError::Empty)
                 | Self::Postman(_)
                 | Self::Insomnia(_)
+                | Self::Bru(_)
         )
     }
 }
@@ -134,6 +138,14 @@ pub fn import_postman(text: &str, location: &Path) -> Result<(PathBuf, Vec<Issue
 /// renvoie sa racine et ce qui n'a pas pu être converti.
 pub fn import_insomnia(text: &str, location: &Path) -> Result<(PathBuf, Vec<Issue>), ImportError> {
     let converted = insomnia::collection_from_text(text)?;
+    let root = write_plain_collection(&converted.collection, location)?;
+    Ok((root, converted.issues))
+}
+
+/// Convertit une collection au format `.bru` (dossier avec `bruno.json`) en OpenCollection YAML, dans un nouveau dossier
+/// de `location` ; la source n'est pas modifiée. Renvoie la racine de la copie et ce qui n'a pas pu être converti.
+pub fn import_bru(source: &Path, location: &Path) -> Result<(PathBuf, Vec<Issue>), ImportError> {
+    let converted = bru::collection_from_dir(source)?;
     let root = write_plain_collection(&converted.collection, location)?;
     Ok((root, converted.issues))
 }

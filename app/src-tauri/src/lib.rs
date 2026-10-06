@@ -450,6 +450,15 @@ async fn import_postman(state: State<'_, AppState>, source: String, location: St
     Ok(ImportedCollection { root: root.display().to_string(), issues })
 }
 
+/// Convertit une collection `.bru` (dossier avec `bruno.json`) en OpenCollection YAML, dans un nouveau dossier de
+/// `location` ; la source n'est pas modifiée.
+#[tauri::command]
+async fn import_bru(state: State<'_, AppState>, source: String, location: String) -> Reply<ImportedCollection> {
+    let (root, issues) =
+        writing(&state, move || xc_sync::import::import_bru(Path::new(&source), Path::new(&location))).await?;
+    Ok(ImportedCollection { root: root.display().to_string(), issues })
+}
+
 /// Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location`.
 #[tauri::command]
 async fn import_insomnia(state: State<'_, AppState>, source: String, location: String) -> Reply<ImportedCollection> {
@@ -611,6 +620,7 @@ pub fn run() {
             import_postman,
             import_postman_environment,
             import_insomnia,
+            import_bru,
             inspect_folder,
             create_collection,
             init_collection,
@@ -904,6 +914,32 @@ paths:
         let refused =
             import_insomnia(state(), empty.display().to_string(), parent.display().to_string()).await.unwrap_err();
         assert!(refused.contains("workspace"), "{refused}");
+    }
+
+    #[tokio::test]
+    async fn ef_imp_03_command_converts_a_bru_collection_and_leaves_the_source_alone() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("legacy");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("bruno.json"), r#"{"version":"1","name":"Legacy","type":"collection"}"#).unwrap();
+        fs::write(
+            source.join("Ping.bru"),
+            "meta {\n  name: Ping\n  type: http\n  seq: 1\n}\n\nget {\n  url: https://shop.test/ping\n  body: none\n  auth: none\n}\n",
+        )
+        .unwrap();
+        let parent = dir.path().join("out");
+        fs::create_dir(&parent).unwrap();
+
+        let imported = import_bru(state(), source.display().to_string(), parent.display().to_string()).await.unwrap();
+        assert!(Path::new(&imported.root).join("Ping.yml").is_file());
+        assert!(source.join("Ping.bru").is_file() && source.join("bruno.json").is_file());
+        assert!(imported.issues.is_empty());
+
+        let refused =
+            import_bru(state(), parent.display().to_string(), parent.display().to_string()).await.unwrap_err();
+        assert!(refused.contains("bruno.json"), "{refused}");
     }
 
     #[tokio::test]

@@ -69,6 +69,8 @@ export interface Api {
   importPostman(source: string, location: string): Promise<ImportedCollection>;
   /** Ajoute un environnement Postman à la collection `root` ; renvoie son nom. */
   importPostmanEnvironment(root: string, source: string): Promise<string>;
+  /** Convertit une collection `.bru` (dossier avec `bruno.json`) en YAML dans un nouveau dossier de `location` ; la source n'est pas modifiée. */
+  importBru(source: string, location: string): Promise<ImportedCollection>;
   pickInsomniaFile(): Promise<string | null>;
   /** Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location`. */
   importInsomnia(source: string, location: string): Promise<ImportedCollection>;
@@ -147,6 +149,7 @@ const tauriApi: Api = {
   importPostmanEnvironment: (root, source) => invoke('import_postman_environment', { root, source }),
   pickInsomniaFile: () => pick({ title: 'Choisir un export Insomnia', filters: [{ name: 'Export Insomnia (JSON ou YAML)', extensions: ['json', 'yaml', 'yml'] }] }),
   importInsomnia: (source, location) => invoke('import_insomnia', { source, location }),
+  importBru: (source, location) => invoke('import_bru', { source, location }),
   syncStatus: (root) => invoke('sync_status', { root }),
   syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),
   syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),

@@ -267,3 +267,46 @@ fn ef_imp_02_cli_import_insomnia_refuses_an_unreadable_or_workspace_less_file_wi
     assert_eq!(code, 2);
     assert!(stderr.contains("workspace"), "{stderr}");
 }
+
+fn bru_collection(dir: &Path) -> std::path::PathBuf {
+    let source = dir.join("ancienne");
+    fs::create_dir_all(source.join("Produits")).unwrap();
+    fs::write(source.join("bruno.json"), r#"{"version": "1", "name": "Boutique Bru", "type": "collection"}"#).unwrap();
+    fs::write(
+        source.join("Produits/Lister.bru"),
+        "meta {\n  name: Lister\n  type: http\n  seq: 1\n}\n\nget {\n  url: https://api.boutique.test/produits\n  body: none\n  auth: none\n}\n",
+    )
+    .unwrap();
+    fs::write(source.join("Cassée.bru"), "meta {\n  name: Cassée\n}\n\nget {\n  url\n}\n").unwrap();
+    fs::write(source.join("jeu.csv"), "a,b\n").unwrap();
+    source
+}
+
+#[test]
+fn ef_imp_03_cli_import_bru_converts_a_bru_collection_without_touching_the_source() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = bru_collection(dir.path());
+    let out = dir.path().join("collections");
+    fs::create_dir(&out).unwrap();
+
+    let (code, stdout, stderr) = xc(&["import-bru", source.to_str().unwrap(), out.to_str().unwrap()]);
+    assert_eq!(code, 0, "{stderr}");
+    let root = Path::new(stdout.trim());
+    assert_eq!(root.file_name().unwrap(), "Boutique Bru");
+    assert_eq!(names(root), ["Produits", "environments", "opencollection.yml"]);
+    assert!(root.join("Produits/Lister.yml").is_file());
+    assert!(stderr.contains("Cassée.bru : Requête ignorée : ligne 6"), "{stderr}");
+    assert!(stderr.contains(".csv ×1"), "{stderr}");
+    assert!(source.join("bruno.json").is_file() && source.join("Produits/Lister.bru").is_file());
+
+    let (code, checked, _) = xc(&["check", root.to_str().unwrap()]);
+    assert_eq!(code, 0, "{checked}");
+}
+
+#[test]
+fn ef_imp_03_cli_import_bru_refuses_a_folder_without_bruno_json_with_code_2() {
+    let dir = tempfile::tempdir().unwrap();
+    let (code, _, stderr) = xc(&["import-bru", dir.path().to_str().unwrap(), dir.path().to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(stderr.contains("bruno.json"), "{stderr}");
+}

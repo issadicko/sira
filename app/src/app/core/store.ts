@@ -50,7 +50,7 @@ export interface Discard {
 
 export type View = 'collections' | 'env' | 'sync' | 'runner' | 'settings';
 export type Theme = 'dark' | 'light';
-export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'collection' | 'delete' | 'move' | 'env';
+export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'bruno' | 'collection' | 'delete' | 'move' | 'env';
 
 /** Dossier existant, vide ou non, où l'on propose de créer une collection. */
 export interface FolderTarget {
@@ -58,7 +58,6 @@ export interface FolderTarget {
   kind: 'empty' | 'other';
 }
 
-const BRU_MESSAGE = 'Collection au format .bru : lecture prévue en V1';
 
 const RECENT_KEY = 'xc-recent';
 
@@ -109,6 +108,8 @@ export class Workspace {
   readonly dialog = signal<DialogKind | null>(null);
   /** Dossier du dialogue « Créer une collection ici » ; `null` pour « Nouvelle collection », où l'on choisit le dossier parent. */
   readonly folderTarget = signal<FolderTarget | null>(null);
+  /** Dossier `.bru` à convertir, proposé d'office par le dialogue d'import quand on a tenté de l'ouvrir. */
+  readonly importSource = signal<string | null>(null);
   /** Perte de modifications à confirmer ; `null` quand aucune confirmation n'est en attente. */
   readonly discard = signal<Discard | null>(null);
   readonly hover = signal<{ name: string; rect: DOMRect } | null>(null);
@@ -247,7 +248,8 @@ export class Workspace {
       if (kind === 'collection') {
         await this.open(dir, true);
       } else if (kind === 'bru') {
-        this.refuse(BRU_MESSAGE);
+        this.importSource.set(dir);
+        this.dialog.set('bruno');
       } else {
         this.folderTarget.set({ dir, kind });
         this.dialog.set('collection');

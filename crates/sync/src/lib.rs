@@ -4,6 +4,7 @@
 //! Les convertisseurs produisent le JSON de collection de Bruno (`serde_json::Value`), le même que
 //! celui de `@usebruno/converters`, puis `stringify` l'écrit en OpenCollection YAML comme Bruno.
 
+pub mod bru;
 pub mod curl;
 pub mod import;
 pub mod insomnia;

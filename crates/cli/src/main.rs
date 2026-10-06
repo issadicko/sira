@@ -7,8 +7,8 @@ use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::restyle;
 use xc_sync::import::{
-    fetch_spec, import_insomnia as insomnia_collection, import_postman as postman_collection,
-    import_postman_environment, import_spec, ImportError,
+    fetch_spec, import_bru as bru_collection, import_insomnia as insomnia_collection,
+    import_postman as postman_collection, import_postman_environment, import_spec, ImportError,
 };
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
@@ -69,6 +69,14 @@ enum Command {
         /// Dossier parent où créer le dossier de la collection (il doit exister)
         location: PathBuf,
     },
+    /// Convertit une collection Bruno au format `.bru` en OpenCollection YAML, dans une nouvelle collection (la source
+    /// n'est pas modifiée) ; affiche son chemin, et liste sur la sortie d'erreur ce qui n'a pas pu être converti
+    ImportBru {
+        /// Dossier de la collection `.bru` (contient bruno.json)
+        source: PathBuf,
+        /// Dossier parent où créer le dossier de la collection (il doit exister)
+        location: PathBuf,
+    },
     /// Compare la collection à la spec OpenAPI (fusion à 3 voies) : `--check` pour la CI, `--apply` pour écrire
     #[command(group(ArgGroup::new("mode").required(true).args(["check", "apply"])))]
     Sync {
@@ -111,6 +119,9 @@ fn main() -> ExitCode {
         }
         Command::ImportPostman { file, location, environment } => import_postman(&file, &location, environment),
         Command::ImportInsomnia { file, location } => import_insomnia(&file, &location),
+        Command::ImportBru { source, location } => {
+            report_import(bru_collection(&source, &location).map(|(root, issues)| (root.display().to_string(), issues)))
+        }
         Command::Sync { collection, apply, source, keep_team, take_spec, forget_missing, recreate_missing, .. } => {
             if !apply && (keep_team || take_spec || forget_missing || recreate_missing) {
                 eprintln!(

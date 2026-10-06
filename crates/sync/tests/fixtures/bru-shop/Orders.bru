@@ -1,0 +1,23 @@
+meta {
+  name: Orders
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/graphql
+  body: graphql
+  auth: none
+}
+
+body:graphql {
+  query Orders($first: Int) {
+    orders(first: $first) { id }
+  }
+}
+
+body:graphql:vars {
+  {
+    "first": 3
+  }
+}

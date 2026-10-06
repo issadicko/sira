@@ -1,0 +1,26 @@
+headers {
+  X-Client: sira
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+vars:pre-request {
+  baseUrl: https://shop.test
+  @startedAt: now
+}
+
+script:pre-request {
+  bru.setVar("started", Date.now());
+}
+
+docs {
+  # Boutique
+
+  API de démonstration
+}

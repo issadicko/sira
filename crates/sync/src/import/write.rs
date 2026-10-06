@@ -80,12 +80,18 @@ fn staging_name() -> String {
 fn build(collection: &Value, root: &Path, name: &str, spec: Option<&Spec<'_>>) -> Result<(), ImportError> {
     let ignore =
         if spec.is_some() { json!(["node_modules", ".git", SYNC_DIR]) } else { json!(["node_modules", ".git"]) };
-    let config = json!({
+    let mut config = json!({
         "name": name,
         "type": "collection",
         "ignore": ignore,
         "opencollection": "1.0.0"
     });
+    // Les réglages d'une collection convertie (`bruno.json` : préréglages, scripts, proxy, certificats…).
+    if let Some(extra) = collection.get("config").and_then(Value::as_object) {
+        for (key, value) in extra.iter().filter(|(k, _)| !matches!(k.as_str(), "name" | "type" | "opencollection")) {
+            config[key] = value.clone();
+        }
+    }
     let root_config = collection.get("root").unwrap_or(&Value::Null);
     write(&root.join(COLLECTION_FILE), &stringify::collection(root_config, &config))?;
 

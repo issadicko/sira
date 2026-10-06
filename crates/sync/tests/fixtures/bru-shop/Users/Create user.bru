@@ -1,0 +1,44 @@
+meta {
+  name: Create user
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/users
+  body: json
+  auth: basic
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:basic {
+  username: admin
+  password: {{password}}
+}
+
+body:json {
+  {
+    "name": "Aminata",
+    "tags": ["a", "b"]
+  }
+}
+
+vars:pre-request {
+  retries: 3
+}
+
+vars:post-response {
+  userId: res.body.id
+  @tmp: res.body.tmp
+}
+
+script:post-response {
+  bru.setEnvVar("lastUser", res.getBody().id);
+}
+
+settings {
+  encodeUrl: false
+}

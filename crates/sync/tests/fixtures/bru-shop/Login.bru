@@ -1,0 +1,39 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: formUrlEncoded
+  auth: oauth2
+}
+
+body:form-urlencoded {
+  grant: password
+  ~scope: all
+}
+
+auth:oauth2 {
+  grant_type: client_credentials
+  access_token_url: {{baseUrl}}/oauth/token
+  refresh_token_url: 
+  client_id: shop
+  client_secret: s3cret
+  scope: read
+  credentials_placement: basic_auth_header
+  credentials_id: credentials
+  token_placement: header
+  token_header_prefix: Bearer
+  auto_fetch_token: true
+  auto_refresh_token: false
+}
+
+auth:oauth2:additional_params:access_token_req:body {
+  audience: api
+}
+
+settings {
+  encodeUrl: true
+}
