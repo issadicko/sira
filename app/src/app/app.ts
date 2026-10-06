@@ -9,6 +9,7 @@ import { View, Workspace } from './core/store';
 import { SyncStore } from './core/sync-store';
 import { TreeStore } from './core/tree-store';
 import { CollectionDialog } from './ui/collection-dialog';
+import { CodeDialog } from './ui/code-dialog';
 import { CurlDialog } from './ui/curl-dialog';
 import { DeleteDialog } from './ui/delete-dialog';
 import { DiscardDialog } from './ui/discard-dialog';
@@ -56,6 +57,7 @@ import { Welcome } from './ui/welcome';
     Welcome,
     VarPopover,
     Palette,
+    CodeDialog,
     CurlDialog,
     OpenApiDialog,
     ImportDialog,
@@ -98,6 +100,7 @@ export class App {
       { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.send() },
       { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
       { id: 'item.new-request', title: 'Nouvelle requête', group: 'Requête', icon: 'file', when: opened, run: () => tree.beginCreate('request') },
+      { id: 'request.code', title: 'Générer du code…', group: 'Requête', icon: 'code', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.dialog.set('code') },
       { id: 'request.curl', title: 'Nouvelle requête depuis cURL…', group: 'Requête', icon: 'terminal', when: opened, run: () => ws.dialog.set('curl') },
       { id: 'request.save', title: 'Enregistrer la requête', group: 'Requête', icon: 'download', keys: 'mod+s', when: () => ws.view() !== 'env' && !!ws.active(), run: () => ws.save() },
       { id: 'tab.close', title: "Fermer l'onglet", group: 'Requête', icon: 'x', keys: 'mod+w', when: () => !!ws.activePath(), run: () => ws.closeTab(ws.activePath()!) },

@@ -77,6 +77,23 @@ enum Command {
         /// Dossier parent où créer le dossier de la collection (il doit exister)
         location: PathBuf,
     },
+    /// Écrit le code d'une requête dans un langage (cURL, JavaScript, Python, Go, Java, Kotlin, Dart, PHP, C#), variables
+    /// résolues ; les variables sans valeur sont signalées sur la sortie d'erreur
+    Code {
+        /// Dossier de la collection (contient opencollection.yml)
+        collection: PathBuf,
+        /// Chemin de la requête dans la collection (`Dossier/Requête.yml`)
+        request: String,
+        /// Langage : curl, javascript, python, go, java, kotlin, dart, php ou csharp
+        #[arg(long, default_value = "curl")]
+        lang: String,
+        /// Environnement à appliquer
+        #[arg(long)]
+        env: Option<String>,
+        /// Variable runtime, répétable : --env-var nom=valeur
+        #[arg(long = "env-var", value_parser = run::parse_pair)]
+        env_vars: Vec<(String, String)>,
+    },
     /// Compare la collection à la spec OpenAPI (fusion à 3 voies) : `--check` pour la CI, `--apply` pour écrire
     #[command(group(ArgGroup::new("mode").required(true).args(["check", "apply"])))]
     Sync {
@@ -116,6 +133,9 @@ fn main() -> ExitCode {
         Command::Import { source, location, group_by } => {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(import(&source, &location, group_by))
+        }
+        Command::Code { collection, request, lang, env, env_vars } => {
+            code(&collection, &request, &lang, env.as_deref(), env_vars)
         }
         Command::ImportPostman { file, location, environment } => import_postman(&file, &location, environment),
         Command::ImportInsomnia { file, location } => import_insomnia(&file, &location),
@@ -304,6 +324,29 @@ fn import_insomnia(file: &Path, location: &Path) -> ExitCode {
         Err(code) => return code,
     };
     report_import(insomnia_collection(&text, location).map(|(root, issues)| (root.display().to_string(), issues)))
+}
+
+fn code(collection: &Path, request: &str, lang: &str, env: Option<&str>, env_vars: Vec<(String, String)>) -> ExitCode {
+    use xc_codegen::Language;
+    let Some(language) = Language::from_id(lang) else {
+        let known: Vec<_> = Language::ALL.iter().map(|l| l.id()).collect();
+        return run::input_error(format!("langage inconnu : {lang} ({} attendu)", known.join(", ")));
+    };
+    let doc = match xc_core::read_request(collection, request) {
+        Ok(doc) => doc,
+        Err(e) => return run::input_error(e),
+    };
+    let runtime = env_vars.into_iter().collect();
+    match xc_core::prepare::snippet(collection, request, &doc, env, &runtime, xc_core::prepare::Overrides::default()) {
+        Ok((snippet, unresolved)) => {
+            for name in unresolved {
+                eprintln!("avertissement : la variable {name} n'a pas de valeur");
+            }
+            print!("{}", xc_codegen::generate(&snippet, language));
+            ExitCode::SUCCESS
+        }
+        Err(e) => run::input_error(e),
+    }
 }
 
 fn read_export(file: &Path) -> Result<String, ExitCode> {

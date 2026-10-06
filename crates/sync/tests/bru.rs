@@ -44,7 +44,7 @@ fn read(root: &Path, path: &str) -> xc_core::RequestDoc {
 }
 
 #[test]
-fn ef_imp_03_a_bru_collection_becomes_an_opencollection_folder_tree() {
+fn ef_imp_01_a_bru_collection_becomes_an_opencollection_folder_tree() {
     let (_dir, root, _) = imported();
     let info = open_collection(&root).unwrap();
     assert_eq!(info.name, "Boutique Bru");
@@ -68,7 +68,7 @@ fn ef_imp_03_a_bru_collection_becomes_an_opencollection_folder_tree() {
 }
 
 #[test]
-fn ef_imp_03_issues_name_what_could_not_be_converted_and_the_source_is_untouched() {
+fn ef_imp_01_issues_name_what_could_not_be_converted_and_the_source_is_untouched() {
     let before: Vec<_> = {
         let mut files = Vec::new();
         collect(&fixture(), &mut files);
@@ -104,7 +104,7 @@ fn collect(dir: &Path, out: &mut Vec<(PathBuf, String)>) {
 }
 
 #[test]
-fn ef_imp_03_a_request_keeps_its_url_params_headers_scripts_assertions_and_settings() {
+fn ef_imp_01_a_request_keeps_its_url_params_headers_scripts_assertions_and_settings() {
     let (_dir, root, _) = imported();
     let list = read(&root, "Utilisateurs/List users.yml");
     assert_eq!((list.method.as_str(), list.url.as_str()), ("GET", "{{baseUrl}}/users/:team?page=1"));
@@ -132,7 +132,7 @@ fn ef_imp_03_a_request_keeps_its_url_params_headers_scripts_assertions_and_setti
 }
 
 #[test]
-fn ef_imp_03_bodies_of_every_mode_are_converted() {
+fn ef_imp_01_bodies_of_every_mode_are_converted() {
     let (_dir, root, _) = imported();
     let create = read(&root, "Utilisateurs/Create user.yml");
     let Body::Json { data } = &create.body else { panic!("{:?}", create.body) };
@@ -162,7 +162,7 @@ fn ef_imp_03_bodies_of_every_mode_are_converted() {
 }
 
 #[test]
-fn ef_imp_03_auth_is_carried_at_every_level() {
+fn ef_imp_01_auth_is_carried_at_every_level() {
     let (_dir, root, _) = imported();
     let collection = fs::read_to_string(root.join("opencollection.yml")).unwrap();
     assert!(collection.contains("type: bearer") && collection.contains("{{token}}"), "{collection}");
@@ -193,7 +193,7 @@ fn ef_imp_03_auth_is_carried_at_every_level() {
 }
 
 #[test]
-fn ef_imp_03_post_response_variables_become_actions_and_pre_request_ones_variables() {
+fn ef_imp_01_post_response_variables_become_actions_and_pre_request_ones_variables() {
     let (_dir, root, _) = imported();
     let text = fs::read_to_string(root.join("Utilisateurs/Create user.yml")).unwrap();
     assert!(text.contains("name: retries") && text.contains("expression: res.body.id"), "{text}");
@@ -202,7 +202,7 @@ fn ef_imp_03_post_response_variables_become_actions_and_pre_request_ones_variabl
 }
 
 #[test]
-fn ef_imp_03_environments_keep_their_variables_and_secrets_without_values() {
+fn ef_imp_01_environments_keep_their_variables_and_secrets_without_values() {
     let (_dir, root, _) = imported();
     let local = read_environment(&root, "Local").unwrap();
     let list: Vec<_> = local.iter().map(|v| (v.name.as_str(), v.value.as_deref(), v.secret, v.enabled)).collect();
@@ -219,7 +219,7 @@ fn ef_imp_03_environments_keep_their_variables_and_secrets_without_values() {
 }
 
 #[test]
-fn ef_imp_03_each_request_keeps_its_seq_and_the_files_read_back_without_loss() {
+fn ef_imp_01_each_request_keeps_its_seq_and_the_files_read_back_without_loss() {
     let (_dir, root, _) = imported();
     let seqs: Vec<_> = ["Login.yml", "Orders.yml", "Future.yml", "Utilisateurs/Upload.yml"]
         .iter()
@@ -236,7 +236,7 @@ fn ef_imp_03_each_request_keeps_its_seq_and_the_files_read_back_without_loss() {
 }
 
 #[test]
-fn ef_imp_03_ignored_folders_hidden_folders_and_crlf_files_are_handled() {
+fn ef_imp_01_ignored_folders_hidden_folders_and_crlf_files_are_handled() {
     let dir = tempfile::tempdir().unwrap();
     let source = dir.path().join("src");
     copy(&fixture(), &source);
@@ -267,7 +267,7 @@ fn ef_imp_03_ignored_folders_hidden_folders_and_crlf_files_are_handled() {
 }
 
 #[test]
-fn ef_imp_03_two_imports_never_overwrite_each_other() {
+fn ef_imp_01_two_imports_never_overwrite_each_other() {
     let dir = tempfile::tempdir().unwrap();
     let (first, _) = import_bru(&fixture(), dir.path()).unwrap();
     let (second, _) = import_bru(&fixture(), dir.path()).unwrap();
@@ -276,7 +276,7 @@ fn ef_imp_03_two_imports_never_overwrite_each_other() {
 }
 
 #[test]
-fn ef_imp_03_a_folder_that_is_not_a_bru_collection_is_refused_as_bad_input() {
+fn ef_imp_01_a_folder_that_is_not_a_bru_collection_is_refused_as_bad_input() {
     let dir = tempfile::tempdir().unwrap();
     let error = import_bru(dir.path(), dir.path()).unwrap_err();
     assert!(error.is_input() && error.to_string().contains("bruno.json"), "{error}");
@@ -291,7 +291,7 @@ fn ef_imp_03_a_folder_that_is_not_a_bru_collection_is_refused_as_bad_input() {
 }
 
 #[test]
-fn ef_imp_03_saved_examples_become_yaml_examples() {
+fn ef_imp_01_saved_examples_become_yaml_examples() {
     let (_dir, root, _) = imported();
     let text = fs::read_to_string(root.join("Utilisateurs/List users.yml")).unwrap();
     assert!(text.contains("examples:") && text.contains("name: Two users"), "{text}");

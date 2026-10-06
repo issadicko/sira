@@ -13,6 +13,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
+xc-codegen.workspace = true
 xc-engine.workspace = true
 yaml-rust2 = "0.10"
 

@@ -320,6 +320,40 @@ async fn variables(
     Ok(scope.with_overrides(session.overrides(env.as_deref())).infos())
 }
 
+/// Le code d'une requête dans un langage, et les variables qui n'ont pas de valeur.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GeneratedCode {
+    code: String,
+    unresolved: Vec<String>,
+}
+
+/// Transcrit la requête en `language` (`curl`, `python`…), variables résolues comme à l'envoi. Les secrets du trousseau
+/// ne sortent pas : l'extrait porte un repère `<nom>` à leur place.
+#[tauri::command]
+async fn generate_code(
+    state: State<'_, AppState>,
+    root: String,
+    path: String,
+    doc: RequestDoc,
+    env: Option<String>,
+    language: String,
+) -> Reply<GeneratedCode> {
+    let language = xc_codegen::Language::from_id(&language).ok_or_else(|| format!("langage inconnu : {language}"))?;
+    let mut session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
+    let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.clone(), env.clone());
+    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
+    for (name, value) in &mut session.secrets {
+        *value = format!("<{name}>");
+    }
+    let overrides = xc_core::prepare::Overrides { headers: None, vars: session.overrides(env.as_deref()) };
+    let runtime = session.runtime_strings();
+    let (snippet, unresolved) =
+        blocking(move || xc_core::prepare::snippet(Path::new(&root), &path, &doc, env.as_deref(), &runtime, overrides))
+            .await?;
+    Ok(GeneratedCode { code: xc_codegen::generate(&snippet, language), unresolved })
+}
+
 #[tauri::command]
 async fn send_request<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -621,6 +655,7 @@ pub fn run() {
             import_postman_environment,
             import_insomnia,
             import_bru,
+            generate_code,
             inspect_folder,
             create_collection,
             init_collection,
@@ -878,7 +913,7 @@ paths:
     }
 
     #[tokio::test]
-    async fn ef_imp_02_command_imports_an_insomnia_export_with_its_environments() {
+    async fn ef_imp_01_command_imports_an_insomnia_export_with_its_environments() {
         let app = app();
         let state = || app.state::<AppState>();
         let dir = tempfile::tempdir().unwrap();
@@ -917,7 +952,7 @@ paths:
     }
 
     #[tokio::test]
-    async fn ef_imp_03_command_converts_a_bru_collection_and_leaves_the_source_alone() {
+    async fn ef_imp_01_command_converts_a_bru_collection_and_leaves_the_source_alone() {
         let app = app();
         let state = || app.state::<AppState>();
         let dir = tempfile::tempdir().unwrap();
@@ -940,6 +975,67 @@ paths:
         let refused =
             import_bru(state(), parent.display().to_string(), parent.display().to_string()).await.unwrap_err();
         assert!(refused.contains("bruno.json"), "{refused}");
+    }
+
+    #[tokio::test]
+    async fn ef_gen_01_command_generates_code_and_keeps_keychain_secrets_out_of_it() {
+        let store = Arc::new(xc_secrets::MemoryStore::default());
+        let app = tauri::test::mock_app();
+        app.manage(AppState { secrets: secrets::Secrets(store.clone()), ..AppState::default() });
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: S\n").unwrap();
+        fs::create_dir(root.join("environments")).unwrap();
+        fs::write(
+            root.join("environments/dev.yml"),
+            "name: dev\nvariables:\n  - name: base\n    value: https://shop.test\n  - secret: true\n    name: token\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("req.yml"),
+            "info:\n  name: R\n  type: http\n\nhttp:\n  method: GET\n  url: \"{{base}}/me?x={{missing}}\"\n  headers:\n    - name: X-Token\n      value: \"{{token}}\"\n",
+        )
+        .unwrap();
+        let root_path = root.display().to_string();
+        secrets::put(&*store, &root_path, "dev", &[("token".into(), "s3cr3t-value".into())]).unwrap();
+        let doc = xc_core::read_request(root, "req.yml").unwrap();
+
+        let python = generate_code(
+            state(),
+            root_path.clone(),
+            "req.yml".into(),
+            doc.clone(),
+            Some("dev".into()),
+            "python".into(),
+        )
+        .await
+        .unwrap();
+        assert!(python.code.contains("https://shop.test/me?x={{missing}}"), "{}", python.code);
+        assert!(python.code.contains("\"X-Token\": \"<token>\""), "{}", python.code);
+        assert!(!python.code.contains("s3cr3t-value"), "le secret ne sort pas du trousseau : {}", python.code);
+        assert_eq!(python.unresolved, ["missing"]);
+
+        let curl =
+            generate_code(state(), root_path.clone(), "req.yml".into(), doc.clone(), Some("dev".into()), "curl".into())
+                .await
+                .unwrap();
+        assert!(curl.code.starts_with("curl --request GET"), "{}", curl.code);
+
+        let unknown = generate_code(state(), root_path, "req.yml".into(), doc, Some("dev".into()), "cobol".into())
+            .await
+            .unwrap_err();
+        assert!(unknown.contains("langage inconnu"), "{unknown}");
+    }
+
+    #[test]
+    fn ef_gen_01_the_front_language_list_matches_the_generators() {
+        let model = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/app/core/model.ts")).unwrap();
+        let list = model.split("export const CODE_LANGUAGES").nth(1).expect("liste des langages du front");
+        let list = list.split("];").next().unwrap();
+        let front: Vec<&str> = list.split("{ id: '").skip(1).filter_map(|entry| entry.split('\'').next()).collect();
+        let back: Vec<&str> = xc_codegen::Language::ALL.iter().map(|l| l.id()).collect();
+        assert_eq!(front, back);
     }
 
     #[tokio::test]

@@ -5582,6 +5582,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "trash",
+ "xc-codegen",
  "xc-core",
  "xc-engine",
  "xc-runner",
@@ -5598,10 +5599,18 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "xc-codegen",
  "xc-core",
  "xc-engine",
  "xc-runner",
  "xc-sync",
+]
+
+[[package]]
+name = "xc-codegen"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -5616,6 +5625,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "uuid",
+ "xc-codegen",
  "xc-engine",
  "yaml-rust2",
 ]

@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 
 import {
+  CodeLanguage,
   CollectionInfo,
   DataInfo,
   DiskChange,
@@ -9,9 +10,10 @@ import {
   EnvVar,
   ExportArgs,
   FolderKind,
+  GeneratedCode,
   GroupBy,
-  OpenApiPreview,
   ImportedCollection,
+  OpenApiPreview,
   OpView,
   ReportFormat,
   RequestDoc,
@@ -58,6 +60,8 @@ export interface Api {
   /** Environnement que la collection ouvre par défaut ; `null` pour n'en choisir aucun. */
   setDefaultEnvironment(root: string, name: string | null): Promise<void>;
   variables(root: string, path: string, doc: RequestDoc, env: string | null): Promise<VariableInfo[]>;
+  /** Le code de la requête dans `language`, variables résolues ; les secrets y sont des repères `<nom>`. */
+  generateCode(root: string, path: string, doc: RequestDoc, env: string | null, language: CodeLanguage): Promise<GeneratedCode>;
   send(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<SendResult>;
   cancel(id: string): Promise<boolean>;
   parseCurl(command: string): Promise<RequestDoc | null>;
@@ -138,6 +142,7 @@ const tauriApi: Api = {
   deleteEnvironment: (root, name) => invoke('delete_environment', { root, name }),
   setDefaultEnvironment: (root, name) => invoke('set_default_environment', { root, name }),
   variables: (root, path, doc, env) => invoke('variables', { root, path, doc, env }),
+  generateCode: (root, path, doc, env, language) => invoke('generate_code', { root, path, doc, env, language }),
   send: (id, root, path, doc, env) => invoke('send_request', { args: { id, root, path, doc, env } }),
   cancel: (id) => invoke('cancel_request', { id }),
   parseCurl: (command) => invoke('parse_curl', { command }),

@@ -233,7 +233,7 @@ environments:
 "#;
 
 #[test]
-fn ef_imp_02_cli_import_insomnia_creates_the_collection_with_its_environments_and_lists_what_it_skipped() {
+fn ef_imp_01_cli_import_insomnia_creates_the_collection_with_its_environments_and_lists_what_it_skipped() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("boutique.insomnia.yaml");
     fs::write(&file, INSOMNIA_V5).unwrap();
@@ -254,7 +254,7 @@ fn ef_imp_02_cli_import_insomnia_creates_the_collection_with_its_environments_an
 }
 
 #[test]
-fn ef_imp_02_cli_import_insomnia_refuses_an_unreadable_or_workspace_less_file_with_code_2() {
+fn ef_imp_01_cli_import_insomnia_refuses_an_unreadable_or_workspace_less_file_with_code_2() {
     let dir = tempfile::tempdir().unwrap();
     let (code, _, stderr) =
         xc(&["import-insomnia", dir.path().join("absent.json").to_str().unwrap(), dir.path().to_str().unwrap()]);
@@ -283,7 +283,7 @@ fn bru_collection(dir: &Path) -> std::path::PathBuf {
 }
 
 #[test]
-fn ef_imp_03_cli_import_bru_converts_a_bru_collection_without_touching_the_source() {
+fn ef_imp_01_cli_import_bru_converts_a_bru_collection_without_touching_the_source() {
     let dir = tempfile::tempdir().unwrap();
     let source = bru_collection(dir.path());
     let out = dir.path().join("collections");
@@ -304,7 +304,7 @@ fn ef_imp_03_cli_import_bru_converts_a_bru_collection_without_touching_the_sourc
 }
 
 #[test]
-fn ef_imp_03_cli_import_bru_refuses_a_folder_without_bruno_json_with_code_2() {
+fn ef_imp_01_cli_import_bru_refuses_a_folder_without_bruno_json_with_code_2() {
     let dir = tempfile::tempdir().unwrap();
     let (code, _, stderr) = xc(&["import-bru", dir.path().to_str().unwrap(), dir.path().to_str().unwrap()]);
     assert_eq!(code, 2);

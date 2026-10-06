@@ -77,11 +77,11 @@ enum Format {
     Html,
 }
 
-fn parse_pair(s: &str) -> Result<(String, String), String> {
+pub(crate) fn parse_pair(s: &str) -> Result<(String, String), String> {
     s.split_once('=').map(|(k, v)| (k.to_owned(), v.to_owned())).ok_or_else(|| format!("attendu nom=valeur, reçu {s}"))
 }
 
-fn input_error(message: impl std::fmt::Display) -> ExitCode {
+pub(crate) fn input_error(message: impl std::fmt::Display) -> ExitCode {
     eprintln!("erreur : {message}");
     ExitCode::from(2)
 }

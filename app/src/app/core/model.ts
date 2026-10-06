@@ -461,3 +461,24 @@ export interface ImportedCollection {
   root: string;
   issues: ImportIssue[];
 }
+
+export type CodeLanguage = 'curl' | 'javascript' | 'python' | 'go' | 'java' | 'kotlin' | 'dart' | 'php' | 'csharp';
+
+/** Les langages de « Générer du code », dans l'ordre de l'interface ; `library` est celle que l'extrait utilise. */
+export const CODE_LANGUAGES: { id: CodeLanguage; label: string; library: string }[] = [
+  { id: 'curl', label: 'cURL', library: 'curl' },
+  { id: 'javascript', label: 'JavaScript', library: 'fetch' },
+  { id: 'python', label: 'Python', library: 'requests' },
+  { id: 'go', label: 'Go', library: 'net/http' },
+  { id: 'java', label: 'Java', library: 'OkHttp' },
+  { id: 'kotlin', label: 'Kotlin', library: 'OkHttp' },
+  { id: 'dart', label: 'Dart', library: 'package:http' },
+  { id: 'php', label: 'PHP', library: 'cURL' },
+  { id: 'csharp', label: 'C#', library: 'HttpClient' },
+];
+
+/** Le code d'une requête dans un langage, et les variables qui n'ont pas de valeur. */
+export interface GeneratedCode {
+  code: string;
+  unresolved: string[];
+}

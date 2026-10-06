@@ -61,6 +61,7 @@ import { UrlBar } from './url-bar';
             <app-ic name="check" [size]="12" />Enregistré sur le disque
           }
         </span>
+        <button class="icon-btn sm crumbs-code" (click)="ws.dialog.set('code')" title="Générer du code" aria-label="Générer du code"><app-ic name="code" [size]="14" /></button>
       </div>
       <app-url-bar />
       </div>

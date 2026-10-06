@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use base64::Engine as _;
+use xc_codegen::{Auth as SnippetAuth, Body as SnippetBody, Part, PartValue, Snippet};
 use xc_engine::HttpRequest;
 
 use crate::collection::resolve_visible_path;
@@ -192,6 +193,84 @@ pub fn prepare_with(
         unresolved,
         auth: send_auth,
     })
+}
+
+/// La requête telle qu'elle partirait, variables résolues, prête à être transcrite en code (`xc-codegen`). Les fichiers
+/// d'un formulaire multipart ne sont pas lus : l'extrait garde leurs chemins. Renvoie aussi les variables sans valeur.
+pub fn snippet(
+    root: &Path,
+    request_path: &str,
+    doc: &RequestDoc,
+    env: Option<&str>,
+    runtime: &HashMap<String, String>,
+    overrides: Overrides,
+) -> Result<(Snippet, Vec<String>), CoreError> {
+    let multipart = match &doc.body {
+        Body::MultipartForm { fields } => Some(fields.clone()),
+        _ => None,
+    };
+    let mut plain = doc.clone();
+    if multipart.is_some() {
+        plain.body = Body::None;
+    }
+    let Prepared { request, mut unresolved, auth } =
+        prepare_with(root, request_path, &plain, env, runtime, overrides.clone())?;
+
+    let mut headers = request.headers;
+    let body = match multipart {
+        Some(fields) => {
+            headers.retain(|(name, _)| !name.eq_ignore_ascii_case("content-type"));
+            let ctx = Context::load(root, request_path)?;
+            let scope = Scope::build(root, &ctx, request_path, doc, env, runtime)?.with_overrides(overrides.vars);
+            let mut fill = |s: &str| scope.interpolate(s, &mut unresolved);
+            let mut parts = Vec::new();
+            for field in fields.iter().filter(|f| f.enabled) {
+                let name = fill(&field.name);
+                let content_type = field.content_type.clone().filter(|c| !c.is_empty());
+                match &field.value {
+                    MultipartValue::Text(value) => {
+                        parts.push(Part { name, value: PartValue::Text(fill(value)), content_type });
+                    }
+                    MultipartValue::File(paths) => {
+                        for path in paths {
+                            let path = fill(path).trim().to_owned();
+                            parts.push(Part {
+                                name: name.clone(),
+                                value: PartValue::File(path),
+                                content_type: content_type.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+            SnippetBody::Multipart(parts)
+        }
+        None => match request.body {
+            Some(bytes) => SnippetBody::Raw(String::from_utf8_lossy(&bytes).into_owned()),
+            None => SnippetBody::None,
+        },
+    };
+
+    let mut notes = Vec::new();
+    let auth = match auth {
+        SendAuth::None => SnippetAuth::None,
+        SendAuth::Digest { username, password } => SnippetAuth::Digest { username, password },
+        SendAuth::Aws(aws) => SnippetAuth::Aws {
+            access_key_id: aws.access_key_id,
+            secret_access_key: aws.secret_access_key,
+            session_token: aws.session_token,
+            region: aws.region,
+            service: aws.service,
+        },
+        SendAuth::Oauth2(_) => {
+            notes.push(
+                "OAuth 2.0 : ajoute l'en-tête Authorization avec le jeton que Sira obtient à l'envoi.".to_owned(),
+            );
+            SnippetAuth::None
+        }
+    };
+    unresolved.dedup();
+    Ok((Snippet { method: request.method, url: request.url, headers, body, auth, notes }, unresolved))
 }
 
 fn effective_auth(doc: &RequestDoc, ctx: &Context) -> Auth {

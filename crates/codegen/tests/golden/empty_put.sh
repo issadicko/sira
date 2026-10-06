@@ -1,0 +1,2 @@
+curl --request PUT \
+  --url 'http://127.0.0.1:8765/items/7'

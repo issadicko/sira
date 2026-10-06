@@ -222,6 +222,15 @@ export const demoApi: Api = {
     return true;
   },
   variables: async (_root, path, _doc, env) => variables(path, env),
+  generateCode: async (_root, path, doc, env, language) => {
+    const known = variables(path, env);
+    const fill = (text: string) => text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (all, name: string) => known.find((v) => v.name === name)?.value ?? all);
+    const parts = [`--request ${doc.method.toUpperCase()}`, `--url '${fill(doc.url)}'`];
+    for (const h of doc.headers.filter((h) => h.enabled)) parts.push(`--header '${h.name}: ${fill(h.value)}'`);
+    if (doc.body.type === 'json' || doc.body.type === 'text' || doc.body.type === 'xml') parts.push(`--data-raw '${fill(doc.body.data)}'`);
+    const note = language === 'curl' ? '' : "# Mode démo : seul cURL est généré ici, l'application desktop génère les neuf langages.\n";
+    return { code: `${note}curl ${parts.join(' \\\n  ')}\n`, unresolved: [] };
+  },
   oauthStatus: async (_root, path) => structuredClone(tokens.get(path) ?? null),
   oauthFetch: async (_root, path, doc) => {
     if (doc.auth.type !== 'oauth2') throw "Cette requête n'utilise pas OAuth 2";

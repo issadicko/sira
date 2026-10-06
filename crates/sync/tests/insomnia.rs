@@ -34,7 +34,7 @@ fn read(root: &Path, path: &str) -> xc_core::RequestDoc {
 }
 
 #[test]
-fn ef_imp_02_an_insomnia_v4_export_becomes_a_folder_tree_without_duplicated_requests() {
+fn ef_imp_01_an_insomnia_v4_export_becomes_a_folder_tree_without_duplicated_requests() {
     let (_dir, root, _) = imported(V4);
     let info = open_collection(&root).unwrap();
     assert_eq!(info.name, "Shop Insomnia");
@@ -58,7 +58,7 @@ fn ef_imp_02_an_insomnia_v4_export_becomes_a_folder_tree_without_duplicated_requ
 }
 
 #[test]
-fn ef_imp_02_items_keep_the_order_insomnia_shows() {
+fn ef_imp_01_items_keep_the_order_insomnia_shows() {
     let (_dir, root, _) = imported(V4);
     let list = read(&root, "Users/List users.yml");
     let create = read(&root, "Users/Create user.yml");
@@ -69,7 +69,7 @@ fn ef_imp_02_items_keep_the_order_insomnia_shows() {
 }
 
 #[test]
-fn ef_imp_02_insomnia_variables_lose_their_prefix_and_spaces() {
+fn ef_imp_01_insomnia_variables_lose_their_prefix_and_spaces() {
     let (_dir, root, _) = imported(V4);
     let list = read(&root, "Users/List users.yml");
     assert_eq!(list.url, "{{base_url}}/users/:team?page=1");
@@ -88,7 +88,7 @@ fn ef_imp_02_insomnia_variables_lose_their_prefix_and_spaces() {
 }
 
 #[test]
-fn ef_imp_02_bodies_of_every_mode_are_converted() {
+fn ef_imp_01_bodies_of_every_mode_are_converted() {
     let (_dir, root, _) = imported(V4);
     let create = read(&root, "Users/Create user.yml");
     assert!(matches!(&create.body, Body::Json { data } if data == "{\"name\": \"{{who}}\"}"), "{:?}", create.body);
@@ -113,7 +113,7 @@ fn ef_imp_02_bodies_of_every_mode_are_converted() {
 }
 
 #[test]
-fn ef_imp_02_authentication_is_carried_for_every_supported_type() {
+fn ef_imp_01_authentication_is_carried_for_every_supported_type() {
     let (_dir, root, issues) = imported(V4);
     assert!(matches!(&read(&root, "Users/List users.yml").auth, Auth::Bearer { token } if token == "{{token}}"));
     assert!(
@@ -137,7 +137,7 @@ fn ef_imp_02_authentication_is_carried_for_every_supported_type() {
 }
 
 #[test]
-fn ef_imp_02_encode_url_follows_the_request_setting() {
+fn ef_imp_01_encode_url_follows_the_request_setting() {
     let (_dir, root, _) = imported(V4);
     let text = fs::read_to_string(root.join("Users/List users.yml")).unwrap();
     assert!(text.contains("encodeUrl: false"), "{text}");
@@ -146,7 +146,7 @@ fn ef_imp_02_encode_url_follows_the_request_setting() {
 }
 
 #[test]
-fn ef_imp_02_v4_environments_are_flattened_and_sub_environments_inherit_the_base() {
+fn ef_imp_01_v4_environments_are_flattened_and_sub_environments_inherit_the_base() {
     let (_dir, root, _) = imported(V4);
     let base = read_environment(&root, "Base Environment").unwrap();
     let list: Vec<_> = base.iter().map(|v| (v.name.as_str(), v.value.as_deref().unwrap_or_default())).collect();
@@ -169,7 +169,7 @@ fn ef_imp_02_v4_environments_are_flattened_and_sub_environments_inherit_the_base
 }
 
 #[test]
-fn ef_imp_02_an_insomnia_v5_yaml_export_is_converted() {
+fn ef_imp_01_an_insomnia_v5_yaml_export_is_converted() {
     let (_dir, root, issues) = imported(V5);
     let info = open_collection(&root).unwrap();
     assert_eq!(info.name, "Shop v5");
@@ -191,7 +191,7 @@ fn ef_imp_02_an_insomnia_v5_yaml_export_is_converted() {
 }
 
 #[test]
-fn ef_imp_02_v5_environments_merge_each_sub_environment_over_the_base() {
+fn ef_imp_01_v5_environments_merge_each_sub_environment_over_the_base() {
     let (_dir, root, _) = imported(V5);
     let base = read_environment(&root, "Base Environment").unwrap();
     assert_eq!(
@@ -206,7 +206,7 @@ fn ef_imp_02_v5_environments_merge_each_sub_environment_over_the_base() {
 }
 
 #[test]
-fn ef_imp_02_the_imported_files_are_read_back_without_loss_by_the_editor() {
+fn ef_imp_01_the_imported_files_are_read_back_without_loss_by_the_editor() {
     let (_dir, root, _) = imported(V4);
     for path in ["Users/List users.yml", "Users/Create user.yml", "Login.yml", "Token.yml", "Soap.yml"] {
         let doc = read(&root, path);
@@ -217,7 +217,7 @@ fn ef_imp_02_the_imported_files_are_read_back_without_loss_by_the_editor() {
 }
 
 #[test]
-fn ef_imp_02_bad_input_is_reported_as_input_not_as_a_failure() {
+fn ef_imp_01_bad_input_is_reported_as_input_not_as_a_failure() {
     let dir = tempfile::tempdir().unwrap();
     let no_workspace = import_insomnia(r#"{"_type":"export","resources":[]}"#, dir.path()).unwrap_err();
     assert!(no_workspace.is_input(), "{no_workspace}");
@@ -227,7 +227,7 @@ fn ef_imp_02_bad_input_is_reported_as_input_not_as_a_failure() {
 }
 
 #[test]
-fn ef_imp_02_two_imports_never_overwrite_each_other() {
+fn ef_imp_01_two_imports_never_overwrite_each_other() {
     let dir = tempfile::tempdir().unwrap();
     let (first, _) = import_insomnia(V4, dir.path()).unwrap();
     let (second, _) = import_insomnia(V4, dir.path()).unwrap();

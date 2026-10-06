@@ -12,7 +12,8 @@ Client API compatible avec les collections Bruno (OpenCollection YAML) : un doss
 | `crates/core` | Lecture et écriture OpenCollection YAML à l'identique de Bruno, résolution des variables, héritage auth et en-têtes, assertions |
 | `crates/sync` | Imports à l'identique de Bruno (cURL, OpenAPI 3.0 / 3.1 / Swagger 2.0, sérialiseur OpenCollection YAML) et synchro OpenAPI à 3 voies non destructive (`.oc-sync/`) |
 | `crates/watch` | Surveillance du dossier de la collection (`notify`) : changements du disque regroupés en lots de chemins relatifs |
-| `crates/cli` | Binaire `xc` : `run`, `check`, `import`, `import-postman`, `import-insomnia`, `import-bru` et `sync` |
+| `crates/codegen` | Génération de code (cURL, JavaScript, Python, Go, Java, Kotlin, Dart, PHP, C#) |
+| `crates/cli` | Binaire `xc` : `run`, `check`, `import`, `import-postman`, `import-insomnia`, `import-bru`, `code` et `sync` |
 | `app/` | Interface Angular 21 zoneless (signals) ; `app/src-tauri` : commandes Tauri |
 | `examples/demo` | Collection de démonstration (httpbin.org) |
 | `docs/` | Cahier des charges, roadmap, études, maquettes |
