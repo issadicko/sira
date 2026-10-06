@@ -6,6 +6,8 @@ export const DEFAULT_PROXY: ProxyConfig = { protocol: 'http', hostname: '', port
 
 export const DEFAULT_NETWORK: NetworkPrefs = {
   verifyTls: true,
+  sendCookies: true,
+  storeCookies: true,
   caFile: null,
   keepDefaultRoots: true,
   clientCertificates: [],

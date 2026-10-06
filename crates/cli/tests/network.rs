@@ -76,3 +76,68 @@ fn ef_req_04_noproxy_ignores_the_collection_proxy() {
     assert_eq!(origin_seen.recv().unwrap().to_lowercase(), "get /ping http/1.1");
     assert!(proxy_seen.try_recv().is_err(), "le proxy n'a rien reçu");
 }
+
+/// Un serveur qui pose un cookie à la première requête et garde les deux premières lignes de requêtes reçues.
+fn serve_cookie() -> (u16, mpsc::Receiver<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().take(2).enumerate() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap();
+            let cookie = String::from_utf8_lossy(&buf[..n])
+                .lines()
+                .find(|l| l.to_ascii_lowercase().starts_with("cookie:"))
+                .unwrap_or("cookie: (aucun)")
+                .to_ascii_lowercase();
+            sender.send(cookie).ok();
+            let set = if i == 0 { "set-cookie: sid=abc; Path=/\r\n" } else { "" };
+            write!(stream, "HTTP/1.1 200 OK\r\n{set}content-length: 2\r\nconnection: close\r\n\r\nok").unwrap();
+        }
+    });
+    (port, receiver)
+}
+
+fn two_requests(origin: u16) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write(
+        root,
+        "opencollection.yml",
+        "opencollection: 1.0.0\n\ninfo:\n  name: Cookies\nbundled: false\nextensions: {}\n",
+    );
+    for (name, seq) in [("a", 1), ("b", 2)] {
+        write(
+            root,
+            &format!("{name}.yml"),
+            &format!("info:\n  name: {name}\n  type: http\n  seq: {seq}\n\nhttp:\n  method: GET\n  url: http://127.0.0.1:{origin}/{name}\n"),
+        );
+    }
+    dir
+}
+
+#[test]
+fn ef_ux_02_run_carries_a_cookie_from_one_request_to_the_next() {
+    let (origin, seen) = serve_cookie();
+    let dir = two_requests(origin);
+
+    let (code, out) = xc(&["run", dir.path().to_str().unwrap()]);
+
+    assert_eq!(code, 0, "{out}");
+    assert_eq!(seen.recv().unwrap(), "cookie: (aucun)");
+    assert_eq!(seen.recv().unwrap(), "cookie: sid=abc");
+}
+
+#[test]
+fn ef_ux_02_disable_cookies_keeps_the_jar_empty() {
+    let (origin, seen) = serve_cookie();
+    let dir = two_requests(origin);
+
+    let (code, out) = xc(&["run", dir.path().to_str().unwrap(), "--disable-cookies"]);
+
+    assert_eq!(code, 0, "{out}");
+    assert_eq!(seen.recv().unwrap(), "cookie: (aucun)");
+    assert_eq!(seen.recv().unwrap(), "cookie: (aucun)");
+}

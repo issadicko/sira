@@ -1,4 +1,4 @@
-# Réglages réseau (V1, EF-REQ-04)
+# Réglages réseau (V1, EF-REQ-04) et cookies (EF-UX-02)
 
 Les règles ont été relevées dans le code de Bruno (`bruno-electron/src/ipc/network`, `bruno-cli/src/runner`, `bruno-requests`) : ce qu'elles disent d'une redirection, d'un délai, d'un proxy, d'une autorité de certification ou d'un certificat client est repris tel quel, sauf écart signalé.
 
@@ -110,4 +110,17 @@ xc run ma-collection --client-cert-config certificats.json
 ```
 
 `--client-cert-config` lit `{"enabled": true, "certs": [{"domain": "…", "type": "cert", "certFilePath": "…", "keyFilePath": "…"}]}` ; ces entrées passent après celles de la collection, et une valeur `enabled` fausse ou une liste absente n'ajoute rien (avertissement). `--insecure` avec `--cacert` : le fichier est ignoré (avertissement). La ligne de commande ne lit aucune préférence : sans option, la vérification est active et le proxy est celui de la collection ou de l'environnement.
+
+## Cookies
+
+L'application et `xc run` ont **un pot de cookies en mémoire**, comme Bruno : partagé par toutes les collections et les requêtes, vide à chaque lancement, jamais écrit sur le disque. Chaque saut d'un envoi (redirections comprises) :
+
+- **envoie** les cookies du pot qui correspondent à son adresse (domaine, chemin, `Secure`, `HttpOnly`, expiration) ; le chemin le plus long passe d'abord, puis le cookie le plus ancien ;
+- **range** ceux de ses en-têtes `Set-Cookie`. Un cookie qui vise un autre domaine que celui de la réponse, ou un suffixe public (`Domain=com`, `Domain=co.uk`), est ignoré ; `Max-Age=0` ou une date passée supprime le cookie.
+
+Un en-tête `Cookie` écrit à la main dans la requête est complété par ceux du pot, qui l'emportent pour un même nom. Il ne suit pas une redirection vers une autre origine (écart avec Bruno, qui le laisse partir). Un cookie `Secure` part aussi vers `localhost` et les adresses locales en `http`. Les requêtes lancées par un script avec `bru.sendRequest` ou `axios` ne passent pas par le pot ; `bru.runRequest` et le runner, si. Les scripts lisent et modifient le pot avec `bru.cookies` (voir [Scripts](scripts.md)).
+
+- **Réglages › Réseau** : « Envoyer les cookies » et « Garder les cookies reçus » se coupent séparément (les deux sont actifs par défaut).
+- **Réglages › Cookies** : le pot par domaine ; ajouter un cookie (nom, valeur, domaine, chemin, expiration UTC, `Secure`, `HttpOnly`, « cet hôte seulement »), modifier, supprimer, supprimer un domaine, tout effacer.
+- **`xc run --disable-cookies`** : ni envoi ni enregistrement, le pot reste vide. Sinon le pot d'une exécution passe d'une requête et d'une itération à la suivante.
 

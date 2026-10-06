@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use base64::Engine as _;
 use xc_codegen::{Auth as SnippetAuth, Body as SnippetBody, Part, PartValue, Snippet};
-use xc_engine::{HttpRequest, Network, Redirects};
+use xc_engine::{CookieJar, Cookies, HttpRequest, Network, Redirects};
 
 use crate::collection::resolve_visible_path;
 use crate::graphql;
@@ -64,6 +64,8 @@ pub struct Overrides {
     /// Les réglages réseau de l'hôte (TLS, autorité, proxy, certificats) ; avec ceux de la collection, ils s'appliquent
     /// à l'envoi. `None` pour ce qui n'envoie rien (extrait de code) : rien n'est résolu ni lu sur le disque.
     pub network: Option<NetworkPrefs>,
+    /// Le pot de cookies de l'hôte ; sans lui, aucun cookie n'est envoyé ni gardé.
+    pub cookies: Option<CookieJar>,
 }
 
 /// En-têtes activés de la collection, des dossiers puis de la requête, fusionnés comme le fait Bruno : une clé garde sa
@@ -200,12 +202,19 @@ pub fn prepare_with(
     }
 
     let redirects = redirects_of(doc);
-    let network = match &overrides.network {
+    let mut network = match &overrides.network {
         Some(prefs) => network::resolve(root, &ctx.collection, prefs, &url, redirects, &mut fill, &|name| {
             std::env::var(name).ok()
         })?,
         None => Network { redirects, ..Network::default() },
     };
+    if let (Some(prefs), Some(jar)) = (&overrides.network, &overrides.cookies) {
+        network.cookies = (prefs.send_cookies || prefs.store_cookies).then(|| Cookies {
+            jar: jar.clone(),
+            send: prefs.send_cookies,
+            store: prefs.store_cookies,
+        });
+    }
 
     Ok(Prepared {
         request: HttpRequest {

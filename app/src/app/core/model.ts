@@ -138,11 +138,33 @@ export interface ProxyConfig {
 /** Les réglages réseau de l'application ; le mot de passe du proxy n'en fait pas partie (trousseau du système). */
 export interface NetworkPrefs {
   verifyTls: boolean;
+  sendCookies: boolean;
+  storeCookies: boolean;
   caFile: string | null;
   keepDefaultRoots: boolean;
   /** Gardés tels quels : ils ne se modifient pas depuis l'interface. */
   clientCertificates: unknown[];
   proxy: { mode: ProxyMode; config: ProxyConfig };
+}
+
+export interface CookieView {
+  key: string;
+  value: string;
+  domain: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+  hostOnly: boolean;
+  /** Instant ISO 8601 UTC ; `null` pour un cookie de session. */
+  expires: string | null;
+}
+
+export type CookieDraft = CookieView;
+
+export interface CookieKey {
+  domain: string;
+  path: string;
+  key: string;
 }
 
 export interface NetworkView {

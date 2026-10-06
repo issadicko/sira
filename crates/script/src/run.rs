@@ -95,6 +95,10 @@ pub trait Callbacks: Send + Sync {
     /// Envoie la requête décrite à la façon d'axios (`url`, `method`, `headers`, `data`, `params`, `timeout`) : la
     /// réponse (`status`, `statusText`, `headers`, `data`), ou l'erreur (`message`, `code`, `response`).
     fn send(&self, config: &Value) -> Result<Value, Value>;
+
+    /// Une opération sur le pot de cookies de l'hôte, décrite par `call` (`op`, `url`, …) ; son résultat, ou la raison
+    /// de l'échec.
+    fn cookies(&self, call: &Value) -> Result<Value, String>;
 }
 
 pub struct Input {
@@ -366,6 +370,21 @@ fn install<'js>(
             match clock.pause(|| callbacks.send(&config)) {
                 Ok(reply) => json!({ "ok": reply }),
                 Err(error) => json!({ "error": error }),
+            }
+            .to_string()
+        })?,
+    )?;
+    let cookie_callbacks = callbacks.clone();
+    h.set(
+        "cookies",
+        Function::new(ctx.clone(), move |call: String| -> String {
+            let Some(callbacks) = &cookie_callbacks else {
+                return json!({ "error": "unavailable" }).to_string();
+            };
+            let call = serde_json::from_str(&call).unwrap_or(Value::Null);
+            match callbacks.cookies(&call) {
+                Ok(value) => json!({ "ok": value }),
+                Err(message) => json!({ "error": message }),
             }
             .to_string()
         })?,

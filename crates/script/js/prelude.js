@@ -162,6 +162,127 @@
     };
   }
 
+  if (init.meta.canRunRequest) {
+    // `bru.cookies` : le pot de cookies de l'hôte. Les méthodes d'écriture rendent une promesse, ou appellent le
+    // rappel `(err, résultat)` quand il est donné, comme dans Bruno.
+    const cookieHost = (call) => {
+      const reply = JSON.parse(h.cookies(JSON.stringify(call)));
+      if (reply.error) throw new Error(reply.error);
+      return reply.ok;
+    };
+
+    const settle = async (work, callback) => {
+      if (typeof callback !== 'function') return work();
+      let result;
+      try {
+        result = work();
+      } catch (error) {
+        await callback(error, null);
+        return undefined;
+      }
+      await callback(null, result);
+      return undefined;
+    };
+
+    const requestUrl = () => interpolate(init.request.url);
+
+    const plainCookie = (cookie) => {
+      const out = { ...cookie };
+      if (out.name !== undefined && out.key === undefined) out.key = out.name;
+      delete out.name;
+      if (out.expires === undefined || out.expires === null || out.expires === 'Infinity' || out.expires === Infinity) {
+        delete out.expires;
+      } else {
+        const at = new Date(out.expires);
+        if (Number.isNaN(at.getTime())) delete out.expires;
+        else out.expires = at.toISOString();
+      }
+      return out;
+    };
+
+    const needUrl = (url) => {
+      if (!url) throw new Error('URL is required');
+      return String(url);
+    };
+
+    const setCookies = (url, cookies) => {
+      for (const cookie of cookies) {
+        const plain = plainCookie(cookie || {});
+        if (!plain.key) throw new Error('cookieObject.key (name) is required');
+      }
+      cookieHost({ op: 'set', url: needUrl(url), cookies: cookies.map(plainCookie) });
+    };
+
+    const jar = () => ({
+      getCookie: (url, name, callback) => {
+        if (!url || !name) return settle(() => { throw new Error('URL and cookie name are required'); }, callback);
+        return settle(() => cookieHost({ op: 'get', url: interpolate(url), name }), callback);
+      },
+      getCookies: (url, callback) =>
+        settle(() => cookieHost({ op: 'matching', url: interpolate(needUrl(url)) }), callback),
+      hasCookie: (url, name, callback) => {
+        if (!url || !name) return settle(() => { throw new Error('URL and cookie name are required'); }, callback);
+        return settle(() => cookieHost({ op: 'has', url: interpolate(url), name }), callback);
+      },
+      setCookie: (url, nameOrCookie, valueOrCallback, maybeCallback) => {
+        const callback = typeof maybeCallback === 'function' ? maybeCallback : typeof valueOrCallback === 'function' ? valueOrCallback : undefined;
+        return settle(() => {
+          if (typeof nameOrCookie === 'string') {
+            if (!nameOrCookie) throw new Error('Cookie name is required');
+            const value = typeof valueOrCallback === 'string' ? valueOrCallback : '';
+            return setCookies(interpolate(needUrl(url)), [{ key: nameOrCookie, value }]);
+          }
+          if (nameOrCookie && typeof nameOrCookie === 'object') return setCookies(interpolate(needUrl(url)), [nameOrCookie]);
+          throw new Error('Invalid arguments passed to setCookie');
+        }, callback);
+      },
+      setCookies: (url, cookies, callback) =>
+        settle(() => {
+          needUrl(url);
+          if (!Array.isArray(cookies)) throw new Error('setCookies expects an array of cookie objects');
+          return setCookies(interpolate(url), cookies);
+        }, callback),
+      deleteCookie: (url, name, callback) =>
+        settle(() => cookieHost({ op: 'delete', url: interpolate(needUrl(url)), name }), callback),
+      deleteCookies: (url, callback) =>
+        settle(() => cookieHost({ op: 'delete', url: interpolate(needUrl(url)) }), callback),
+      clear: (callback) => settle(() => cookieHost({ op: 'clear' }), callback),
+    });
+
+    const items = () => (requestUrl() ? cookieHost({ op: 'matching', url: requestUrl() }) : []);
+    bru.cookies = {
+      get: (name) => items().findLast((c) => c.key === name)?.value,
+      one: (name) => items().findLast((c) => c.key === name),
+      all: () => [...items()],
+      idx: (index) => items()[index],
+      count: () => items().length,
+      indexOf: (item) =>
+        item && typeof item === 'object' ? items().findIndex((c) => c.key === item.key && c.value === item.value) : -1,
+      has: (name, value) => items().some((c) => c.key === name && (value === undefined || c.value === value)),
+      find: (predicate) => items().find(predicate),
+      filter: (predicate) => items().filter(predicate),
+      each: (fn) => items().forEach(fn),
+      map: (fn) => items().map(fn),
+      reduce: (fn, ...rest) => (rest.length ? items().reduce(fn, rest[0]) : items().reduce(fn)),
+      toObject: () => Object.fromEntries(items().map((c) => [c.key, c.value])),
+      toString: () => items().map((c) => `${c.key}=${c.value}`).join('; '),
+      toJSON: () => [...items()],
+      upsert: (cookie, callback) => {
+        if (!cookie || typeof cookie !== 'object') {
+          const error = new Error('cookieObj must be a non-null object');
+          return typeof callback === 'function' ? callback(error) : Promise.reject(error);
+        }
+        return requestUrl() ? jar().setCookie(requestUrl(), cookie, callback) : settle(() => undefined, callback);
+      },
+      remove: (name, callback) =>
+        requestUrl() && name ? jar().deleteCookie(requestUrl(), name, callback) : settle(() => undefined, callback),
+      clear: (callback) => (requestUrl() ? jar().deleteCookies(requestUrl(), callback) : settle(() => undefined, callback)),
+      jar,
+    };
+    bru.cookies.add = bru.cookies.upsert;
+    bru.cookies.delete = bru.cookies.remove;
+  }
+
   // ---------- requêtes envoyées par le script (axios, bru.sendRequest) ----------
 
   const send = async (config) => {

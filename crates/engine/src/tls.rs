@@ -17,8 +17,17 @@ fn provider() -> Arc<CryptoProvider> {
     PROVIDER.get_or_init(|| Arc::new(rustls::crypto::ring::default_provider())).clone()
 }
 
+static ROOTS: OnceLock<RootCertStore> = OnceLock::new();
+
+/// Charge les autorités du système avant le premier envoi sécurisé : sur macOS cela peut prendre plusieurs secondes,
+/// qui ne doivent pas compter dans le délai de la requête.
+pub(crate) async fn warm_up() {
+    if ROOTS.get().is_none() {
+        tokio::task::spawn_blocking(default_roots).await.ok();
+    }
+}
+
 fn default_roots() -> RootCertStore {
-    static ROOTS: OnceLock<RootCertStore> = OnceLock::new();
     ROOTS
         .get_or_init(|| {
             let mut roots = RootCertStore::empty();
@@ -128,4 +137,19 @@ where
 {
     let name = ServerName::try_from(host.to_owned()).map_err(tls_error)?;
     TlsConnector::from(config(tls)?).connect(name, stream).await.map_err(tls_error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn ef_req_04_warming_up_loads_the_system_roots_once_before_any_handshake() {
+        warm_up().await;
+        let loaded = ROOTS.get().expect("racines chargées").len();
+        assert!(loaded > 0);
+        warm_up().await;
+        assert_eq!(ROOTS.get().map(RootCertStore::len), Some(loaded));
+        assert!(config(&Tls::default()).is_ok());
+    }
 }

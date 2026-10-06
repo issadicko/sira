@@ -17,6 +17,7 @@ use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
+mod cookies;
 mod network;
 mod oauth;
 mod runs;
@@ -37,6 +38,8 @@ struct AppState {
     watch: Mutex<Option<xc_watch::Watch>>,
     /// Les réglages réseau de l'application (hors mot de passe du proxy, qui est dans le trousseau).
     network: Mutex<NetworkPrefs>,
+    /// Le pot de cookies, partagé par toutes les collections et gardé en mémoire seulement, comme celui de Bruno.
+    cookies: xc_engine::CookieJar,
 }
 
 /// Une requête en cours d'envoi : sa tâche et le drapeau qui interrompt ses scripts.
@@ -320,6 +323,7 @@ async fn loaded_session(state: &AppState, root: &str, env: Option<&str>) -> Repl
     let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.to_owned(), env.map(str::to_owned));
     session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
     session.network = network::current(state)?;
+    session.cookies = state.cookies.clone();
     Ok(session)
 }
 
@@ -362,8 +366,12 @@ async fn generate_code(
     for (name, value) in &mut session.secrets {
         *value = format!("<{name}>");
     }
-    let overrides =
-        xc_core::prepare::Overrides { headers: None, vars: session.overrides(env.as_deref()), network: None };
+    let overrides = xc_core::prepare::Overrides {
+        headers: None,
+        vars: session.overrides(env.as_deref()),
+        network: None,
+        cookies: None,
+    };
     let runtime = session.runtime_strings();
     let (snippet, unresolved) =
         blocking(move || xc_core::prepare::snippet(Path::new(&root), &path, &doc, env.as_deref(), &runtime, overrides))
@@ -764,6 +772,11 @@ pub fn run() {
             history_clear,
             network::network_get,
             network::network_save,
+            cookies::cookies_list,
+            cookies::cookie_save,
+            cookies::cookie_delete,
+            cookies::cookies_delete_domain,
+            cookies::cookies_clear,
             graphql_schema,
             graphql_fetch_schema,
             parse_curl,

@@ -80,6 +80,9 @@ pub struct RunArgs {
     /// N'utilise aucun proxy, ni celui de la collection ni celui de l'environnement
     #[arg(long)]
     noproxy: bool,
+    /// N'envoie ni ne garde aucun cookie : le pot de cookies reste vide
+    #[arg(long)]
+    disable_cookies: bool,
     /// Fichier JSON {"enabled": true, "certs": [...]} de certificats client, après ceux de la collection
     #[arg(long, value_name = "FICHIER")]
     client_cert_config: Option<PathBuf>,
@@ -107,6 +110,8 @@ fn network_prefs(args: &RunArgs) -> Result<NetworkPrefs, String> {
         verify_tls: !args.insecure,
         keep_default_roots: !args.ignore_truststore,
         no_proxy: args.noproxy,
+        send_cookies: !args.disable_cookies,
+        store_cookies: !args.disable_cookies,
         ..NetworkPrefs::default()
     };
     if let Some(cacert) = &args.cacert {
@@ -369,6 +374,14 @@ mod tests {
     fn ef_req_04_insecure_and_noproxy_and_ignore_truststore_set_their_preference() {
         let p = prefs(&["--insecure", "--noproxy", "--ignore-truststore"]).unwrap();
         assert!(!p.verify_tls && p.no_proxy && !p.keep_default_roots);
+    }
+
+    #[test]
+    fn ef_ux_02_disable_cookies_turns_off_sending_and_storing() {
+        let off = prefs(&["--disable-cookies"]).unwrap();
+        assert!(!off.send_cookies && !off.store_cookies);
+        let on = prefs(&[]).unwrap();
+        assert!(on.send_cookies && on.store_cookies);
     }
 
     #[test]

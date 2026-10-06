@@ -21,6 +21,7 @@ Le crate `xc-script` exécute les scripts d'une requête dans un sandbox QuickJS
 | Bibliothèques | `chai`, `moment`, `crypto-js`, `uuid`, `nanoid`, `tv4`, `ajv`, `ajv-formats`, `buffer` / `Buffer`, `btoa`, `atob`, `path.resolve`, `crypto.randomBytes / getRandomValues` ; chargées à la demande |
 | `bru.runRequest(chemin)` | exécute une autre requête de la collection (chemin relatif à la racine, `.yml` ajouté) avec les variables du script appelant et lui rend la réponse `{ status, statusText, headers, data, url, responseTime, duration, size }` ; ne rejette jamais (`{ message }` en cas d'échec, `{}` si le fichier n'existe pas), 8 niveaux d'imbrication au plus |
 | `axios`, `bru.sendRequest` | `axios(config)`, `.get/.delete/.post/.put/.patch`, `bru.sendRequest(config ou url, rappel)` : envoi par le moteur HTTP, erreurs à la façon d'axios (`isAxiosError`, `code`, `response`, rejet au-delà de 2xx) |
+| `bru.cookies` | le pot de cookies, vu à travers l'adresse de la requête (variables résolues) : `get(nom)`, `one`, `all`, `idx`, `count`, `has(nom[, valeur])`, `indexOf`, `find`, `filter`, `each`, `map`, `reduce`, `toObject`, `toString`, `toJSON` (synchrones), `add`/`upsert(cookie)`, `remove`/`delete(nom)`, `clear()` (promesse, ou rappel `(err)`) ; `jar()` donne `getCookie`, `getCookies`, `hasCookie`, `setCookie(url, nom, valeur)` ou `setCookie(url, objet)`, `setCookies(url, liste)`, `deleteCookie`, `deleteCookies`, `clear` pour n'importe quelle adresse (variables résolues). Un cookie est `{ key, value, domain, path, secure, httpOnly, expires }`, `expires` valant `"Infinity"` pour un cookie de session. Sans domaine, un cookie posé prend celui de l'adresse, sans chemin celui que l'adresse donne ; un domaine étranger ou un suffixe public est ignoré. Voir [Cookies](reseau.md#cookies) |
 | Modules locaux | `require('./lib/x')` relatif à la racine de la collection, `.js` ajouté, refusé hors de la collection (liens suivis) |
 
 ## 3. Dans l'application et en CLI
@@ -35,7 +36,7 @@ Le crate `xc-script` exécute les scripts d'une requête dans un sandbox QuickJS
 
 ## 4. Ce qui reste
 
-Pas encore : `jwt`, `bru.cookies`, `headerList` ; `req.onFail` est absent aussi du sandbox de Bruno.
+Pas encore : `jwt`, `headerList` ; `req.onFail` est absent aussi du sandbox de Bruno.
 
 ## 5. Sandbox (ENF-SEC-02)
 

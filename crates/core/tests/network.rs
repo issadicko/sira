@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use xc_core::{prepare_with, read_request, NetworkPrefs, Overrides, ProxyMode, ProxyPref};
-use xc_engine::ProxyScheme;
+use xc_engine::{CookieJar, ProxyScheme};
 
 fn write(root: &Path, rel: &str, text: &str) {
     let path = root.join(rel);
@@ -97,4 +97,24 @@ fn ef_req_04_host_preferences_set_verification_and_the_proxy_when_the_collection
 
     assert!(!network.tls.verify);
     assert_eq!(network.proxy.map(|p| (p.host, p.port)), Some(("global.test".to_owned(), 3128)));
+}
+
+fn with_jar(prefs: Option<NetworkPrefs>) -> Option<xc_engine::Cookies> {
+    let dir = collection("");
+    let doc = read_request(dir.path(), "r.yml").unwrap();
+    let overrides = Overrides { network: prefs, cookies: Some(CookieJar::default()), ..Overrides::default() };
+    prepare_with(dir.path(), "r.yml", &doc, None, &HashMap::new(), overrides).unwrap().request.network.cookies
+}
+
+#[test]
+fn ef_ux_02_the_host_jar_is_attached_with_the_send_and_store_preferences() {
+    let cookies = with_jar(Some(NetworkPrefs { store_cookies: false, ..NetworkPrefs::default() })).expect("un pot");
+    assert_eq!((cookies.send, cookies.store), (true, false));
+}
+
+#[test]
+fn ef_ux_02_no_cookies_when_both_are_off_or_without_host_settings() {
+    let off = NetworkPrefs { send_cookies: false, store_cookies: false, ..NetworkPrefs::default() };
+    assert!(with_jar(Some(off)).is_none());
+    assert!(with_jar(None).is_none());
 }

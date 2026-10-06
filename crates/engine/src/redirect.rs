@@ -37,7 +37,7 @@ pub(crate) fn next(from: &Hop, response: &HttpResponse, redirects: &Redirects, f
         drop_header(&mut hop.headers, |name| name == "content-length" || name == "content-type");
     }
     if from.url.origin() != hop.url.origin() {
-        drop_header(&mut hop.headers, |name| name.starts_with("x-amz-") || name == "host");
+        drop_header(&mut hop.headers, |name| name.starts_with("x-amz-") || name == "host" || name == "cookie");
         if !redirects.forward_authorization {
             drop_header(&mut hop.headers, |name| name == "authorization" || name == "proxy-authorization");
         }

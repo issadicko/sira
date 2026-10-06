@@ -4,9 +4,10 @@ import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
+import { draftProblem, keyOf } from './cookies';
 import { DEFAULT_NETWORK } from './network';
 import { emptyReport } from './scripts';
-import { CollectionInfo, EnvVar, HistoryEntry, KeyValue, NetworkView, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, CookieKey, CookieView, EnvVar, HistoryEntry, KeyValue, NetworkView, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -209,6 +210,11 @@ const SPEC: OpenApiPreview = {
 const timers = new Map<string, () => void>();
 /** L'historique des envois de la session de démo, par collection : rien n'est écrit sur disque. */
 const sent = new Map<string, HistoryEntry[]>();
+let demoCookies: CookieView[] = [
+  { key: 'session', value: 'f3a9c1d27e0b4458', domain: 'api.demo.test', path: '/', secure: true, httpOnly: true, hostOnly: true, expires: null },
+  { key: 'locale', value: 'fr-FR', domain: 'demo.test', path: '/', secure: false, httpOnly: false, hostOnly: false, expires: '2099-01-01T00:00:00.000Z' },
+];
+const sameCookie = (a: CookieKey, b: CookieKey) => a.domain === b.domain && a.path === b.path && a.key === b.key;
 let demoNetwork: NetworkView = { prefs: DEFAULT_NETWORK, proxyPasswordSet: false };
 /** Les schémas GraphQL chargés pendant la session, par URL : le mode démo n'écrit rien sur disque. */
 const schemas = new Map<string, StoredSchema>();
@@ -270,6 +276,26 @@ export const demoApi: Api = {
   oauthClear: async (_root, path) => void tokens.delete(path),
   historyList: async (root) => structuredClone(sent.get(root) ?? []),
   historyClear: async (root) => void sent.delete(root),
+  cookiesList: async () => structuredClone(demoCookies),
+  cookieSave: async (previous, cookie) => {
+    const problem = draftProblem(cookie);
+    if (problem) throw problem;
+    demoCookies = demoCookies.filter((c) => !previous || !sameCookie(c, previous)).filter((c) => !sameCookie(c, keyOf(cookie)));
+    demoCookies.push({ ...cookie, expires: cookie.expires?.trim() || null });
+    return structuredClone(demoCookies);
+  },
+  cookieDelete: async (cookie) => {
+    demoCookies = demoCookies.filter((c) => !sameCookie(c, cookie));
+    return structuredClone(demoCookies);
+  },
+  cookiesDeleteDomain: async (domain) => {
+    demoCookies = demoCookies.filter((c) => c.domain !== domain);
+    return structuredClone(demoCookies);
+  },
+  cookiesClear: async () => {
+    demoCookies = [];
+    return [];
+  },
   networkGet: async () => structuredClone(demoNetwork),
   networkSave: async (prefs, proxyPassword) => {
     demoNetwork = {

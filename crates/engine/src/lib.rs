@@ -1,4 +1,5 @@
 pub mod aws;
+mod cookies;
 pub mod digest;
 mod network;
 mod proxy;
@@ -22,6 +23,7 @@ use url::Url;
 use proxy::Stream;
 use redirect::Hop;
 
+pub use cookies::{CookieDraft, CookieJar, CookieView, Cookies, ScriptCookie};
 pub use network::{ClientIdentity, Network, Proxy, ProxyScheme, Redirects, Tls};
 pub use time::{amz_date, iso_from_millis, millis};
 
@@ -113,11 +115,18 @@ pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
     let mut hop =
         Hop { method: request.method.clone(), url, headers: request.headers.clone(), body: request.body.clone() };
     let (mut timings, mut steps) = (Timings::default(), Vec::new());
+    let cookies = request.network.cookies.clone();
     loop {
+        let uses_tls = hop.url.scheme() == "https"
+            || request.network.proxy.as_ref().is_some_and(|proxy| proxy.scheme == ProxyScheme::Https);
+        if uses_tls {
+            tls::warm_up().await;
+        }
+        let jar_line = cookies.as_ref().filter(|c| c.send).and_then(|c| c.jar.header(&hop.url));
         let sent = HttpRequest {
             method: hop.method.clone(),
             url: hop.url.to_string(),
-            headers: hop.headers.clone(),
+            headers: cookies::with_jar_cookies(&hop.headers, jar_line.as_deref()),
             body: hop.body.clone(),
             ..request.clone()
         };
@@ -126,6 +135,15 @@ pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
             .await
             .map_err(|_| EngineError::Timeout(timeout.as_millis()))??;
         timings.add(&response.timings);
+        if let Some(cookies) = cookies.as_ref().filter(|c| c.store) {
+            let received: Vec<&str> = response
+                .headers
+                .iter()
+                .filter(|(name, _)| name.eq_ignore_ascii_case("set-cookie"))
+                .map(|(_, value)| value.as_str())
+                .collect();
+            cookies.jar.store(&hop.url, &received);
+        }
         match redirect::next(&hop, &response, &request.network.redirects, steps.len() as u32) {
             Some(next) => {
                 steps.push(RedirectStep { url: hop.url.to_string(), status: response.status });

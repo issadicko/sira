@@ -35,6 +35,7 @@ fn secrets_as_placeholders() -> Overrides {
         headers: None,
         vars: ScopeOverrides { secrets: vec![("token".into(), "<token>".into())], ..ScopeOverrides::default() },
         network: None,
+        cookies: None,
     }
 }
 

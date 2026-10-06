@@ -5,7 +5,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use xc_core::vars::{dynamic_value, Context, Scope};
-use xc_core::{prepare_with, NetworkPrefs, RequestDoc};
+use xc_core::{prepare_with, RequestDoc};
 use xc_engine::HttpResponse;
 use xc_script::{AssertionSpec, Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
 
@@ -213,7 +213,7 @@ impl Phases<'_> {
         }
     }
 
-    fn with_nested_requests(&self, mut input: Input, network: &NetworkPrefs) -> Input {
+    fn with_nested_requests(&self, mut input: Input, session: &Session) -> Input {
         let r = self.request;
         input.callbacks = Some(Arc::new(Nested {
             handle: tokio::runtime::Handle::current(),
@@ -222,7 +222,8 @@ impl Phases<'_> {
             collection_name: r.collection_name.to_owned(),
             cancel: Arc::clone(&r.cancel),
             depth: self.depth,
-            network: network.clone(),
+            network: session.network.clone(),
+            cookies: session.cookies.clone(),
         }));
         input
     }
@@ -240,7 +241,7 @@ impl Phases<'_> {
         if kind == AFTER_RESPONSE {
             code = format!("{}{code}", post_variables_call(r.doc));
         }
-        script(self.with_nested_requests(self.input(phase, code, session, request, response), &session.network)).await
+        script(self.with_nested_requests(self.input(phase, code, session, request, response), session)).await
     }
 
     async fn assertions(

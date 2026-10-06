@@ -71,6 +71,30 @@ import { Icon } from './icon';
         }
       </section>
 
+      <section class="set-group" aria-labelledby="g-cookies">
+        <div class="set-head"><h2 class="sec-title" id="g-cookies">Cookies</h2></div>
+        <div class="set-rows">
+          <label class="set-row">
+            <span class="set-lbl">Envoi</span>
+            <span class="set-ctl check">
+              <span class="check-line">
+                <input type="checkbox" class="cb" [checked]="draft().sendCookies" (change)="patch({ sendCookies: !draft().sendCookies })" />
+                Envoyer les cookies du pot avec les requêtes
+              </span>
+            </span>
+          </label>
+          <label class="set-row">
+            <span class="set-lbl">Réception</span>
+            <span class="set-ctl check">
+              <span class="check-line">
+                <input type="checkbox" class="cb" [checked]="draft().storeCookies" (change)="patch({ storeCookies: !draft().storeCookies })" />
+                Garder dans le pot les cookies que les serveurs posent
+              </span>
+            </span>
+          </label>
+        </div>
+      </section>
+
       <section class="set-group" aria-labelledby="g-proxy">
         <div class="set-head"><h2 class="sec-title" id="g-proxy">Proxy</h2></div>
         <div class="set-rows">

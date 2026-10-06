@@ -80,6 +80,10 @@ pub struct NetworkPrefs {
     /// Après ceux de la collection. Passés par `--client-cert-config` en ligne de commande.
     pub client_certificates: Vec<ClientCertificate>,
     pub proxy: ProxyPref,
+    /// Envoyer les cookies du pot avec chaque requête.
+    pub send_cookies: bool,
+    /// Garder dans le pot les cookies que les serveurs posent.
+    pub store_cookies: bool,
     /// Ignore tout proxy, celui de la collection compris (`--noproxy`) ; propre à une exécution, jamais enregistré.
     #[serde(skip)]
     pub no_proxy: bool,
@@ -93,6 +97,8 @@ impl Default for NetworkPrefs {
             keep_default_roots: true,
             client_certificates: Vec::new(),
             proxy: ProxyPref::default(),
+            send_cookies: true,
+            store_cookies: true,
             no_proxy: false,
         }
     }
@@ -433,7 +439,7 @@ pub fn resolve(
         keep_default_roots: prefs.keep_default_roots,
         client: client_identity(root, collection, prefs, url, fill)?,
     };
-    Ok(Network { redirects, tls, proxy: proxy_for(collection, prefs, url, fill, env)? })
+    Ok(Network { redirects, tls, proxy: proxy_for(collection, prefs, url, fill, env)?, cookies: None })
 }
 
 #[cfg(test)]

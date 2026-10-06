@@ -43,6 +43,24 @@ pub fn iso_from_millis(millis: u64) -> String {
     )
 }
 
+/// Les millisecondes depuis l'époque Unix d'un instant `2026-10-06T12:34:56[.789]Z` ; `None` si le texte n'a pas cette forme.
+pub fn millis_from_iso(text: &str) -> Option<i64> {
+    let text = text.trim().strip_suffix('Z')?;
+    let (date, clock) = text.split_once('T')?;
+    let mut ymd = date.splitn(3, '-').map(|part| part.parse::<u32>().ok());
+    let (year, month, day) = (ymd.next()??, ymd.next()??, ymd.next()??);
+    let (whole, fraction) = clock.split_once('.').unwrap_or((clock, "0"));
+    let mut hms = whole.splitn(3, ':').map(|part| part.parse::<i64>().ok());
+    let (hour, minute, second) = (hms.next()??, hms.next()??, hms.next()??);
+    let fraction = format!("{fraction:0<3}");
+    let ms: i64 = fraction.get(..3)?.parse().ok()?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    let days = days_from_civil(i64::from(year), month, day);
+    Some(((days * 24 + hour) * 60 + minute) * 60_000 + second * 1000 + ms)
+}
+
 /// `20260306T123456Z`, le format des dates de signature AWS.
 pub fn amz_date(millis: u64) -> String {
     let (days, rest) = ((millis / 86_400_000) as i64, millis % 86_400_000);
@@ -69,5 +87,17 @@ mod tests {
         assert_eq!(iso_from_millis(951_782_400_000), "2000-02-29T00:00:00.000Z");
         assert_eq!(amz_date(millis(2015, 8, 30, 12, 36, 0)), "20150830T123600Z");
         assert_eq!(millis(2023, 11, 14, 22, 13, 20), 1_700_000_000_000);
+    }
+
+    #[test]
+    fn iso_instants_are_read_back() {
+        for ms in [0, 1_700_000_000_123, 951_782_400_000, 4_102_444_800_000] {
+            assert_eq!(millis_from_iso(&iso_from_millis(ms)), i64::try_from(ms).ok(), "{ms}");
+        }
+        assert_eq!(millis_from_iso("2023-11-14T22:13:20Z"), Some(1_700_000_000_000));
+        assert_eq!(millis_from_iso("2023-11-14T22:13:20.5Z"), Some(1_700_000_000_500));
+        for bad in ["", "2023-11-14", "2023-13-14T00:00:00Z", "2023-11-14T25:00:00Z", "2023-11-14T00:00:00", "x"] {
+            assert_eq!(millis_from_iso(bad), None, "{bad}");
+        }
     }
 }

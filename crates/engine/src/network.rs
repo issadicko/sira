@@ -2,6 +2,8 @@
 
 use url::Url;
 
+use crate::cookies::Cookies;
+
 /// Les redirections, comme Bruno : 301, 302, 303, 307 et 308 sont suivies jusqu'à `max` fois ; la réponse qui dépasse la
 /// limite est rendue telle quelle. `forward_authorization` vaut `true` à l'exécution quand le fichier ne dit rien.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -128,6 +130,8 @@ pub struct Network {
     pub redirects: Redirects,
     pub tls: Tls,
     pub proxy: Option<Proxy>,
+    /// Le pot de cookies à utiliser ; `None` : aucun cookie n'est envoyé ni gardé.
+    pub cookies: Option<Cookies>,
 }
 
 #[cfg(test)]

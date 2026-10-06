@@ -4,6 +4,9 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import {
   CodeLanguage,
   CollectionInfo,
+  CookieDraft,
+  CookieKey,
+  CookieView,
   DataInfo,
   DiskChange,
   DropPosition,
@@ -77,6 +80,12 @@ export interface Api {
   /** Les requêtes envoyées depuis la collection, la plus récente d'abord. */
   historyList(root: string): Promise<HistoryEntry[]>;
   historyClear(root: string): Promise<void>;
+  cookiesList(): Promise<CookieView[]>;
+  /** Ajoute un cookie, ou remplace `previous` quand il est donné ; rend le pot à jour. */
+  cookieSave(previous: CookieKey | null, cookie: CookieDraft): Promise<CookieView[]>;
+  cookieDelete(cookie: CookieKey): Promise<CookieView[]>;
+  cookiesDeleteDomain(domain: string): Promise<CookieView[]>;
+  cookiesClear(): Promise<CookieView[]>;
   networkGet(): Promise<NetworkView>;
   /** `proxyPassword` : `null` garde le mot de passe en place, une chaîne vide l'oublie, un texte le range dans le trousseau. */
   networkSave(prefs: NetworkPrefs, proxyPassword: string | null): Promise<NetworkView>;
@@ -168,6 +177,11 @@ const tauriApi: Api = {
   cancel: (id) => invoke('cancel_request', { id }),
   historyList: (root) => invoke('history_list', { root }),
   historyClear: (root) => invoke('history_clear', { root }),
+  cookiesList: () => invoke('cookies_list'),
+  cookieSave: (previous, cookie) => invoke('cookie_save', { previous, cookie }),
+  cookieDelete: (cookie) => invoke('cookie_delete', { cookie }),
+  cookiesDeleteDomain: (domain) => invoke('cookies_delete_domain', { domain }),
+  cookiesClear: () => invoke('cookies_clear'),
   networkGet: () => invoke('network_get'),
   networkSave: (prefs, proxyPassword) => invoke('network_save', { prefs, proxyPassword }),
   parseCurl: (command) => invoke('parse_curl', { command }),
