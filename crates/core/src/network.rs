@@ -98,6 +98,47 @@ impl Default for NetworkPrefs {
     }
 }
 
+const PREFS_FILE: &str = "network.json";
+
+impl NetworkPrefs {
+    /// Les préférences enregistrées dans `data_dir` ; celles par défaut quand le fichier manque ou est illisible.
+    pub fn load(data_dir: &Path) -> Self {
+        fs::read_to_string(data_dir.join(PREFS_FILE))
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
+    }
+
+    /// Enregistre les préférences, sans le mot de passe du proxy ni les options propres à une exécution.
+    pub fn save(&self, data_dir: &Path) -> Result<(), CoreError> {
+        fs::create_dir_all(data_dir).map_err(|e| CoreError::io(data_dir, e))?;
+        let text = serde_json::to_string_pretty(self).map_err(|e| network_error(e.to_string()))?;
+        crate::collection::write_atomic(data_dir, &data_dir.join(PREFS_FILE), &format!("{text}\n"))
+    }
+
+    /// Ce qui empêcherait d'envoyer : un protocole inconnu, ou un proxy manuel sans hôte ni port valable.
+    pub fn validate(&self) -> Result<(), String> {
+        let config = &self.proxy.config;
+        if self.proxy.mode != ProxyMode::Manual {
+            return Ok(());
+        }
+        if parse_scheme(&config.protocol).is_none() {
+            return Err(format!(
+                "protocole de proxy non pris en charge : {} (http, https, socks4 ou socks5)",
+                config.protocol
+            ));
+        }
+        if config.hostname.trim().is_empty() {
+            return Err("le proxy manuel demande un nom d'hôte".into());
+        }
+        match config.port.trim() {
+            "" => Ok(()),
+            digits if digits.parse::<u16>().is_ok_and(|port| port > 0) => Ok(()),
+            digits => Err(format!("port de proxy invalide : {digits} (de 1 à 65535)")),
+        }
+    }
+}
+
 fn network_error(message: impl Into<String>) -> CoreError {
     CoreError::Network(message.into())
 }
@@ -635,6 +676,59 @@ mod tests {
             resolve(Path::new("."), &Map::default(), &prefs, "https://a/", Redirects::default(), &mut keep, &no_env)
                 .unwrap();
         assert!(!network.tls.verify && network.tls.extra_roots.is_empty());
+    }
+
+    #[test]
+    fn ef_req_04_prefs_are_saved_in_the_data_directory_and_read_back() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(NetworkPrefs::load(dir.path()), NetworkPrefs::default(), "rien d'enregistré : les défauts");
+        let prefs = NetworkPrefs {
+            verify_tls: false,
+            ca_file: Some("/certs/ca.pem".into()),
+            keep_default_roots: false,
+            proxy: ProxyPref {
+                mode: ProxyMode::Manual,
+                config: ProxyConfig {
+                    protocol: "socks5".into(),
+                    hostname: "p.test".into(),
+                    port: "1080".into(),
+                    ..ProxyConfig::default()
+                },
+            },
+            ..NetworkPrefs::default()
+        };
+        prefs.save(dir.path()).unwrap();
+        assert_eq!(NetworkPrefs::load(dir.path()), prefs);
+        fs::write(dir.path().join(PREFS_FILE), "{ pas du json").unwrap();
+        assert_eq!(NetworkPrefs::load(dir.path()), NetworkPrefs::default(), "un fichier illisible vaut les défauts");
+    }
+
+    #[test]
+    fn ef_req_04_a_manual_proxy_needs_a_known_protocol_a_host_and_a_valid_port() {
+        let manual = |protocol: &str, hostname: &str, port: &str| NetworkPrefs {
+            proxy: ProxyPref {
+                mode: ProxyMode::Manual,
+                config: ProxyConfig {
+                    protocol: protocol.into(),
+                    hostname: hostname.into(),
+                    port: port.into(),
+                    ..ProxyConfig::default()
+                },
+            },
+            ..NetworkPrefs::default()
+        };
+        assert!(manual("http", "p.test", "8080").validate().is_ok());
+        assert!(manual("", "p.test", "").validate().is_ok(), "protocole et port vides : http et son port");
+        assert!(manual("ftp", "p.test", "1").validate().unwrap_err().contains("protocole"));
+        assert!(manual("http", "  ", "1").validate().unwrap_err().contains("nom d'hôte"));
+        for port in ["0", "65536", "huit", "-1"] {
+            assert!(manual("http", "p.test", port).validate().unwrap_err().contains("port"), "{port}");
+        }
+        let off = NetworkPrefs {
+            proxy: ProxyPref { mode: ProxyMode::Off, ..manual("ftp", "", "x").proxy },
+            ..NetworkPrefs::default()
+        };
+        assert!(off.validate().is_ok(), "un proxy désactivé n'est pas vérifié");
     }
 
     #[test]

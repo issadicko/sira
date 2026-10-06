@@ -124,6 +124,32 @@ export interface StoredSchema {
 }
 
 /** Une requête envoyée, telle que l'historique local la garde : l'adresse est celle saisie, `{{variables}}` non résolues. */
+export type ProxyMode = 'off' | 'system' | 'manual';
+
+export interface ProxyConfig {
+  protocol: string;
+  hostname: string;
+  port: string;
+  username: string;
+  authDisabled: boolean;
+  bypassProxy: string;
+}
+
+/** Les réglages réseau de l'application ; le mot de passe du proxy n'en fait pas partie (trousseau du système). */
+export interface NetworkPrefs {
+  verifyTls: boolean;
+  caFile: string | null;
+  keepDefaultRoots: boolean;
+  /** Gardés tels quels : ils ne se modifient pas depuis l'interface. */
+  clientCertificates: unknown[];
+  proxy: { mode: ProxyMode; config: ProxyConfig };
+}
+
+export interface NetworkView {
+  prefs: NetworkPrefs;
+  proxyPasswordSet: boolean;
+}
+
 export interface HistoryEntry {
   path: string;
   name: string;

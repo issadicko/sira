@@ -9,7 +9,7 @@ use xc_core::graphql::StoredSchema;
 use xc_core::history::{self, History};
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
-use xc_core::{CollectionInfo, EnvVar, RequestDoc};
+use xc_core::{CollectionInfo, EnvVar, NetworkPrefs, RequestDoc};
 use xc_engine::Timings;
 use xc_runner::{AssertionResult, PhaseReport, Request, RunError, SchemaSource, Session};
 use xc_sync::import::{fetch_spec, OpenApiPreview};
@@ -17,6 +17,7 @@ use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
+mod network;
 mod oauth;
 mod runs;
 mod secrets;
@@ -34,6 +35,8 @@ struct AppState {
     data: Mutex<Option<PathBuf>>,
     watching: tokio::sync::Mutex<()>,
     watch: Mutex<Option<xc_watch::Watch>>,
+    /// Les réglages réseau de l'application (hors mot de passe du proxy, qui est dans le trousseau).
+    network: Mutex<NetworkPrefs>,
 }
 
 /// Une requête en cours d'envoi : sa tâche et le drapeau qui interrompt ses scripts.
@@ -316,6 +319,7 @@ async fn loaded_session(state: &AppState, root: &str, env: Option<&str>) -> Repl
     let mut session = state.sessions.lock().map_err(err)?.get(root).cloned().unwrap_or_default();
     let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.to_owned(), env.map(str::to_owned));
     session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
+    session.network = network::current(state)?;
     Ok(session)
 }
 
@@ -731,8 +735,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .setup(|app| {
-            if let Ok(mut data) = app.state::<AppState>().data.lock() {
-                *data = app.path().app_data_dir().ok();
+            let state = app.state::<AppState>();
+            let dir = app.path().app_data_dir().ok();
+            if let (Some(dir), Ok(mut prefs)) = (&dir, state.network.lock()) {
+                *prefs = NetworkPrefs::load(dir);
+            }
+            if let Ok(mut data) = state.data.lock() {
+                *data = dir;
             }
             Ok(())
         })
@@ -753,6 +762,8 @@ pub fn run() {
             cancel_request,
             history_list,
             history_clear,
+            network::network_get,
+            network::network_save,
             graphql_schema,
             graphql_fetch_schema,
             parse_curl,

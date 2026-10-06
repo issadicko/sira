@@ -14,6 +14,8 @@ import {
   GroupBy,
   HistoryEntry,
   ImportedCollection,
+  NetworkPrefs,
+  NetworkView,
   OpenApiPreview,
   OpView,
   ReportFormat,
@@ -36,6 +38,7 @@ export interface Api {
   pickFolder(title?: string): Promise<string | null>;
   pickSpecFile(): Promise<string | null>;
   pickFile(defaultDir?: string): Promise<string | null>;
+  pickCertificate(): Promise<string | null>;
   inspectFolder(path: string): Promise<FolderKind>;
   createCollection(parent: string, name: string): Promise<string>;
   initCollection(dir: string, name: string): Promise<string>;
@@ -74,6 +77,9 @@ export interface Api {
   /** Les requêtes envoyées depuis la collection, la plus récente d'abord. */
   historyList(root: string): Promise<HistoryEntry[]>;
   historyClear(root: string): Promise<void>;
+  networkGet(): Promise<NetworkView>;
+  /** `proxyPassword` : `null` garde le mot de passe en place, une chaîne vide l'oublie, un texte le range dans le trousseau. */
+  networkSave(prefs: NetworkPrefs, proxyPassword: string | null): Promise<NetworkView>;
   parseCurl(command: string): Promise<RequestDoc | null>;
   createRequestFromCurl(root: string, folder: string, name: string, command: string): Promise<string>;
   previewOpenApi(source: string): Promise<OpenApiPreview>;
@@ -127,6 +133,8 @@ const tauriApi: Api = {
   pickSpecFile: () =>
     pick({ title: 'Choisir une spécification OpenAPI', filters: [{ name: 'OpenAPI et Swagger', extensions: ['yaml', 'yml', 'json'] }] }),
   pickFile: (defaultDir) => pick({ title: 'Choisir un fichier à envoyer', defaultPath: defaultDir }),
+  pickCertificate: () =>
+    pick({ title: 'Choisir un fichier d\'autorités de certification', filters: [{ name: 'Certificats PEM', extensions: ['pem', 'crt', 'cer'] }] }),
   inspectFolder: (path) => invoke('inspect_folder', { path }),
   createCollection: (parent, name) => invoke('create_collection', { parent, name }),
   initCollection: (dir, name) => invoke('init_collection', { dir, name }),
@@ -160,6 +168,8 @@ const tauriApi: Api = {
   cancel: (id) => invoke('cancel_request', { id }),
   historyList: (root) => invoke('history_list', { root }),
   historyClear: (root) => invoke('history_clear', { root }),
+  networkGet: () => invoke('network_get'),
+  networkSave: (prefs, proxyPassword) => invoke('network_save', { prefs, proxyPassword }),
   parseCurl: (command) => invoke('parse_curl', { command }),
   createRequestFromCurl: (root, folder, name, command) => invoke('create_request_from_curl', { root, folder, name, command }),
   previewOpenApi: (source) => invoke('preview_openapi', { source }),

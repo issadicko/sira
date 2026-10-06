@@ -32,10 +32,14 @@ Une clé absente du fichier reste absente tant qu'on ne la change pas, et l'exé
 | --- | --- | --- | --- |
 | Vérification TLS | non | Réglages › Réseau | `--insecure` |
 | Autorité de certification | non | Réglages › Réseau | `--cacert`, `--ignore-truststore` |
-| Certificats client | `config.clientCertificates` | `clientCertificates` du fichier `network.json` | `--client-cert-config` |
+| Certificats client | `config.clientCertificates` | `clientCertificates` de `network.json`, à écrire à la main (pas d'écran) | `--client-cert-config` |
 | Proxy | `config.proxy` | Réglages › Réseau | collection ou environnement ; `--noproxy` |
 
 Les réglages de la requête (délai, redirections) sont dans son fichier, voir plus haut. La vérification TLS n'est réglable ni par collection ni par requête, comme dans Bruno. Le moteur (`crates/engine`) applique ce que `crates/core/src/network.rs` résout pour chaque envoi : le même chemin sert l'envoi seul, le runner, l'introspection GraphQL, les jetons OAuth 2 et les requêtes lancées par un script (`bru.runRequest`, `bru.sendRequest`, `axios`).
+
+## Écran Réseau de l'application
+
+**Réglages › Réseau** règle la vérification TLS, le fichier d'autorités (avec « garder aussi celles du système ») et le proxy (aucun, système ou manuel). Les modifications s'enregistrent avec le bouton **Enregistrer** : un proxy manuel sans hôte, ou avec un port hors de 1 à 65535, est refusé avant d'écrire quoi que ce soit. Les réglages sont dans `network.json`, dans le dossier de données de l'application ; **le mot de passe du proxy n'y est jamais écrit** : il est gardé dans le trousseau du système, et l'interface sait seulement qu'il existe (elle peut l'oublier ou le remplacer, jamais le relire). Un trousseau indisponible envoie la requête sans mot de passe.
 
 ## Vérification TLS
 

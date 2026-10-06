@@ -98,7 +98,8 @@ pub struct TokenArgs {
 /// La configuration OAuth 2 de la requête telle qu'elle serait envoyée (variables résolues, auth héritée comprise),
 /// avec la session de la collection.
 fn resolve(state: &AppState, args: &TokenArgs) -> Reply<(Box<OAuth2>, Session, Network)> {
-    let session = state.sessions.lock().map_err(err)?.get(&args.root).cloned().unwrap_or_default();
+    let mut session = state.sessions.lock().map_err(err)?.get(&args.root).cloned().unwrap_or_default();
+    session.network = crate::network::current(state)?;
     let overrides = session.request_overrides(None, args.env.as_deref());
     let prepared = prepare_with(
         Path::new(&args.root),

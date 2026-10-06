@@ -4,8 +4,9 @@ import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
+import { DEFAULT_NETWORK } from './network';
 import { emptyReport } from './scripts';
-import { CollectionInfo, EnvVar, HistoryEntry, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, EnvVar, HistoryEntry, KeyValue, NetworkView, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -208,6 +209,7 @@ const SPEC: OpenApiPreview = {
 const timers = new Map<string, () => void>();
 /** L'historique des envois de la session de démo, par collection : rien n'est écrit sur disque. */
 const sent = new Map<string, HistoryEntry[]>();
+let demoNetwork: NetworkView = { prefs: DEFAULT_NETWORK, proxyPasswordSet: false };
 /** Les schémas GraphQL chargés pendant la session, par URL : le mode démo n'écrit rien sur disque. */
 const schemas = new Map<string, StoredSchema>();
 /** Les jetons OAuth 2 de la démo, par requête : rien n'est demandé à un serveur. */
@@ -224,6 +226,7 @@ export const demoApi: Api = {
   pickFolder: async (title) => (title ? PARENT : picks[picked++ % picks.length]),
   pickSpecFile: async () => '~/démo/petstore.yaml',
   pickFile: async () => `${ROOT}/pieces/recu-0043.pdf`,
+  pickCertificate: async () => '/Users/demo/certificats/autorites-internes.pem',
   openCollection: async (root) => structuredClone(collectionAt(collections, root).info),
   watchCollection: async () => undefined,
   onDiskChange: async () => () => undefined,
@@ -267,6 +270,14 @@ export const demoApi: Api = {
   oauthClear: async (_root, path) => void tokens.delete(path),
   historyList: async (root) => structuredClone(sent.get(root) ?? []),
   historyClear: async (root) => void sent.delete(root),
+  networkGet: async () => structuredClone(demoNetwork),
+  networkSave: async (prefs, proxyPassword) => {
+    demoNetwork = {
+      prefs: structuredClone({ ...prefs, caFile: prefs.caFile?.trim() || null }),
+      proxyPasswordSet: proxyPassword === null ? demoNetwork.proxyPasswordSet : proxyPassword !== '',
+    };
+    return structuredClone(demoNetwork);
+  },
   send: (id, root, path, d, env) =>
     new Promise<SendResult>((resolve, reject) => {
       const t = setTimeout(() => {

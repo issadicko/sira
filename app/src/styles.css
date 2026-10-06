@@ -1258,3 +1258,18 @@ button.sb-item:hover { background: var(--hover); color: var(--ink); }
 
 .ctx-menu .menu-item .ic { color: var(--muted); }
 .ctx-menu .menu-item:disabled { color: var(--faint); background: transparent; }
+
+/* ---------- réglages ---------- */
+.set-intro { margin: 4px 0 20px; color: var(--muted); max-width: 60ch; }
+.set-group { margin-bottom: 24px; }
+.set-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.set-title { flex: 1; min-width: 0; }
+.set-title .set-hint { margin: 1px 0 0; }
+.set-title .sec-title, .set-head .sec-title { margin: 0; }
+.set-rows { border: 1px solid var(--line); border-radius: 8px; }
+.set-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border-top: 1px solid var(--line); }
+.set-row:first-child { border-top: 0; }
+.set-lbl { display: flex; align-items: center; min-height: 30px; color: var(--muted); }
+.set-ctl { display: flex; flex-direction: column; gap: 6px; max-width: 300px; }
+.set-hint { color: var(--faint); font-size: calc(12 * var(--px)); }
+.set-error { color: var(--bad); font-size: calc(12 * var(--px)); }

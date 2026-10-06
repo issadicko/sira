@@ -2,18 +2,22 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject
 
 import { Workspace } from '../core/store';
 import { AppearanceSettings } from './appearance-settings';
+import { NetworkSettings } from './network-settings';
 import { restoreFocus } from './focus';
 import { Icon } from './icon';
 
-type SectionId = 'appearance';
+type SectionId = 'appearance' | 'network';
 
-const SECTIONS: { id: SectionId; label: string; icon: string }[] = [{ id: 'appearance', label: 'Apparence', icon: 'eye' }];
+const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
+  { id: 'appearance', label: 'Apparence', icon: 'eye' },
+  { id: 'network', label: 'Réseau', icon: 'globe' },
+];
 
 /** Éditeur « Réglages » : les sections à gauche, la section choisie à droite. */
 @Component({
   selector: 'app-settings-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, AppearanceSettings],
+  imports: [Icon, AppearanceSettings, NetworkSettings],
   host: { style: 'display: contents' },
   template: `
     <div class="tabs" role="tablist" aria-label="Réglages ouverts">
@@ -34,6 +38,9 @@ const SECTIONS: { id: SectionId; label: string; icon: string }[] = [{ id: 'appea
         @switch (section()) {
           @case ('appearance') {
             <app-appearance-settings />
+          }
+          @case ('network') {
+            <app-network-settings />
           }
         }
       </div>
