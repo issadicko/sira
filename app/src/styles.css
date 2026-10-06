@@ -425,6 +425,8 @@ input, textarea { caret-color: var(--accent); }
 .hist-time { font: calc(11 * var(--px)) var(--font-mono); color: var(--faint); }
 .hist-path { font: calc(11.5 * var(--px)) var(--font-mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hist-code { font: 600 calc(11 * var(--px)) var(--font-mono); }
+.hist-more { width: calc(100% - 12px); margin: 2px 6px 0; height: 24px; padding: 0 8px; border-radius: 6px; text-align: left; font-size: calc(11.5 * var(--px)); color: var(--faint); }
+.hist-more:hover { background: var(--hover); color: var(--ink); }
 .c-2 { color: var(--good); }
 .c-4, .c-5 { color: var(--bad); }
 

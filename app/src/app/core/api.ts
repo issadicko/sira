@@ -12,6 +12,7 @@ import {
   FolderKind,
   GeneratedCode,
   GroupBy,
+  HistoryEntry,
   ImportedCollection,
   OpenApiPreview,
   OpView,
@@ -70,6 +71,9 @@ export interface Api {
   graphqlFetchSchema(root: string, path: string, doc: RequestDoc, env: string | null): Promise<StoredSchema>;
   send(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<SendResult>;
   cancel(id: string): Promise<boolean>;
+  /** Les requêtes envoyées depuis la collection, la plus récente d'abord. */
+  historyList(root: string): Promise<HistoryEntry[]>;
+  historyClear(root: string): Promise<void>;
   parseCurl(command: string): Promise<RequestDoc | null>;
   createRequestFromCurl(root: string, folder: string, name: string, command: string): Promise<string>;
   previewOpenApi(source: string): Promise<OpenApiPreview>;
@@ -154,6 +158,8 @@ const tauriApi: Api = {
   graphqlFetchSchema: (root, path, doc, env) => invoke('graphql_fetch_schema', { root, path, doc, env }),
   send: (id, root, path, doc, env) => invoke('send_request', { args: { id, root, path, doc, env } }),
   cancel: (id) => invoke('cancel_request', { id }),
+  historyList: (root) => invoke('history_list', { root }),
+  historyClear: (root) => invoke('history_clear', { root }),
   parseCurl: (command) => invoke('parse_curl', { command }),
   createRequestFromCurl: (root, folder, name, command) => invoke('create_request_from_curl', { root, folder, name, command }),
   previewOpenApi: (source) => invoke('preview_openapi', { source }),

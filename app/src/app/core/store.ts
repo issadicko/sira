@@ -3,7 +3,9 @@ import { Injectable, computed, signal } from '@angular/core';
 import { api } from './api';
 import { withCurl } from './curl';
 import { affectedTabs, describeDiskChange, mergeChanges, touchesEnvironments, verdictFor } from './disk-sync';
-import { CollectionInfo, DiskChange, EnvVar, RequestDoc, ScriptsReport, Sent, TreeItem, VariableInfo } from './model';
+import { forExistingRequests } from './history';
+import { CollectionInfo, DiskChange, EnvVar, HistoryEntry, RequestDoc, ScriptsReport, Sent, TreeItem, VariableInfo } from './model';
+import { isRunnable } from './runner';
 import { closeUnder, isUnder, missingPaths, remapPath, remapPaths, remapSet } from './tree-ops';
 import { withParams, withUrl } from './url';
 
@@ -31,14 +33,6 @@ export interface Tab {
 export interface TabRefresh {
   reloaded: number;
   stale: string[];
-}
-
-export interface HistoryEntry {
-  path: string;
-  method: string;
-  url: string;
-  status?: number;
-  at: string;
 }
 
 export interface Discard {
@@ -95,7 +89,10 @@ export class Workspace {
   /** Le brouillon de l'environnement actif a des modifications non enregistrées (renseigné par `EnvStore`). */
   readonly envDirty = signal(false);
   readonly vars = signal<VariableInfo[]>([]);
+  readonly historyAll = signal(false);
   readonly history = signal<HistoryEntry[]>([]);
+  /** L'historique des requêtes qui existent encore dans la collection. */
+  readonly historyView = computed(() => forExistingRequests(this.history(), this.collection()?.items ?? []));
   readonly openFolders = signal<Set<string>>(new Set());
   readonly view = signal<View>('collections');
   readonly sidebar = signal(true);
@@ -171,6 +168,27 @@ export class Workspace {
 
   isDirty(tab: Tab): boolean {
     return JSON.stringify(tab.doc) !== tab.saved;
+  }
+
+  /** Relit l'historique gardé pour la collection ; sans effet si une autre collection a pris sa place. */
+  async loadHistory(root: string) {
+    try {
+      const entries = await api.historyList(root);
+      if (this.collection()?.root === root) this.history.set(entries);
+    } catch {
+      return;
+    }
+  }
+
+  async clearHistory() {
+    const root = this.collection()?.root;
+    if (!root) return;
+    try {
+      await api.historyClear(root);
+      this.history.set([]);
+    } catch (e) {
+      this.notify(`L'historique n'a pas pu être effacé : ${String(e)}`, true);
+    }
   }
 
   notify(message: string, error = false) {
@@ -283,6 +301,7 @@ export class Workspace {
       this.tabs.set([]);
       this.activePath.set(null);
       this.history.set([]);
+      void this.loadHistory(c.root);
       this.filter.set('');
       this.vars.set([]);
       this.openFolders.set(new Set(c.items.filter((i) => i.kind === 'folder').map((i) => i.path)));
@@ -457,7 +476,6 @@ export class Workspace {
   followPath(from: string, to: string) {
     if (from === to) return;
     this.tabs.update((tabs) => remapPaths(tabs, from, to));
-    this.history.update((history) => remapPaths(history, from, to));
     this.openFolders.update((open) => remapSet(open, from, to));
     this.activePath.update((active) => active && remapPath(active, from, to));
     this.requested = remapPath(this.requested, from, to);
@@ -470,7 +488,6 @@ export class Workspace {
     const rest = closeUnder(this.tabs(), this.activePath(), path);
     this.tabs.set(rest.tabs);
     this.activePath.set(rest.active);
-    this.history.update((history) => history.filter((h) => !isUnder(h.path, path)));
     this.openFolders.update((open) => new Set([...open].filter((p) => !isUnder(p, path))));
     this.refreshVars();
   }
@@ -672,9 +689,7 @@ export class Workspace {
         sendingId: undefined,
         sentAt: Date.now(),
       });
-      if (response && this.collection()?.root === c.root) {
-        this.history.update((h) => [{ path, method: run.method, url: run.url, status: response.status, at: time() }, ...h].slice(0, 30));
-      }
+      if (!skipped) void this.loadHistory(c.root);
     } catch (e) {
       const elapsed = Math.round(performance.now() - started);
       const message = String(e);
@@ -712,7 +727,7 @@ function initialEnv(c: CollectionInfo): string | null {
 
 function firstRequest(items: TreeItem[]): string | null {
   for (const item of items) {
-    if (item.kind === 'request' && item.requestType === 'http') return item.path;
+    if (item.kind === 'request' && isRunnable(item.requestType)) return item.path;
     if (item.kind === 'folder') {
       const found = firstRequest(item.children);
       if (found) return found;
@@ -721,6 +736,3 @@ function firstRequest(items: TreeItem[]): string | null {
   return null;
 }
 
-function time(): string {
-  return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-}

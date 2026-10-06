@@ -109,15 +109,21 @@
               </div>
             }
           </div>
-          @if (ws.history().length) {
+          @if (ws.historyView().length) {
             <div class="sb-section">
-              <div class="sb-section-head"><app-ic name="clock" [size]="13" />Historique de la session<span class="row-meta" style="margin-left: auto">{{ ws.history().length }}</span></div>
+              <div class="sb-section-head">
+                <app-ic name="clock" [size]="13" />Historique<span class="row-meta">{{ ws.historyView().length }}</span>
+                <button class="icon-btn sm" style="margin-left: auto" (click)="ws.clearHistory()" aria-label="Effacer l'historique" title="Effacer l'historique"><app-ic name="trash" [size]="13" /></button>
+              </div>
               <div class="hist">
-                @for (h of ws.history().slice(0, 5); track $index) {
-                  <button class="hist-row" (click)="ws.openRequest(h.path, true)" [title]="h.url">
-                    <span class="hist-time">{{ h.at }}</span><span [class]="methodClass(h.method)">{{ shortMethod(h.method) }}</span>
-                    <span class="hist-path">{{ h.url }}</span><span class="hist-code" [class]="'hist-code c-' + String(h.status)[0]">{{ h.status }}</span>
+                @for (h of shownHistory(); track $index) {
+                  <button class="hist-row" (click)="ws.openRequest(h.path, true)" [title]="describeEntry(h)">
+                    <span class="hist-time">{{ whenLabel(h.at, now) }}</span><span [class]="methodClass(h.method)">{{ shortMethod(h.method) }}</span>
+                    <span class="hist-path">{{ h.url }}</span><span class="hist-code" [class]="'hist-code c-' + (h.status === null ? 5 : String(h.status)[0])">{{ statusLabel(h) }}</span>
                   </button>
+                }
+                @if (ws.historyView().length > historyPreview) {
+                  <button class="hist-more" (click)="ws.historyAll.set(!ws.historyAll())">{{ ws.historyAll() ? 'Réduire' : 'Voir tout' }}</button>
                 }
               </div>
             </div>

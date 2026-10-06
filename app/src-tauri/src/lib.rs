@@ -4,8 +4,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use xc_core::graphql::StoredSchema;
+use xc_core::history::{self, History};
 use xc_core::pretty::pretty_json;
 use xc_core::vars::{Context, Scope, VariableInfo};
 use xc_core::{CollectionInfo, EnvVar, RequestDoc};
@@ -28,6 +29,9 @@ struct AppState {
     inflight: Mutex<HashMap<String, Inflight>>,
     plans: Arc<Plans>,
     writes: tokio::sync::Mutex<()>,
+    history_turn: tokio::sync::Mutex<()>,
+    /// Dossier de données de l'application (historique) ; absent, rien n'est gardé.
+    data: Mutex<Option<PathBuf>>,
     watching: tokio::sync::Mutex<()>,
     watch: Mutex<Option<xc_watch::Watch>>,
 }
@@ -366,6 +370,8 @@ async fn send_request<R: tauri::Runtime>(
     args: SendArgs,
 ) -> Reply<SendResult> {
     let SendArgs { id, root: root_path, path, doc, env } = args;
+    let (path_for_history, name_for_history, url_for_history, env_for_history) =
+        (path.clone(), doc.name.clone(), doc.url.clone(), env.clone());
     let mut session = loaded_session(&state, &root_path, env.as_deref()).await?;
     session.authorizer = Some(oauth::authorizer(&app));
     let cancel = Arc::new(AtomicBool::new(false));
@@ -392,8 +398,23 @@ async fn send_request<R: tauri::Runtime>(
         Err(e) if e.is_cancelled() => return Err("Requête annulée".into()),
         Err(e) => return Err(err(e)),
     };
-    state.sessions.lock().map_err(err)?.insert(root_path, session);
+    state.sessions.lock().map_err(err)?.insert(root_path.clone(), session);
 
+    let entry = history::Entry {
+        path: path_for_history,
+        name: name_for_history,
+        method: outcome.method.clone(),
+        url: url_for_history,
+        env: env_for_history,
+        status: outcome.response.as_ref().map(|r| r.status),
+        error: outcome.error.as_ref().map(|e| e.message.clone()),
+        duration_ms: outcome.response.as_ref().map_or(0.0, |r| r.timings.total_ms),
+        size: outcome.response.as_ref().map_or(0, |r| r.body.len() as u64),
+        at: xc_runner::now_iso(),
+    };
+    if !outcome.skipped {
+        remember(&state, &root_path, entry).await;
+    }
     let response = outcome.response.map(|res| {
         let size = res.body.len();
         let body = xc_engine::lossy_text(res.body);
@@ -455,6 +476,28 @@ async fn graphql_fetch_schema<R: tauri::Runtime>(
     let schema = xc_runner::fetch_schema(source, &mut session).await?;
     state.sessions.lock().map_err(err)?.entry(root).or_default().tokens.extend(session.tokens);
     Ok(schema)
+}
+
+/// Garde l'envoi dans l'historique de la collection ; un échec d'écriture ne gêne jamais l'envoi.
+async fn remember(state: &AppState, root: &str, entry: history::Entry) {
+    let Some(dir) = state.data.lock().ok().and_then(|data| data.clone()) else { return };
+    let _turn = state.history_turn.lock().await;
+    let root = root.to_owned();
+    let _ = blocking(move || History::of(&dir, &root).push(entry)).await;
+}
+
+/// L'historique des requêtes envoyées depuis cette collection, la plus récente d'abord.
+#[tauri::command]
+async fn history_list(state: State<'_, AppState>, root: String) -> Reply<Vec<history::Entry>> {
+    let Some(dir) = state.data.lock().ok().and_then(|data| data.clone()) else { return Ok(Vec::new()) };
+    blocking(move || Ok::<_, String>(History::of(&dir, &root).list())).await
+}
+
+#[tauri::command]
+async fn history_clear(state: State<'_, AppState>, root: String) -> Reply<()> {
+    let Some(dir) = state.data.lock().ok().and_then(|data| data.clone()) else { return Ok(()) };
+    let _turn = state.history_turn.lock().await;
+    blocking(move || History::of(&dir, &root).clear()).await
 }
 
 #[tauri::command]
@@ -681,6 +724,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .setup(|app| {
+            if let Ok(mut data) = app.state::<AppState>().data.lock() {
+                *data = app.path().app_data_dir().ok();
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             open_collection,
             watch_collection,
@@ -696,6 +745,8 @@ pub fn run() {
             variables,
             send_request,
             cancel_request,
+            history_list,
+            history_clear,
             graphql_schema,
             graphql_fetch_schema,
             parse_curl,
@@ -1142,6 +1193,70 @@ paths:
 
         let kept = graphql_schema(state(), root_path, "req.yml".into(), doc, env).await.unwrap();
         assert_eq!(kept, Some(fetched));
+    }
+
+    #[tokio::test]
+    async fn ef_ux_02_command_keeps_each_send_in_the_history_without_secret_values() {
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { return };
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                let _ = write!(stream, "HTTP/1.1 201 Created\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+            }
+        });
+        let store = Arc::new(xc_secrets::MemoryStore::default());
+        let (data, collection) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+        let app = tauri::test::mock_app();
+        app.manage(AppState {
+            secrets: secrets::Secrets(store.clone()),
+            data: Mutex::new(Some(data.path().to_path_buf())),
+            ..AppState::default()
+        });
+        let state = || app.state::<AppState>();
+        let root = collection.path();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: S\n").unwrap();
+        fs::create_dir(root.join("environments")).unwrap();
+        fs::write(
+            root.join("environments/dev.yml"),
+            format!("name: dev\nvariables:\n  - name: base\n    value: {base}\n  - secret: true\n    name: key\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("req.yml"),
+            "info:\n  name: Créer\n  type: http\n\nhttp:\n  method: POST\n  url: \"{{base}}/items?key={{key}}\"\n",
+        )
+        .unwrap();
+        let root_path = root.display().to_string();
+        secrets::put(&*store, &root_path, "dev", &[("key".into(), "s3cr3t-value".into())]).unwrap();
+        let doc = xc_core::read_request(root, "req.yml").unwrap();
+
+        assert!(history_list(state(), root_path.clone()).await.unwrap().is_empty());
+        let args =
+            SendArgs { id: "1".into(), root: root_path.clone(), path: "req.yml".into(), doc, env: Some("dev".into()) };
+        let sent = send_request(app.handle().clone(), state(), args).await.unwrap();
+        assert_eq!(sent.response.as_ref().map(|r| r.status), Some(201));
+        assert!(sent.url.contains("key=s3cr3t-value"), "la requête part avec le secret");
+
+        let entries = history_list(state(), root_path.clone()).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        let entry = &entries[0];
+        assert_eq!((entry.path.as_str(), entry.name.as_str(), entry.method.as_str()), ("req.yml", "Créer", "POST"));
+        assert_eq!((entry.status, entry.size, entry.env.as_deref()), (Some(201), 2, Some("dev")));
+        assert_eq!(entry.url, "{{base}}/items?key={{key}}", "l'adresse est gardée telle que saisie");
+        let on_disk: String = fs::read_dir(data.path().join("history"))
+            .unwrap()
+            .map(|f| fs::read_to_string(f.unwrap().path()).unwrap())
+            .collect();
+        assert!(!on_disk.contains("s3cr3t-value"), "{on_disk}");
+
+        assert!(history_list(state(), "/ailleurs".into()).await.unwrap().is_empty());
+        history_clear(state(), root_path.clone()).await.unwrap();
+        assert!(history_list(state(), root_path).await.unwrap().is_empty());
     }
 
     #[test]

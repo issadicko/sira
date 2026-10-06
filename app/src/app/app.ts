@@ -19,6 +19,7 @@ import { EnvNameDialog } from './ui/env-name-dialog';
 import { EnvSidebar } from './ui/env-sidebar';
 import { EnvView } from './ui/env-view';
 import { Icon } from './ui/icon';
+import { HISTORY_LIMIT, HISTORY_PREVIEW, describeEntry, statusLabel, whenLabel } from './core/history';
 import { methodClass, shortMethod } from './ui/method';
 import { MoveDialog } from './ui/move-dialog';
 import { OpenApiDialog } from './ui/openapi-dialog';
@@ -81,6 +82,14 @@ export class App {
   protected readonly envMenu = signal(false);
   protected readonly sidebarWidth = signal(264);
   protected readonly methodClass = methodClass;
+  protected readonly describeEntry = describeEntry;
+  protected readonly statusLabel = statusLabel;
+  protected readonly whenLabel = whenLabel;
+  protected readonly historyPreview = HISTORY_PREVIEW;
+  protected get now() {
+    return new Date();
+  }
+  protected readonly shownHistory = computed(() => this.ws.historyView().slice(0, this.ws.historyAll() ? HISTORY_LIMIT : HISTORY_PREVIEW));
   protected readonly shortMethod = shortMethod;
   private readonly filterInput = viewChild<ElementRef<HTMLInputElement>>('filter');
 

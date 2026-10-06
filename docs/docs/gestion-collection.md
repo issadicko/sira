@@ -318,3 +318,11 @@ Elles prennent le même verrou d'écriture que les commandes de l'arbre (§ 8).
 **Limites assumées.** Renommer une variable secrète en perd la valeur (le trousseau l'oublie avec l'ancien nom : à ressaisir). `xc run` ne lit pas le trousseau : en CI, les secrets passent par `--env-var nom=valeur` ou l'environnement du processus. Pas de fusion entre un brouillon et le disque (V2).
 
 **Mode démo.** Les mêmes règles s'appliquent à la collection gardée en mémoire (`demo-env.ts`).
+
+## Historique local (EF-UX-02)
+
+Chaque envoi est gardé dans l'historique de la collection : requête, méthode, environnement, code de réponse (ou `ERR` quand aucune réponse n'est venue), durée, taille et heure. Il est affiché dans la barre latérale (les 5 derniers, « Voir tout » jusqu'à 50), un clic rouvre la requête, la corbeille l'efface. Les 200 derniers sont conservés.
+
+- **Hors de la collection** : le fichier vit dans le dossier de données de l'application (`history/<empreinte de la racine>.json`), jamais dans la collection, qui se versionne et se partage.
+- **Pas de secret** : l'adresse gardée est celle saisie, `{{variables}}` non résolues ; ni valeur de variable, ni en-tête, ni corps n'y sont écrits.
+- Une requête renommée ou supprimée disparaît de la liste (il n'y a plus de fichier à ouvrir). Un envoi ignoré par un script n'est pas gardé.

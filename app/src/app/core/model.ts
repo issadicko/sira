@@ -118,6 +118,22 @@ export interface StoredSchema {
   introspection: unknown;
 }
 
+/** Une requête envoyée, telle que l'historique local la garde : l'adresse est celle saisie, `{{variables}}` non résolues. */
+export interface HistoryEntry {
+  path: string;
+  name: string;
+  method: string;
+  url: string;
+  env: string | null;
+  /** `null` : aucune réponse n'est venue. */
+  status: number | null;
+  error: string | null;
+  durationMs: number;
+  size: number;
+  /** ISO 8601, UTC. */
+  at: string;
+}
+
 export type TreeItem =
   | { kind: 'folder'; path: string; name: string; seq?: number | null; children: TreeItem[] }
   | { kind: 'request'; path: string; name: string; seq?: number | null; method: string; requestType: string; url: string; deprecated: boolean; error?: string };

@@ -5,7 +5,7 @@ import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { emptyReport } from './scripts';
-import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, EnvVar, HistoryEntry, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -206,6 +206,8 @@ const SPEC: OpenApiPreview = {
 };
 
 const timers = new Map<string, () => void>();
+/** L'historique des envois de la session de démo, par collection : rien n'est écrit sur disque. */
+const sent = new Map<string, HistoryEntry[]>();
 /** Les schémas GraphQL chargés pendant la session, par URL : le mode démo n'écrit rien sur disque. */
 const schemas = new Map<string, StoredSchema>();
 /** Les jetons OAuth 2 de la démo, par requête : rien n'est demandé à un serveur. */
@@ -263,7 +265,9 @@ export const demoApi: Api = {
     return structuredClone(token);
   },
   oauthClear: async (_root, path) => void tokens.delete(path),
-  send: (id, _root, path, d, env) =>
+  historyList: async (root) => structuredClone(sent.get(root) ?? []),
+  historyClear: async (root) => void sent.delete(root),
+  send: (id, root, path, d, env) =>
     new Promise<SendResult>((resolve, reject) => {
       const t = setTimeout(() => {
         timers.delete(id);
@@ -276,6 +280,8 @@ export const demoApi: Api = {
         });
         const { body: text, pretty } = payload(path);
         const total = 90 + Math.round(Math.random() * 60);
+        const entry: HistoryEntry = { path, name: d.name, method: d.method, url: d.url, env, status: 200, error: null, durationMs: total, size: text.length, at: new Date().toISOString() };
+        sent.set(root, [entry, ...(sent.get(root) ?? [])].slice(0, 200));
         resolve({
           method: d.method,
           url,
