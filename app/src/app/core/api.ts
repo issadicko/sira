@@ -1,16 +1,22 @@
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 
 import {
   CollectionInfo,
+  DataInfo,
   DiskChange,
   DropPosition,
   EnvVar,
+  ExportArgs,
   FolderKind,
   GroupBy,
   OpenApiPreview,
   OpView,
+  ReportFormat,
   RequestDoc,
+  RunArgs,
+  RunDone,
+  RunEvent,
   SendResult,
   SyncDecisions,
   SyncPlan,
@@ -60,7 +66,22 @@ export interface Api {
   syncPlan(root: string, source: string | null, pairings: [string, string][]): Promise<SyncPlan>;
   syncOpView(planId: string, key: string, decisions: SyncDecisions): Promise<OpView>;
   syncApply(planId: string, decisions: SyncDecisions): Promise<SyncReport>;
+  pickDataFile(): Promise<string | null>;
+  /** Où enregistrer un rapport ; `null` si l'utilisateur renonce. */
+  pickSavePath(defaultName: string, format: ReportFormat): Promise<string | null>;
+  inspectRunData(path: string): Promise<DataInfo>;
+  /** Exécute la sélection ; les requêtes arrivent une à une par `onRunEvent`, le résumé à la fin. */
+  startRun(args: RunArgs): Promise<RunDone>;
+  cancelRun(runId: string): Promise<boolean>;
+  onRunEvent(handler: (event: RunEvent) => void): Promise<() => void>;
+  exportRun(args: ExportArgs): Promise<void>;
 }
+
+const REPORT_FILTERS: Record<ReportFormat, { name: string; extensions: string[] }> = {
+  html: { name: 'Page HTML', extensions: ['html'] },
+  junit: { name: 'JUnit (XML)', extensions: ['xml'] },
+  json: { name: 'JSON', extensions: ['json'] },
+};
 
 async function pick(options: Parameters<typeof open>[0]): Promise<string | null> {
   const picked = await open({ ...options, multiple: false });
@@ -108,6 +129,16 @@ const tauriApi: Api = {
   syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),
   syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),
   syncApply: (planId, decisions) => invoke('sync_apply', { planId, decisions }),
+  pickDataFile: () => pick({ title: "Choisir un fichier de données d'itération", filters: [{ name: 'CSV ou JSON', extensions: ['csv', 'json'] }] }),
+  pickSavePath: (defaultName, format) => save({ title: 'Enregistrer le rapport', defaultPath: defaultName, filters: [REPORT_FILTERS[format]] }),
+  inspectRunData: (path) => invoke('inspect_run_data', { path }),
+  startRun: (args) => invoke('start_run', { args }),
+  cancelRun: (runId) => invoke('cancel_run', { runId }),
+  onRunEvent: async (handler) => {
+    const { listen } = await import('@tauri-apps/api/event');
+    return listen<RunEvent>('run-event', (event) => handler(event.payload));
+  },
+  exportRun: (args) => invoke('export_run', { args }),
 };
 
 type Call = (...args: unknown[]) => unknown;

@@ -48,7 +48,7 @@ export interface Discard {
   resolve: (accepted: boolean) => void;
 }
 
-export type View = 'collections' | 'env' | 'sync' | 'settings';
+export type View = 'collections' | 'env' | 'sync' | 'runner' | 'settings';
 export type Theme = 'dark' | 'light';
 export type DialogKind = 'curl' | 'openapi' | 'collection' | 'delete' | 'move' | 'env';
 

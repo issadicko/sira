@@ -78,10 +78,16 @@
             <span class="act-badge warn">{{ sync.conflictsLeft() }}</span>
           }
         </button>
+        <button class="act" [attr.aria-current]="ws.view() === 'runner'" (click)="toggleView('runner')" title="Runner" aria-label="Runner">
+          <app-ic name="play" [size]="20" />
+          @if (runner.running()) {
+            <span class="act-badge dot" title="Un run est en cours"></span>
+          }
+        </button>
         <span class="act-spacer"></span>
         <button class="act" id="act-settings" [attr.aria-current]="ws.view() === 'settings'" (click)="toggleSettings()" [title]="'Réglages (' + key('mod+,') + ')'" aria-label="Réglages"><app-ic name="settings" [size]="19" /></button>
       </nav>
-      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : 'Collection'">
+      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : ws.view() === 'runner' ? 'Runner' : 'Collection'">
         @if (ws.view() === 'collections') {
           <div class="pane-head">
             <span class="pane-title" [title]="c.root">{{ c.name }}</span>
@@ -120,6 +126,8 @@
           @defer (on immediate) { <app-sync-sidebar /> }
         } @else if (ws.view() === 'env') {
           @defer (on immediate) { <app-env-sidebar /> }
+        } @else if (ws.view() === 'runner') {
+          @defer (on immediate) { <app-runner-sidebar /> }
         }
       </aside>
       <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner la barre latérale" (pointerdown)="dragSidebar($event)"></div>
@@ -128,6 +136,8 @@
           @defer (on immediate) { <app-env-view /> }
         } @else if (ws.view() === 'sync') {
           @defer (on immediate) { <app-sync-view /> }
+        } @else if (ws.view() === 'runner') {
+          @defer (on immediate) { <app-runner-view /> }
         } @else if (ws.view() === 'settings') {
           @defer (on immediate) { <app-settings-view /> }
         } @else {

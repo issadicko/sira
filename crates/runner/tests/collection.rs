@@ -390,3 +390,43 @@ async fn ef_cli_02_the_three_reports_describe_the_same_run() {
     );
     assert!(page.contains("✗ Échec") && page.contains("is ok") && page.contains("500 Internal Server Error"), "{page}");
 }
+
+#[tokio::test]
+async fn ef_run_01_cancelling_abandons_a_request_that_never_answers() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        let held: Vec<_> = listener.incoming().take(1).flatten().collect();
+        thread::sleep(Duration::from_secs(5));
+        drop(held);
+    });
+    let dir = new_collection(&base);
+    request(dir.path(), "a.yml", "A", 1, "{{baseUrl}}/a", &[PASS]);
+    request(dir.path(), "b.yml", "B", 2, "{{baseUrl}}/b", &[PASS]);
+    let collection = open_collection(dir.path()).unwrap();
+    let items = select(&collection.items, &[]).unwrap();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let job = Job {
+        root: dir.path(),
+        collection_name: "Shop",
+        env: None,
+        items: &items,
+        rows: &[],
+        bail: false,
+        delay: Duration::ZERO,
+        max_jumps: MAX_JUMPS,
+        execution_mode: "runner",
+        cancel: Arc::clone(&cancel),
+    };
+    let flag = Arc::clone(&cancel);
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        flag.store(true, Ordering::Relaxed);
+    });
+    let started = Instant::now();
+    let report = run_collection(job, &mut Session::default(), &mut |_| {}).await;
+
+    assert!(started.elapsed() < Duration::from_secs(3), "{:?}", started.elapsed());
+    assert!(report.results.is_empty(), "la requête abandonnée n'est pas un résultat");
+    assert_eq!(report.halt, Some(Halt::Cancelled));
+}

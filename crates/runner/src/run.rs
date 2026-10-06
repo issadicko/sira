@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use serde::Serialize;
 use xc_core::{read_request, TreeItem};
 
 use crate::data::Row;
@@ -116,7 +117,8 @@ impl RequestResult {
 }
 
 /// Ce qui a interrompu le run avant la fin de ses requêtes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Halt {
     /// `bail` : l'échec de `request`, ce qui reste n'a pas tourné.
     Bail {
@@ -164,7 +166,7 @@ impl RunReport {
 /// Ce que `run_collection` annonce au fil de l'eau, pour un affichage en direct.
 pub enum Event<'a> {
     Iteration { index: usize, total: usize, row: Option<&'a Row> },
-    Started { index: usize, item: &'a Item },
+    Started { iteration: usize, index: usize, item: &'a Item },
     Finished(&'a RequestResult),
     Waiting(Duration),
     Warning(String),
@@ -216,9 +218,17 @@ fn placeholder(iteration: usize, item: &Item, skip: Skip) -> RequestResult {
     }
 }
 
-async fn run_item(job: &Job<'_>, iteration: usize, item: &Item, session: &mut Session) -> RequestResult {
+/// Rend la main quand le drapeau d'annulation est levé.
+async fn cancelled(cancel: &AtomicBool) {
+    while !cancel.load(Ordering::Relaxed) {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// Exécute `item` ; `None` si le run a été annulé pendant la requête, que l'envoi en cours abandonne.
+async fn run_item(job: &Job<'_>, iteration: usize, item: &Item, session: &mut Session) -> Option<RequestResult> {
     if let Some(reason) = &item.unreadable {
-        return placeholder(iteration, item, Skip::Unreadable(reason.clone()));
+        return Some(placeholder(iteration, item, Skip::Unreadable(reason.clone())));
     }
     let started = Instant::now();
     let outcome = match read_request(job.root, &item.path) {
@@ -232,7 +242,10 @@ async fn run_item(job: &Job<'_>, iteration: usize, item: &Item, session: &mut Se
                 execution_mode: job.execution_mode,
                 cancel: Arc::clone(&job.cancel),
             };
-            run_request(request, session).await
+            tokio::select! {
+                outcome = run_request(request, session) => outcome,
+                () = cancelled(&job.cancel) => return None,
+            }
         }
         Err(e) => {
             let mut outcome = Outcome::placeholder(&item.method, &item.url);
@@ -240,14 +253,14 @@ async fn run_item(job: &Job<'_>, iteration: usize, item: &Item, session: &mut Se
             outcome
         }
     };
-    RequestResult {
+    Some(RequestResult {
         iteration,
         name: item.name.clone(),
         path: item.path.clone(),
         skip: outcome.skipped.then_some(Skip::Script),
         duration: started.elapsed(),
         outcome,
-    }
+    })
 }
 
 /// Attend `delay` par petits pas, pour réagir vite à une annulation.
@@ -264,7 +277,7 @@ async fn wait(delay: Duration, cancel: &AtomicBool) {
 
 /// Exécute `job` : chaque itération parcourt les requêtes dans l'ordre, un script pouvant sauter ailleurs ou arrêter
 /// le run. Les variables que les scripts écrivent restent dans `session` d'une requête et d'une itération à l'autre.
-pub async fn run_collection(job: Job<'_>, session: &mut Session, on: &mut dyn FnMut(Event<'_>)) -> RunReport {
+pub async fn run_collection(job: Job<'_>, session: &mut Session, on: &mut (dyn FnMut(Event<'_>) + Send)) -> RunReport {
     let begun = Instant::now();
     let names: Vec<String> = job.items.iter().map(|i| i.name.clone()).collect();
     let rows: Vec<Option<&Row>> = if job.rows.is_empty() { vec![None] } else { job.rows.iter().map(Some).collect() };
@@ -291,8 +304,11 @@ pub async fn run_collection(job: Job<'_>, session: &mut Session, on: &mut dyn Fn
                 break 'iterations;
             }
             let item = &job.items[position];
-            on(Event::Started { index: position, item });
-            let result = run_item(&job, index, item, session).await;
+            on(Event::Started { iteration: index, index: position, item });
+            let Some(result) = run_item(&job, index, item, session).await else {
+                report.halt = Some(Halt::Cancelled);
+                break 'iterations;
+            };
             on(Event::Finished(&result));
             let step = next_step(&names, position, &result.outcome, &mut jumps, job.max_jumps);
             let (stop, failed) = (result.outcome.stop, failure(&result.outcome));

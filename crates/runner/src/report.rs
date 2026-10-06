@@ -578,10 +578,6 @@ fn assertion_rows(list: &[AssertionEntry]) -> String {
     checks("Assertions", &tests)
 }
 
-fn card(label: &str, value: String, detail: &str, tone: &str) -> String {
-    format!("<div class=\"card {tone}\"><span class=\"label\">{label}</span><span class=\"value\">{value}</span><span class=\"detail\">{detail}</span></div>")
-}
-
 fn entry_html(e: &Entry) -> String {
     let failed = e.failed();
     let (tone, badge) = match (e.status.as_str(), failed) {
@@ -630,9 +626,7 @@ header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-con
 h1{font-size:22px;margin:0}h2{font-size:16px;margin:28px 0 10px}h3{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}h4{font-size:12px;margin:14px 0 6px;color:var(--muted)}
 .meta{color:var(--muted);margin:4px 0 0}.verdict{font-weight:700;padding:4px 12px;border-radius:999px}
 .verdict.ok,.badge.ok{background:var(--ok-bg);color:var(--ok)}.verdict.ko,.badge.ko{background:var(--ko-bg);color:var(--ko)}.badge.skip{background:var(--skip-bg);color:var(--skip)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
-.card .label{color:var(--muted);font-size:12px}.card .value{font-size:22px;font-weight:700}.card .detail{color:var(--muted);font-size:12px}.card.ko .value{color:var(--ko)}
+.sum{margin:0 0 4px;color:var(--muted)}.sum b{color:var(--ink)}.sum b.bad{color:var(--ko)}
 .req{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:8px 0}.req>summary{display:flex;gap:10px;align-items:center;padding:10px 14px;cursor:pointer;list-style:none}
 .req>summary::-webkit-details-marker{display:none}.req .name{flex:1;font-weight:600;overflow-wrap:anywhere}.req .method{font:600 12px ui-monospace,monospace;color:var(--muted);min-width:48px}
 .req .http,.req .time{color:var(--muted);font-size:12px;white-space:nowrap}.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
@@ -662,38 +656,22 @@ pub fn html_page(report: &RunReport, redact: &Redact, meta: &Meta) -> String {
     let entries = entries(report, redact);
     let s = Summary::of(&entries);
     let failed = report.failed();
-    let skipped_note =
-        if s.skipped_requests > 0 { format!(" · {} ignorée(s)", s.skipped_requests) } else { String::new() };
-    let cards = [
-        card(
-            "Requêtes",
-            s.total_requests.to_string(),
-            &format!(
-                "{} réussie(s) · {} en échec{skipped_note}",
-                s.passed_requests,
-                s.failed_requests + s.error_requests
-            ),
-            if s.failed_requests + s.error_requests > 0 { "ko" } else { "ok" },
-        ),
-        card(
-            "Tests",
-            format!(
-                "{}/{}",
-                s.passed_tests + s.passed_pre_request_tests + s.passed_post_response_tests,
-                s.total_tests + s.total_pre_request_tests + s.total_post_response_tests
-            ),
-            "réussis",
-            if s.failed_tests + s.failed_pre_request_tests + s.failed_post_response_tests > 0 { "ko" } else { "ok" },
-        ),
-        card(
-            "Assertions",
-            format!("{}/{}", s.passed_assertions, s.total_assertions),
-            "réussies",
-            if s.failed_assertions > 0 { "ko" } else { "ok" },
-        ),
-        card("Durée", format!("{:.2} s", report.elapsed.as_secs_f64()), "au total", "ok"),
-    ]
-    .concat();
+    let failures = s.failed_requests + s.error_requests;
+    let tests = s.passed_tests + s.passed_pre_request_tests + s.passed_post_response_tests;
+    let total = s.total_tests + s.total_pre_request_tests + s.total_post_response_tests;
+    let plural = |n: usize, one: &str, many: &str| format!("<b>{n}</b> {}", if n > 1 { many } else { one });
+    let mut counts = vec![plural(s.passed_requests, "réussie", "réussies")];
+    if failures > 0 {
+        counts.push(format!("<b class=\"bad\">{failures}</b> en échec"));
+    }
+    if s.skipped_requests > 0 {
+        counts.push(plural(s.skipped_requests, "ignorée", "ignorées"));
+    }
+    if total + s.total_assertions > 0 {
+        counts.push(format!("<b>{}</b> sur {} vérifications", tests + s.passed_assertions, total + s.total_assertions));
+    }
+    counts.push(format!("{:.2} s", report.elapsed.as_secs_f64()));
+    let counts = format!("<p class=\"sum\">{}</p>", counts.join(" · "));
     let environment =
         report.environment.as_deref().map(|e| format!(" · environnement {}", html(e))).unwrap_or_default();
     let several = report.iterations.len() > 1;
@@ -719,7 +697,7 @@ pub fn html_page(report: &RunReport, redact: &Redact, meta: &Meta) -> String {
          <title>Rapport d'exécution — {name}</title><style>{STYLE}</style></head><body><main>\
          <header><div><h1>{name}</h1><p class=\"meta\">Sira {version}{environment} · {when}</p></div>\
          <span class=\"verdict {tone}\">{verdict}</span></header>\
-         <section class=\"cards\">{cards}</section>{halt}<h2>Requêtes</h2>{list}</main></body></html>\n",
+         {counts}{halt}<h2>Requêtes</h2>{list}</main></body></html>\n",
         name = html(&meta.collection),
         version = env!("CARGO_PKG_VERSION"),
         when = html(&meta.completed_at),

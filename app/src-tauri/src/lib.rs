@@ -15,9 +15,12 @@ use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
+mod runs;
+
 #[derive(Default)]
 struct AppState {
     sessions: Mutex<HashMap<String, Session>>,
+    runs: runs::Runs,
     inflight: Mutex<HashMap<String, Inflight>>,
     plans: Arc<Plans>,
     writes: tokio::sync::Mutex<()>,
@@ -511,7 +514,11 @@ pub fn run() {
             sync_status,
             sync_plan,
             sync_op_view,
-            sync_apply
+            sync_apply,
+            runs::start_run,
+            runs::cancel_run,
+            runs::inspect_run_data,
+            runs::export_run
         ])
         .run(tauri::generate_context!())
         .expect("impossible de démarrer l'application");

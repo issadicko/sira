@@ -1,6 +1,7 @@
 import type { Api } from './api';
 import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments } from './demo-env';
+import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { emptyReport } from './scripts';
 import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
@@ -264,6 +265,7 @@ export const demoApi: Api = {
   importOpenApi: desktopOnly,
   ...createDemoTree(collections),
   ...createDemoEnvironments(collections),
+  ...createDemoRunner(collections),
   ...demoSync,
   syncStatus: async (root) =>
     root === ROOT ? demoSync.syncStatus(root) : { connected: false, source: null, groupBy: null, operationCount: 0, removedCount: 0 },

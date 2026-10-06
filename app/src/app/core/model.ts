@@ -310,3 +310,94 @@ export interface SyncReport {
   removed: string[];
   ignored: string[];
 }
+
+/** Ce que le runner exécute : toute la collection (`targets` vide) ou des dossiers. */
+export interface RunArgs {
+  runId: string;
+  root: string;
+  targets: string[];
+  env: string | null;
+  bail: boolean;
+  delayMs: number;
+  /** Fichier CSV ou JSON : une itération par ligne. */
+  data: string | null;
+}
+
+/** `fail` : un test, une assertion ou un script a échoué ; `error` : la requête n'a pas abouti. */
+export type RunStatus = 'pass' | 'fail' | 'error' | 'skipped';
+export type RunSkip = 'script' | 'bail' | 'stopExecution' | 'unreadable';
+
+export interface RunResult {
+  iteration: number;
+  name: string;
+  path: string;
+  method: string;
+  url: string;
+  status: RunStatus;
+  skipped: RunSkip | null;
+  http: { status: number; reason: string; size: number; timeMs: number } | null;
+  error: RunError | null;
+  assertions: AssertionResult[];
+  scripts: ScriptsReport;
+  durationMs: number;
+}
+
+export interface RunSummary {
+  totalRequests: number;
+  passedRequests: number;
+  failedRequests: number;
+  errorRequests: number;
+  skippedRequests: number;
+  skippedByBail: number;
+  totalAssertions: number;
+  passedAssertions: number;
+  failedAssertions: number;
+  totalTests: number;
+  passedTests: number;
+  failedTests: number;
+  totalPreRequestTests: number;
+  passedPreRequestTests: number;
+  failedPreRequestTests: number;
+  totalPostResponseTests: number;
+  passedPostResponseTests: number;
+  failedPostResponseTests: number;
+}
+
+export type RunHalt =
+  | { kind: 'bail'; request: string; reason: string; remaining: number }
+  | { kind: 'stopExecution'; request: string; remaining: number }
+  | { kind: 'loop' }
+  | { kind: 'cancelled' };
+
+export interface RunDone {
+  runId: string;
+  summary: RunSummary;
+  halt: RunHalt | null;
+  failed: boolean;
+  elapsedMs: number;
+}
+
+export type RunEvent =
+  | { kind: 'begin'; runId: string; requests: number; iterations: number }
+  | { kind: 'iteration'; runId: string; index: number; total: number; row: Record<string, unknown> | null }
+  | { kind: 'started'; runId: string; iteration: number; path: string; name: string; method: string }
+  | { kind: 'finished'; runId: string; result: RunResult }
+  | { kind: 'waiting'; runId: string; ms: number }
+  | { kind: 'warning'; runId: string; message: string };
+
+/** Ce qu'un fichier de données d'itération contient. */
+export interface DataInfo {
+  rows: number;
+  columns: string[];
+}
+
+export type ReportFormat = 'html' | 'junit' | 'json';
+
+export interface ExportArgs {
+  runId: string;
+  root: string;
+  format: ReportFormat;
+  path: string;
+  skipHeaders: boolean;
+  skipBodies: boolean;
+}

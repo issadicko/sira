@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed,
 import { isTauri } from './core/api';
 import { COMMANDS, isMac, shortcutLabel } from './core/commands';
 import { EnvStore } from './core/env-store';
+import { RunnerStore } from './core/runner-store';
 import { View, Workspace } from './core/store';
 import { SyncStore } from './core/sync-store';
 import { TreeStore } from './core/tree-store';
@@ -21,6 +22,8 @@ import { methodClass, shortMethod } from './ui/method';
 import { MoveDialog } from './ui/move-dialog';
 import { OpenApiDialog } from './ui/openapi-dialog';
 import { Palette } from './ui/palette';
+import { RunnerSidebar } from './ui/runner-sidebar';
+import { RunnerView } from './ui/runner-view';
 import { SettingsView } from './ui/settings-view';
 import { SyncSidebar } from './ui/sync-sidebar';
 import { SyncView } from './ui/sync-view';
@@ -46,6 +49,8 @@ import { Welcome } from './ui/welcome';
     EnvSidebar,
     SyncSidebar,
     SyncView,
+    RunnerSidebar,
+    RunnerView,
     SettingsView,
     Welcome,
     VarPopover,
@@ -65,6 +70,7 @@ export class App {
   protected readonly sync = inject(SyncStore);
   protected readonly tree = inject(TreeStore);
   protected readonly envs = inject(EnvStore);
+  protected readonly runner = inject(RunnerStore);
   private readonly commands = inject(COMMANDS);
   protected readonly key = shortcutLabel;
   protected readonly nativeLights = isTauri && isMac;
@@ -82,6 +88,7 @@ export class App {
     const opened = () => !!ws.collection();
     const tree = this.tree;
     const envs = this.envs;
+    const runner = this.runner;
     const hasTarget = () => opened() && !!tree.target();
     const inConflicts = () => ws.view() === 'sync' && this.sync.refs().length > 0;
     this.commands.register(
@@ -108,6 +115,9 @@ export class App {
       { id: 'env.delete', title: "Supprimer l'environnement actif…", group: 'Collection', icon: 'trash', when: () => opened() && !!ws.env(), run: () => envs.remove(ws.env()!) },
       { id: 'env.default', title: "Ouvrir l'environnement actif par défaut", group: 'Collection', icon: 'check', when: () => opened() && !!ws.env() && ws.collection()?.defaultEnvironment !== ws.env(), run: () => envs.setDefault(ws.env()) },
       { id: 'view.env', title: 'Gérer les environnements', group: 'Collection', icon: 'variable', when: opened, run: () => this.show('env') },
+      { id: 'runner.open', title: 'Ouvrir le runner', group: 'Runner', icon: 'play', when: opened, run: () => runner.openFor(runner.scope()) },
+      { id: 'runner.run', title: 'Lancer le runner', group: 'Runner', icon: 'play', keys: 'mod+enter', when: () => opened() && ws.view() === 'runner' && !runner.running(), run: () => runner.run() },
+      { id: 'runner.cancel', title: 'Annuler le run', group: 'Runner', icon: 'x-circle', keys: 'esc', when: () => ws.view() === 'runner' && runner.running(), run: () => runner.cancel() },
       { id: 'sync.run', title: 'Lancer la synchro OpenAPI', group: 'Synchro', icon: 'merge', when: opened, run: () => this.runSync() },
       { id: 'sync.connect', title: 'Connecter une spec OpenAPI…', group: 'Synchro', icon: 'import', when: opened, run: () => this.connectSync() },
       { id: 'sync.next', title: 'Conflit suivant', group: 'Synchro', icon: 'chev-down', keys: 'alt+arrowdown', when: inConflicts, run: () => this.sync.next(1) },

@@ -4,6 +4,7 @@ import { isMac, shortcutLabel } from '../core/commands';
 import { dirname } from '../core/paths';
 import { MenuState, TreeStore } from '../core/tree-store';
 import { findItem } from '../core/tree-ops';
+import { RunnerStore } from '../core/runner-store';
 import { Workspace } from '../core/store';
 import { Menu, MenuEntry } from './menu';
 
@@ -24,6 +25,7 @@ const DELETE_LABEL = isMac ? shortcutLabel('mod+backspace') : shortcutLabel('del
 export class TreeMenu {
   protected readonly tree = inject(TreeStore);
   private readonly ws = inject(Workspace);
+  private readonly runner = inject(RunnerStore);
 
   protected readonly open = computed(() => {
     const menu = this.tree.menu();
@@ -39,9 +41,11 @@ export class TreeMenu {
     const parent = !item ? '' : item.kind === 'folder' ? item.path : dirname(item.path);
     const create: MenuEntry[] = [{ label: 'Nouvelle requête', icon: 'file', run: () => this.tree.beginCreate('request', parent) }];
     if (!item || item.kind === 'folder') create.push({ label: 'Nouveau dossier', icon: 'folder', run: () => this.tree.beginCreate('folder', parent) });
-    if (!item) return create;
+    const run: MenuEntry[] = item?.kind === 'request' ? [] : [{ label: item ? 'Exécuter le dossier…' : 'Exécuter la collection…', icon: 'play', run: () => this.runner.openFor(item?.path ?? '') }];
+    if (!item) return [...create, 'sep', ...run];
     return [
       ...create,
+      ...(run.length ? (['sep', ...run] as MenuEntry[]) : []),
       'sep',
       { label: 'Renommer', icon: 'pencil', shortcut: shortcutLabel('f2'), run: () => this.tree.beginRename(item.path) },
       { label: 'Dupliquer', icon: 'copy', shortcut: shortcutLabel('mod+d'), run: () => this.tree.beginClone(item.path) },

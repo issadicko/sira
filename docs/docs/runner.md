@@ -1,6 +1,6 @@
 # Runner, CLI et rapports (V1, EF-RUN-01, EF-RUN-02, EF-CLI-02)
 
-Le crate `xc-runner` exécute une requête de bout en bout (voir `scripts.md`), puis une collection entière : c'est lui qui sert `xc run` et, bientôt, le runner de l'application. Les rapports reprennent ceux de `bru run`, relevés dans le code de Bruno (`bruno-cli/src/commands/run.js`, `reporters/`, `bruno-common/src/runner`, commit épinglé).
+Le crate `xc-runner` exécute une requête de bout en bout (voir `scripts.md`), puis une collection entière : c'est lui qui sert `xc run` et le runner de l'application. Les rapports reprennent ceux de `bru run`, relevés dans le code de Bruno (`bruno-cli/src/commands/run.js`, `reporters/`, `bruno-common/src/runner`, commit épinglé).
 
 ## 1. Ce que fait un run
 
@@ -56,9 +56,21 @@ docker run --rm -v "$PWD:/collection" sira run /collection --env prod --reporter
 
 Le dossier monté doit être inscriptible pour recevoir les rapports. La CI construit l'image, vérifie que le binaire démarre et qu'il lit la collection de démonstration montée (`xc check`).
 
-## 6. Ce qui reste
+## 6. Dans l'application
 
-- L'interface du runner dans l'application (EF-RUN-01 côté fenêtre : choisir un dossier, suivre le run en direct, annuler).
+La vue **Runner** (icône ▶ de la barre d'activité, commande « Ouvrir le runner », ou « Exécuter le dossier… » dans le menu d'un dossier de l'arbre) pilote le même `run_collection`, avec `execution_mode: runner` :
+
+- **Barre latérale** : ce qui s'exécute (la collection ou un dossier, avec le nombre de requêtes HTTP), l'attente entre deux requêtes, l'arrêt au premier échec, le fichier de données (le nombre d'itérations et les colonnes sont annoncés dès le choix), et les retraits du rapport exporté (sans en-têtes, sans corps).
+- **Run en direct** : chaque requête apparaît à mesure qu'elle se termine, la requête en cours et l'attente entre deux requêtes aussi ; une ligne de résumé (réussies, en échec, ignorées, vérifications, durée) et un filtre « Échecs ». La raison d'un échec est lisible sans déplier la ligne ; déplier montre l'URL, l'erreur, les assertions, les tests par phase et la console, comme l'onglet Tests d'une réponse. Avec des données, les résultats sont groupés par itération.
+- **Annuler** (Échap) : le drapeau d'annulation interrompt les scripts et abandonne l'envoi en cours ; ce qui avait fini reste affiché, la requête abandonnée n'est pas comptée.
+- **Exporter** : le rapport du dernier run en HTML, JUnit ou JSON, dans un fichier choisi.
+- **Variables** : celles que les scripts posent rejoignent celles de la collection, comme après un envoi isolé (et inversement : le run part des variables courantes).
+
+Côté Tauri, `start_run` annonce l'avancement par l'événement `run-event` (`begin`, `iteration`, `started`, `finished`, `waiting`, `warning`) et rend le résumé à la fin ; `cancel_run`, `inspect_run_data` et `export_run` complètent. Seul le dernier rapport est gardé en mémoire pour l'export. Le mode démo simule un run (une requête `DELETE` y échoue, pour montrer un échec).
+
+## 7. Ce qui reste
+
 - `--tests-only`, `--tags` / `--exclude-tags`, `--env-file`, `--global-env`, `--sandbox`, `--insecure`, `--cacert` : options de `bru run` non reprises (les réglages réseau viennent avec le lot « réglages réseau »).
 - Les requêtes GraphQL, gRPC et WebSocket ne sont pas exécutées par le runner (GraphQL avec le lot EF-GQL-01).
 - Bruno ne lance un dossier que sans ses sous-dossiers, sauf `-r` ; ici un dossier est toujours parcouru récursivement.
+- Le nom d'hôte des suites JUnit vient de `HOSTNAME`, `COMPUTERNAME` ou `/etc/hostname` ; à défaut, `localhost`.
