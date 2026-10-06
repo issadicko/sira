@@ -372,7 +372,13 @@ pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, dept
         return out;
     }
 
-    let (doc, headers) = apply_request(req.doc, &before, &pre.request);
+    let (mut doc, headers) = apply_request(req.doc, &before, &pre.request);
+    if pre.request.timeout != before.timeout {
+        doc.timeout_ms = pre.request.timeout.filter(|ms| *ms > 0);
+    }
+    if pre.max_redirects.is_some() {
+        doc.max_redirects = pre.max_redirects;
+    }
     let overrides = session.request_overrides(headers, req.env);
     let prepared = match prepare_with(req.root, req.path, &doc, req.env, &session.runtime_strings(), overrides) {
         Ok(prepared) => prepared,

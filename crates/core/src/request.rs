@@ -192,6 +192,9 @@ pub struct RequestDoc {
     /// Lues seulement : le fichier garde ses actions telles quelles à l'enregistrement.
     #[serde(default)]
     pub post_variables: Vec<PostVariable>,
+    /// Lus seulement : `info.tags`, que `xc run --tags` filtre ; le fichier les garde tels quels à l'enregistrement.
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub docs: Option<String>,
     pub timeout_ms: Option<u64>,
     /// Réglages de redirection du bloc `settings` ; absents du fichier, l'exécution suit Bruno : suivre, 5 sauts au plus,
@@ -516,6 +519,7 @@ impl RequestDoc {
             variables: key_values(runtime.seq("variables")),
             scripts,
             post_variables: post_variables(runtime.seq("actions")),
+            tags: info.seq("tags").iter().filter_map(Value::scalar).collect(),
             docs: root.get("docs").and_then(Value::scalar),
             timeout_ms: settings.get("timeout").and_then(Value::as_i64).filter(|t| *t > 0).map(|t| t as u64),
             follow_redirects: flag(settings.get("followRedirects")),

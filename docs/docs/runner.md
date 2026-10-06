@@ -10,6 +10,9 @@ Les jetons OAuth 2 obtenus pendant un run restent dans la `Session` et servent a
 
 - **Sélection** : `select(arbre, chemins)`. Sans chemin, toute la collection ; sinon chaque requête ou dossier (avec ses sous-dossiers), nommé par son chemin relatif (`users/show.yml`, l'extension est facultative), l'un après l'autre. Un chemin inconnu ou un dossier sans requête HTTP est une erreur. Un fichier illisible n'arrête pas le run : il est signalé et compté comme ignoré, comme chez Bruno.
 - **Délai** (`--delay ms`) : attente entre deux requêtes, jamais après la dernière. Elle réagit à l'annulation.
+- **Sélection** : `--tests-only` ne garde que les requêtes qui ont une assertion active ou un `test(` exécutable dans leur script pré-requête, post-réponse ou de tests (un `test(` en commentaire, dans un texte ou appelé comme méthode, `obj.test(`, ne compte pas ; comme Bruno, les commentaires de ligne partent avant les textes, donc un `//` dans une adresse coupe la ligne). `--tags a,b` ne garde que les requêtes qui portent l'un de ces tags (`info.tags`), `--exclude-tags` écarte celles qui en portent un, l'exclusion l'emporte ; les noms sont séparés par des virgules, sans autre nettoyage. Un fichier illisible n'est jamais écarté en silence : il reste, et son erreur figure au rapport. Aucune requête ne correspond : un avertissement, un rapport vide, code 0. Même sélection que `bru run` sur le corpus (vérifié sur `--tests-only` et `--tags`).
+- **Environnement d'un fichier** : `--env-file` lit un environnement hors de `environments/`, au format JSON de Bruno (`{ name?, variables: [{ name, value, enabled?, secret? }] }`) ou en YAML OpenCollection (`extends` laissé de côté, les secrets du trousseau n'y sont pas lus). Le chemin est absolu ou relatif à la collection ; `--env` et `--env-file` ensemble sont refusés (Bruno les fusionne). Le nom de l'environnement (`bru.getEnvName()`) est celui du JSON, sinon celui du fichier. Un fichier `.bru` est refusé avec un message.
+- **Délai et redirections par script** : `req.setTimeout(ms)` et `req.setMaxRedirects(n)` d'un script pré-requête valent pour l'envoi de la requête (0 : pas de délai ; 0 saut : la redirection n'est pas suivie).
 - **Arrêt au premier échec** (`--bail`) : une requête qui échoue (erreur d'envoi ou de script pré-requête, assertion, test de n'importe quelle phase, erreur de script) arrête le run ; ce qui restait à exécuter est listé comme ignoré (`skipReason: bail`) et le motif suit l'ordre de Bruno : `request failure`, `assertion failure`, `pre-request test failure`, `post-response test failure`, `test failure`.
 - **Sauts et arrêts** : `bru.setNextRequest(nom)` saute à la première requête de ce nom (avant ou après), `null` termine le run, `bru.runner.skipRequest()` ignore la requête en cours, `bru.runner.stopExecution()` arrête le run et marque le reste ignoré (`skipReason: stopExecution`). Au-delà de 10 000 sauts le run s'arrête comme une boucle sans fin (échec).
 - **Variables à saisir** : une requête dont l'adresse, les en-têtes, le corps, l'authentification, les scripts ou une variable contiennent `{{?nom}}` est ignorée (statut `skipped`, `response.statusText` : `Prompt variables detected in request. CLI execution is not supported for requests with prompt variables.` puis `Prompts: nom, …`), comme `bru run` : un run ne peut pas demander une valeur. Le reste du run continue ; l'envoi seul depuis l'application laisse la variable non résolue.
@@ -27,7 +30,8 @@ Les champs d'une ligne deviennent des **variables runtime** au début de l'itér
 ## 3. `xc run`
 
 ```bash
-xc run <collection> [chemins...] [--env nom] [--env-var nom=valeur] [--bail] [--delay ms] [--data fichier.csv|json]
+xc run <collection> [chemins...] [--env nom | --env-file fichier.json|yml] [--env-var nom=valeur] [--bail] [--delay ms]
+       [--data fichier.csv|json] [--tests-only] [--tags a,b] [--exclude-tags c]
        [-o fichier -f json|junit|html] [--reporter-json f] [--reporter-junit f] [--reporter-html f]
        [--reporter-skip-all-headers] [--reporter-skip-headers nom...] [--reporter-skip-request-body]
        [--reporter-skip-response-body] [--reporter-skip-body]
@@ -73,7 +77,7 @@ Côté Tauri, `start_run` annonce l'avancement par l'événement `run-event` (`b
 
 ## 7. Ce qui reste
 
-- `--tests-only`, `--tags` / `--exclude-tags`, `--env-file`, `--global-env`, `--sandbox`, `--insecure`, `--cacert` : options de `bru run` non reprises (les réglages réseau viennent avec le lot « réglages réseau »).
+- `--global-env`, `--workspace-path`, `--sandbox`, `--secrets-env-file`, `--parallel`, `--iteration-count` : options de `bru run` non reprises (pas d'espace de travail, un seul bac à sable, itérations en série d'après le fichier de données).
 - Les requêtes gRPC et WebSocket ne sont pas exécutées par le runner : elles figurent au rapport en erreur (« protocole non pris en charge par le runner : websocket »), comme `bru run` les compte en erreur, au lieu d'être omises sans rien dire. Les requêtes GraphQL s'exécutent avec les requêtes HTTP (voir `graphql.md`).
 - Bruno ne lance un dossier que sans ses sous-dossiers, sauf `-r` ; ici un dossier est toujours parcouru récursivement.
 - Le nom d'hôte des suites JUnit vient de `HOSTNAME`, `COMPUTERNAME` ou `/etc/hostname` ; à défaut, `localhost`.

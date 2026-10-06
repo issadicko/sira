@@ -125,6 +125,11 @@ pub fn read_environment(root: &Path, name: &str) -> Result<Vec<EnvVar>, CoreErro
     Ok(variables_of(&read_tree(&path)?))
 }
 
+/// Variables d'un fichier d'environnement YAML à un chemin quelconque (`xc run --env-file`), sans suivre `extends`.
+pub fn read_environment_file(path: &Path) -> Result<Vec<EnvVar>, CoreError> {
+    Ok(variables_of(&read_tree(path)?))
+}
+
 /// Enregistre les variables de l'environnement `name`. Chaque variable reprend sa table existante (repérée par son
 /// nom) et n'y change que ce qui a changé : les clés inconnues, l'ordre et la forme des valeurs sont conservés, ainsi
 /// que les autres clés du fichier (`extends`, `color`…). Un fichier absent est refusé, sauf avec `create` : un
