@@ -162,3 +162,55 @@ fn ef_imp_02_cli_import_exit_codes() {
     assert_eq!(code, 1, "conversion impossible : {stderr}");
     assert!(names(Path::new(&out)).is_empty(), "rien n'est écrit quand la conversion échoue");
 }
+
+const POSTMAN: &str = r#"{
+  "info": { "name": "Boutique Postman", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "item": [
+    { "name": "Produits", "item": [ { "name": "Lister", "request": { "method": "GET", "url": { "raw": "https://api.boutique.test/produits" } } } ] },
+    { "name": "Cassée", "request": { "url": "https://api.boutique.test/x" } }
+  ]
+}"#;
+
+const POSTMAN_ENV: &str = r#"{ "name": "Recette", "values": [ { "key": "baseUrl", "value": "https://recette.boutique.test", "enabled": true } ] }"#;
+
+#[test]
+fn ef_imp_01_cli_import_postman_creates_the_collection_lists_what_it_skipped_and_adds_an_environment() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("boutique.postman_collection.json");
+    fs::write(&file, POSTMAN).unwrap();
+    let out = dir.path().join("collections");
+    fs::create_dir(&out).unwrap();
+
+    let (code, stdout, stderr) = xc(&["import-postman", file.to_str().unwrap(), out.to_str().unwrap()]);
+    assert_eq!(code, 0, "{stderr}");
+    let root = Path::new(stdout.trim());
+    assert_eq!(root.file_name().unwrap(), "Boutique Postman");
+    assert_eq!(names(root), ["Produits", "environments", "opencollection.yml"], "ni .oc-sync ni requête sans méthode");
+    assert!(root.join("Produits/Lister.yml").is_file());
+    assert!(stderr.contains("Cassée : Missing or invalid request method (ignoré)"), "{stderr}");
+
+    let env = dir.path().join("recette.postman_environment.json");
+    fs::write(&env, POSTMAN_ENV).unwrap();
+    let (code, name, stderr) = xc(&["import-postman", "--environment", env.to_str().unwrap(), root.to_str().unwrap()]);
+    assert_eq!(code, 0, "{stderr}");
+    assert_eq!(name.trim(), "Recette");
+    assert!(root.join("environments/Recette.yml").is_file());
+
+    let (code, checked, _) = xc(&["check", root.to_str().unwrap()]);
+    assert_eq!(code, 0, "{checked}");
+}
+
+#[test]
+fn ef_imp_01_cli_import_postman_refuses_an_unreadable_or_unsupported_file_with_code_2() {
+    let dir = tempfile::tempdir().unwrap();
+    let (code, _, stderr) =
+        xc(&["import-postman", dir.path().join("absent.json").to_str().unwrap(), dir.path().to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(stderr.contains("illisible"), "{stderr}");
+
+    let old = dir.path().join("old.json");
+    fs::write(&old, r#"{"info": {"name": "x", "schema": "https://schema.getpostman.com/json/collection/v1.0.0/collection.json"}, "item": []}"#).unwrap();
+    let (code, _, stderr) = xc(&["import-postman", old.to_str().unwrap(), dir.path().to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(stderr.contains("v2.0 et v2.1"), "{stderr}");
+}

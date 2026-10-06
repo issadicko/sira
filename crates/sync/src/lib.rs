@@ -10,6 +10,7 @@ mod js;
 pub mod manage;
 pub mod merge;
 pub mod openapi;
+pub mod postman;
 pub mod store;
 pub mod stringify;
 pub mod sync;

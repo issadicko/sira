@@ -11,6 +11,7 @@ import {
   FolderKind,
   GroupBy,
   OpenApiPreview,
+  PostmanImport,
   OpView,
   ReportFormat,
   RequestDoc,
@@ -63,6 +64,11 @@ export interface Api {
   createRequestFromCurl(root: string, folder: string, name: string, command: string): Promise<string>;
   previewOpenApi(source: string): Promise<OpenApiPreview>;
   importOpenApi(source: string, location: string, groupBy: GroupBy): Promise<string>;
+  pickPostmanFile(): Promise<string | null>;
+  /** Importe un export Postman (collection v2.0 ou v2.1) dans un nouveau dossier de `location`. */
+  importPostman(source: string, location: string): Promise<PostmanImport>;
+  /** Ajoute un environnement Postman à la collection `root` ; renvoie son nom. */
+  importPostmanEnvironment(root: string, source: string): Promise<string>;
   syncStatus(root: string): Promise<SyncStatus>;
   syncPlan(root: string, source: string | null, pairings: [string, string][]): Promise<SyncPlan>;
   syncOpView(planId: string, key: string, decisions: SyncDecisions): Promise<OpView>;
@@ -133,6 +139,9 @@ const tauriApi: Api = {
   createRequestFromCurl: (root, folder, name, command) => invoke('create_request_from_curl', { root, folder, name, command }),
   previewOpenApi: (source) => invoke('preview_openapi', { source }),
   importOpenApi: (source, location, groupBy) => invoke('import_openapi', { source, location, groupBy }),
+  pickPostmanFile: () => pick({ title: 'Choisir un export Postman', filters: [{ name: 'Export Postman (JSON)', extensions: ['json'] }] }),
+  importPostman: (source, location) => invoke('import_postman', { source, location }),
+  importPostmanEnvironment: (root, source) => invoke('import_postman_environment', { root, source }),
   syncStatus: (root) => invoke('sync_status', { root }),
   syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),
   syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),

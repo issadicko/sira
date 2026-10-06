@@ -39,6 +39,22 @@ pub fn write_collection(
     source: &str,
     group_by: GroupBy,
 ) -> Result<PathBuf, ImportError> {
+    publish(collection, location, Some(Spec { text: spec_text, source, group_by }))
+}
+
+/// Écrit une collection qui ne vient pas d'une spec OpenAPI (Postman, Insomnia…) : pas de stockage de synchro.
+pub fn write_plain_collection(collection: &Value, location: &Path) -> Result<PathBuf, ImportError> {
+    publish(collection, location, None)
+}
+
+/// La spec dont vient la collection, gardée avec elle pour la synchro.
+struct Spec<'a> {
+    text: &'a str,
+    source: &'a str,
+    group_by: GroupBy,
+}
+
+fn publish(collection: &Value, location: &Path, spec: Option<Spec<'_>>) -> Result<PathBuf, ImportError> {
     if !location.is_dir() {
         return Err(ImportError::Location(location.display().to_string()));
     }
@@ -47,7 +63,7 @@ pub fn write_collection(
     let staging = location.join(staging_name());
     fs::create_dir(&staging).map_err(|e| CoreError::io(&staging, e))?;
     let root = location.join(folder);
-    let imported = build(collection, &staging, &name, spec_text, source, group_by)
+    let imported = build(collection, &staging, &name, spec.as_ref())
         .and_then(|()| fs::rename(&staging, &root).map_err(|e| CoreError::io(&root, e).into()));
     if imported.is_err() {
         fs::remove_dir_all(&staging).ok();
@@ -61,18 +77,13 @@ fn staging_name() -> String {
     format!(".xc-import-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed))
 }
 
-fn build(
-    collection: &Value,
-    root: &Path,
-    name: &str,
-    spec_text: &str,
-    source: &str,
-    group_by: GroupBy,
-) -> Result<(), ImportError> {
+fn build(collection: &Value, root: &Path, name: &str, spec: Option<&Spec<'_>>) -> Result<(), ImportError> {
+    let ignore =
+        if spec.is_some() { json!(["node_modules", ".git", SYNC_DIR]) } else { json!(["node_modules", ".git"]) };
     let config = json!({
         "name": name,
         "type": "collection",
-        "ignore": ["node_modules", ".git", SYNC_DIR],
+        "ignore": ignore,
         "opencollection": "1.0.0"
     });
     let root_config = collection.get("root").unwrap_or(&Value::Null);
@@ -82,7 +93,10 @@ fn build(
     let mut names = Directory::new(&[COLLECTION_FILE, FOLDER_FILE, ENV_DIR, SYNC_DIR]).listed(true);
     walk.items(collection.get("items"), root, "", &mut names)?;
     environments(collection.get("environments"), root)?;
-    Ok(store::write(root, &source_value(source, root), group_by, &walk.operations, spec_text)?)
+    if let Some(spec) = spec {
+        store::write(root, &source_value(spec.source, root), spec.group_by, &walk.operations, spec.text)?;
+    }
+    Ok(())
 }
 
 #[derive(Default)]

@@ -25,14 +25,15 @@ use xc_core::CoreError;
 
 use crate::curl::MAX_COMMAND_BYTES;
 use crate::openapi::{load_spec, summary, to_bruno, GroupBy, OpenApiError, SpecSummary};
+use crate::postman::{self, Issue, PostmanError};
 
 pub use from_curl::{create_request_from_curl, request_doc_from_curl};
 pub(crate) use naming::{
     fit, fold, folder_dir_name, is_device_name, request_file_name, sanitize_name, stem, validate_name, Directory, Slot,
 };
 pub use source::{fetch_spec, is_url, source_value};
-pub use write::write_collection;
 pub(crate) use write::{folder_file, REQUEST_TYPES};
+pub use write::{write_collection, write_plain_collection};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
@@ -55,12 +56,18 @@ pub enum ImportError {
     #[error("{0} existe déjà")]
     AlreadyExists(String),
     #[error(transparent)]
+    Postman(#[from] PostmanError),
+    #[error(transparent)]
+    Manage(#[from] crate::manage::ManageError),
+    #[error(transparent)]
     Core(#[from] CoreError),
 }
 
 pub(crate) fn text<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or_default()
 }
+
+use text as text_of;
 
 pub(crate) fn join(relative: &str, name: &str) -> String {
     if relative.is_empty() {
@@ -79,6 +86,7 @@ impl ImportError {
                 | Self::Location(_)
                 | Self::GroupBy(_)
                 | Self::Spec(OpenApiError::Syntax(_) | OpenApiError::Empty)
+                | Self::Postman(_)
         )
     }
 }
@@ -108,6 +116,22 @@ impl FromStr for GroupBy {
 pub fn import_spec(text: &str, source: &str, location: &Path, group_by: GroupBy) -> Result<PathBuf, ImportError> {
     let collection = to_bruno(&load_spec(text)?, group_by)?;
     write_collection(&collection, location, text, source, group_by)
+}
+
+/// Importe une collection Postman (v2.0 ou v2.1) dans un nouveau dossier de `location` ; renvoie sa racine et ce qui
+/// n'a pas pu être converti.
+pub fn import_postman(text: &str, location: &Path) -> Result<(PathBuf, Vec<Issue>), ImportError> {
+    let converted = postman::collection_from_text(text)?;
+    let root = write_plain_collection(&converted.collection, location)?;
+    Ok((root, converted.issues))
+}
+
+/// Importe un environnement Postman dans la collection `root` ; renvoie le nom de l'environnement créé.
+pub fn import_postman_environment(text: &str, root: &Path) -> Result<String, ImportError> {
+    let env = postman::environment_from_text(text)?;
+    let name = text_of(&env, "name");
+    let name = if name.is_empty() { "Untitled Environment" } else { name };
+    Ok(crate::manage::import_environment(root, name, env.get("variables").unwrap_or(&Value::Null))?)
 }
 
 /// Aperçu d'une spec avant import.

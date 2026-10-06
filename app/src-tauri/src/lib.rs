@@ -431,6 +431,32 @@ async fn import_openapi(
     Ok(created.display().to_string())
 }
 
+/// Ce qu'a donné l'import d'une collection Postman : sa racine, et ce qui n'a pas pu être converti.
+#[derive(Debug, Serialize)]
+struct PostmanImport {
+    root: String,
+    issues: Vec<xc_sync::postman::Issue>,
+}
+
+fn read_source(path: &str) -> Reply<String> {
+    std::fs::read_to_string(path).map_err(|e| format!("{path} illisible : {e}"))
+}
+
+/// Importe une collection Postman (v2.0 ou v2.1, fichier JSON) dans un nouveau dossier de `location`.
+#[tauri::command]
+async fn import_postman(state: State<'_, AppState>, source: String, location: String) -> Reply<PostmanImport> {
+    let text = blocking(move || read_source(&source)).await?;
+    let (root, issues) = writing(&state, move || xc_sync::import::import_postman(&text, Path::new(&location))).await?;
+    Ok(PostmanImport { root: root.display().to_string(), issues })
+}
+
+/// Ajoute un environnement Postman à la collection `root` ; renvoie son nom.
+#[tauri::command]
+async fn import_postman_environment(state: State<'_, AppState>, root: String, source: String) -> Reply<String> {
+    let text = blocking(move || read_source(&source)).await?;
+    writing(&state, move || xc_sync::import::import_postman_environment(&text, Path::new(&root))).await
+}
+
 #[tauri::command]
 async fn inspect_folder(path: String) -> Reply<FolderKind> {
     blocking(move || manage::inspect_folder(Path::new(&path))).await
@@ -574,6 +600,8 @@ pub fn run() {
             create_request_from_curl,
             preview_openapi,
             import_openapi,
+            import_postman,
+            import_postman_environment,
             inspect_folder,
             create_collection,
             init_collection,
@@ -789,6 +817,45 @@ paths:
         let second = send_request(app.handle().clone(), state(), send_args(&root, "next.yml", "b")).await.unwrap();
         assert!(second.error.is_none(), "{:?}", second.error.map(|e| e.message));
         assert_eq!(second.scripts.tests.results[0].status, "pass");
+    }
+
+    #[tokio::test]
+    async fn ef_imp_01_commands_import_a_postman_collection_then_an_environment() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let collection = dir.path().join("shop.postman_collection.json");
+        fs::write(
+            &collection,
+            r#"{"info":{"name":"Shop","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"item":[{"name":"List","request":{"method":"GET","url":"https://shop.test/items"}},{"name":"Broken","request":{"url":"x"}}]}"#,
+        )
+        .unwrap();
+        let parent = dir.path().join("out");
+        fs::create_dir(&parent).unwrap();
+
+        let imported =
+            import_postman(state(), collection.display().to_string(), parent.display().to_string()).await.unwrap();
+        assert!(Path::new(&imported.root).join("List.yml").is_file());
+        assert_eq!(imported.issues.len(), 1);
+        assert_eq!(imported.issues[0].path, "Broken");
+
+        let env = dir.path().join("env.json");
+        fs::write(&env, r#"{"name":"Prod","values":[{"key":"base","value":"https://shop.test","enabled":true}]}"#)
+            .unwrap();
+        let name = import_postman_environment(state(), imported.root.clone(), env.display().to_string()).await.unwrap();
+        assert_eq!(name, "Prod");
+        assert_eq!(xc_core::read_environment(Path::new(&imported.root), "Prod").unwrap().len(), 1);
+
+        let missing =
+            import_postman(state(), dir.path().join("none.json").display().to_string(), parent.display().to_string())
+                .await
+                .unwrap_err();
+        assert!(missing.contains("illisible"), "{missing}");
+        let unsupported = dir.path().join("bad.json");
+        fs::write(&unsupported, "{}").unwrap();
+        let refused =
+            import_postman(state(), unsupported.display().to_string(), parent.display().to_string()).await.unwrap_err();
+        assert!(refused.contains("v2.0 et v2.1"), "{refused}");
     }
 
     #[tokio::test]

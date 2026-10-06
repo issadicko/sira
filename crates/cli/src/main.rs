@@ -6,7 +6,7 @@ use clap::{ArgGroup, Parser, Subcommand};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::restyle;
-use xc_sync::import::{fetch_spec, import_spec};
+use xc_sync::import::{fetch_spec, import_postman as postman_collection, import_postman_environment, import_spec};
 use xc_sync::merge::{Choice, Kind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpStatus, Operation, Plan, Report, SyncError};
@@ -44,6 +44,18 @@ enum Command {
         /// Regroupement des requêtes : tags ou path
         #[arg(long, default_value = "tags")]
         group_by: GroupBy,
+    },
+    /// Importe une collection Postman (v2.0 ou v2.1) dans une nouvelle collection et affiche son chemin ; ce qui n'a pas
+    /// pu être converti est listé sur la sortie d'erreur
+    ImportPostman {
+        /// Fichier JSON exporté par Postman
+        file: PathBuf,
+        /// Dossier parent où créer le dossier de la collection (il doit exister) ; avec --environment, la collection où
+        /// ajouter l'environnement
+        location: PathBuf,
+        /// Le fichier est un environnement Postman, ajouté à la collection `location`
+        #[arg(long)]
+        environment: bool,
     },
     /// Compare la collection à la spec OpenAPI (fusion à 3 voies) : `--check` pour la CI, `--apply` pour écrire
     #[command(group(ArgGroup::new("mode").required(true).args(["check", "apply"])))]
@@ -85,6 +97,7 @@ fn main() -> ExitCode {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(import(&source, &location, group_by))
         }
+        Command::ImportPostman { file, location, environment } => import_postman(&file, &location, environment),
         Command::Sync { collection, apply, source, keep_team, take_spec, forget_missing, recreate_missing, .. } => {
             if !apply && (keep_team || take_spec || forget_missing || recreate_missing) {
                 eprintln!(
@@ -240,6 +253,39 @@ async fn import(source: &str, location: &Path, group_by: GroupBy) -> ExitCode {
     match result {
         Ok(root) => {
             println!("{}", root.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("erreur : {e}");
+            ExitCode::from(if e.is_input() { 2 } else { 1 })
+        }
+    }
+}
+
+fn import_postman(file: &Path, location: &Path, environment: bool) -> ExitCode {
+    let text = match fs::read_to_string(file) {
+        Ok(text) => text,
+        Err(e) => {
+            eprintln!("erreur : {} illisible : {e}", file.display());
+            return ExitCode::from(2);
+        }
+    };
+    let result = if environment {
+        import_postman_environment(&text, location).map(|name| (name, Vec::new()))
+    } else {
+        postman_collection(&text, location).map(|(root, issues)| (root.display().to_string(), issues))
+    };
+    match result {
+        Ok((created, issues)) => {
+            for issue in &issues {
+                eprintln!(
+                    "{} : {} ({})",
+                    issue.path,
+                    issue.message,
+                    if issue.severity == "error" { "ignoré" } else { "avertissement" }
+                );
+            }
+            println!("{created}");
             ExitCode::SUCCESS
         }
         Err(e) => {

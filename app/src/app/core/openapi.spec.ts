@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { SpecSummary } from './model.ts';
-import { importedMessage, specLabel } from './openapi.ts';
+import { importedMessage, postmanSummary, specLabel } from './openapi.ts';
 
 const summary = (extra: Partial<SpecSummary> = {}): SpecSummary => ({
   title: 'Petstore',
@@ -30,4 +30,13 @@ test('ef_imp_02_message_apres_import_accorde_le_nombre_de_requetes', () => {
   assert.equal(importedMessage(19), 'Collection importée : 19 requêtes');
   assert.equal(importedMessage(1), 'Collection importée : 1 requête');
   assert.equal(importedMessage(0), 'Collection importée : 0 requête');
+});
+
+test('ef_imp_01_le_resume_d_un_import_postman_compte_les_requetes_les_elements_ignores_et_les_avertissements', () => {
+  assert.equal(postmanSummary(7, []), 'Collection importée : 7 requêtes');
+  assert.equal(postmanSummary(1, [{ severity: 'error' }]), 'Collection importée : 1 requête · 1 élément ignoré');
+  assert.equal(
+    postmanSummary(12, [{ severity: 'error' }, { severity: 'error' }, { severity: 'warning' }]),
+    'Collection importée : 12 requêtes · 2 éléments ignorés · 1 avertissement',
+  );
 });

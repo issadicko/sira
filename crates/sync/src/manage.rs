@@ -27,7 +27,9 @@ use serde::{Deserialize, Serialize};
 use xc_core::CoreError;
 
 pub use collection::{create_collection, init_collection, inspect_folder};
-pub use environment::{clone_environment, create_environment, delete_environment, rename_environment};
+pub use environment::{
+    clone_environment, create_environment, delete_environment, import_environment, rename_environment,
+};
 pub use item::{clone_item, create_folder, create_request, delete_item, rename_item};
 pub use place::move_item;
 

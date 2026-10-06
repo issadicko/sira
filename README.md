@@ -12,7 +12,7 @@ Client API compatible avec les collections Bruno (OpenCollection YAML) : un doss
 | `crates/core` | Lecture et écriture OpenCollection YAML à l'identique de Bruno, résolution des variables, héritage auth et en-têtes, assertions |
 | `crates/sync` | Imports à l'identique de Bruno (cURL, OpenAPI 3.0 / 3.1 / Swagger 2.0, sérialiseur OpenCollection YAML) et synchro OpenAPI à 3 voies non destructive (`.oc-sync/`) |
 | `crates/watch` | Surveillance du dossier de la collection (`notify`) : changements du disque regroupés en lots de chemins relatifs |
-| `crates/cli` | Binaire `xc` : `run`, `check`, `import` et `sync` |
+| `crates/cli` | Binaire `xc` : `run`, `check`, `import`, `import-postman` et `sync` |
 | `app/` | Interface Angular 21 zoneless (signals) ; `app/src-tauri` : commandes Tauri |
 | `examples/demo` | Collection de démonstration (httpbin.org) |
 | `docs/` | Cahier des charges, roadmap, études, maquettes |
@@ -59,6 +59,7 @@ cargo run -p xc-cli -- check chemin/vers/une-collection-bruno
 
 ```bash
 cargo run -p xc-cli -- import https://petstore3.swagger.io/api/v3/openapi.json ~/collections --group-by tags
+cargo run -p xc-cli -- import-postman boutique.postman_collection.json ~/collections
 ```
 
 `run` sort avec le code 1 si une assertion, un test ou un envoi échoue, 2 si la ligne de commande ou la collection est invalide. Il accepte plusieurs chemins (requêtes ou dossiers), `--delay`, `--bail`, `--data fichier.csv|json` (une itération par ligne) et écrit des rapports `--reporter-json`, `--reporter-junit`, `--reporter-html` (ou `-o` avec `-f`) ; voir `docs/docs/runner.md`, qui décrit aussi l'image Docker, et `docs/docs/auth.md` pour Digest, AWS SigV4 et OAuth 2.0. `check` relit et réécrit chaque fichier en mémoire et signale ceux qui ne reviendraient pas à l'identique (`--diff` montre la première ligne qui change). `import` crée une collection à partir d'une spec OpenAPI (fichier ou URL) et affiche son chemin.

@@ -1,0 +1,11 @@
+{
+  "id": "e1",
+  "name": "Prod",
+  "values": [
+    { "key": "base-url", "value": "https://shop.test", "enabled": true },
+    { "key": "api key", "value": "abc", "type": "secret", "enabled": true },
+    { "key": "off", "value": "x", "enabled": false },
+    { "key": null, "value": null }
+  ],
+  "_postman_variable_scope": "environment"
+}

@@ -77,12 +77,18 @@ fn not_updated(done: &str, what: &str, e: impl std::fmt::Display) -> ManageError
 /// fichier est le nom retenu. Le nom n'est jamais un chemin : les caractères interdits d'un nom de fichier sont
 /// remplacés, comme pour une requête.
 pub fn create_environment(root: &Path, name: &str) -> Result<String, ManageError> {
+    import_environment(root, name, &json!([]))
+}
+
+/// Crée l'environnement `name` avec `variables` (au format de Bruno : `name`, `value`, `enabled`, `secret`…) ; même
+/// règle de nommage que [`create_environment`] : un environnement existant n'est jamais remplacé.
+pub fn import_environment(root: &Path, name: &str, variables: &serde_json::Value) -> Result<String, ManageError> {
     let stem = wanted_stem(name)?;
     let scope = Scope::open(root)?;
     let dir = ensure_dir(scope.root)?;
     let names = taken_names(&dir, None)?;
     let created = claim_unique(&dir, names, Wanted::new(&stem, REQUEST_EXT), |path| {
-        let text = stringify::environment(&json!({ "name": file_stem(path), "variables": [] }));
+        let text = stringify::environment(&json!({ "name": file_stem(path), "variables": variables }));
         write_new(path, &text).map_err(|e| io_error(path, e))
     })?;
     Ok(stem_of(&created).to_owned())

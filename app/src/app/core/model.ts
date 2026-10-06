@@ -448,3 +448,15 @@ export interface ExportArgs {
   skipHeaders: boolean;
   skipBodies: boolean;
 }
+
+/** Ce qu'un import n'a pas pu convertir : `error` écarte l'élément, `warning` en garde l'essentiel. */
+export interface ImportIssue {
+  path: string;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+export interface PostmanImport {
+  root: string;
+  issues: ImportIssue[];
+}

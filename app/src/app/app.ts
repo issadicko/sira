@@ -21,6 +21,7 @@ import { Icon } from './ui/icon';
 import { methodClass, shortMethod } from './ui/method';
 import { MoveDialog } from './ui/move-dialog';
 import { OpenApiDialog } from './ui/openapi-dialog';
+import { PostmanDialog } from './ui/postman-dialog';
 import { Palette } from './ui/palette';
 import { RunnerSidebar } from './ui/runner-sidebar';
 import { RunnerView } from './ui/runner-view';
@@ -57,6 +58,7 @@ import { Welcome } from './ui/welcome';
     Palette,
     CurlDialog,
     OpenApiDialog,
+    PostmanDialog,
     CollectionDialog,
     MoveDialog,
     DeleteDialog,
@@ -107,6 +109,7 @@ export class App {
       { id: 'item.move', title: "Déplacer l'élément actif vers…", group: 'Collection', icon: 'arrow-right', when: hasTarget, run: () => tree.requestMove() },
       { id: 'item.delete', title: "Supprimer l'élément actif", group: 'Collection', icon: 'trash', when: hasTarget, run: () => tree.requestDelete() },
       { id: 'collection.openapi', title: 'Importer une spec OpenAPI…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('openapi') },
+      { id: 'collection.postman', title: 'Importer depuis Postman…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('postman') },
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
       { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
       { id: 'env.new', title: 'Nouvel environnement…', group: 'Collection', icon: 'plus', when: opened, run: () => envs.beginNaming({ mode: 'create' }) },
