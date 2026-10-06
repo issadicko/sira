@@ -665,9 +665,20 @@ async fn create_folder(state: State<'_, AppState>, root: String, parent: String,
     writing(&state, move || manage::create_folder(Path::new(&root), &parent, &name)).await
 }
 
+/// Les entrées de l'historique d'un élément renommé ou déplacé le suivent ; un échec d'écriture ne gêne jamais l'action.
+async fn follow_history(state: &AppState, root: &str, from: &str, to: &str, name: Option<&str>) {
+    let Some(dir) = state.data.lock().ok().and_then(|data| data.clone()) else { return };
+    let _turn = state.history_turn.lock().await;
+    let (root, from, to, name) = (root.to_owned(), from.to_owned(), to.to_owned(), name.map(str::to_owned));
+    let _ = blocking(move || History::of(&dir, &root).follow(&from, &to, name.as_deref())).await;
+}
+
 #[tauri::command]
 async fn rename_item(state: State<'_, AppState>, root: String, path: String, name: String) -> Reply<String> {
-    writing(&state, move || manage::rename_item(Path::new(&root), &path, &name)).await
+    let (dir, from, label) = (root.clone(), path.clone(), name.clone());
+    let renamed = writing(&state, move || manage::rename_item(Path::new(&root), &path, &name)).await?;
+    follow_history(&state, &dir, &from, &renamed, Some(&label)).await;
+    Ok(renamed)
 }
 
 #[tauri::command]
@@ -714,7 +725,10 @@ async fn move_item(
     target: String,
     position: DropPosition,
 ) -> Reply<String> {
-    writing(&state, move || manage::move_item(Path::new(&root), &path, &target, position)).await
+    let (dir, from) = (root.clone(), path.clone());
+    let moved = writing(&state, move || manage::move_item(Path::new(&root), &path, &target, position)).await?;
+    follow_history(&state, &dir, &from, &moved, None).await;
+    Ok(moved)
 }
 
 #[tauri::command]
@@ -1364,6 +1378,41 @@ paths:
         assert!(history_list(state(), "/ailleurs".into()).await.unwrap().is_empty());
         history_clear(state(), root_path.clone()).await.unwrap();
         assert!(history_list(state(), root_path).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn ef_ux_02_renaming_or_moving_an_item_keeps_its_history() {
+        let (data, collection) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+        let app = tauri::test::mock_app();
+        app.manage(AppState { data: Mutex::new(Some(data.path().to_path_buf())), ..AppState::default() });
+        let state = || app.state::<AppState>();
+        let root = collection.path();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: S\n").unwrap();
+        let root_path = root.display().to_string();
+        let folder = create_folder(state(), root_path.clone(), String::new(), "users".into()).await.unwrap();
+        let request = create_request(state(), root_path.clone(), folder.clone(), "Liste".into()).await.unwrap();
+        let entry = |path: &str, name: &str| history::Entry {
+            path: path.into(),
+            name: name.into(),
+            method: "GET".into(),
+            url: "{{base}}/users".into(),
+            env: None,
+            status: Some(200),
+            error: None,
+            duration_ms: 1.0,
+            size: 1,
+            at: "2026-10-06T12:00:00.000Z".into(),
+        };
+        remember(&state(), &root_path, entry(&request, "Liste")).await;
+
+        let renamed = rename_item(state(), root_path.clone(), request.clone(), "Tous".into()).await.unwrap();
+        let listed = history_list(state(), root_path.clone()).await.unwrap();
+        assert_eq!((listed[0].path.as_str(), listed[0].name.as_str()), (renamed.as_str(), "Tous"));
+
+        let moved_folder = rename_item(state(), root_path.clone(), folder.clone(), "clients".into()).await.unwrap();
+        let listed = history_list(state(), root_path.clone()).await.unwrap();
+        assert_eq!(listed[0].path, format!("{moved_folder}/{}", renamed.rsplit('/').next().unwrap()));
+        assert_eq!(listed.len(), 1, "l'entrée suit, elle n'est pas dupliquée");
     }
 
     #[test]

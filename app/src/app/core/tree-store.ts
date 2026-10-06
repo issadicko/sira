@@ -272,6 +272,7 @@ export class TreeStore {
     const renamed = edit.mode === 'rename';
     const draft = edit.mode === 'clone' && this.ws.tabs().some((t) => isUnder(t.path, edit.path) && this.ws.isDirty(t));
     if (renamed) this.ws.followPath(edit.path, path);
+    if (renamed) void this.ws.loadHistory(root);
     await this.ws.reload();
     if (this.stale(root)) return;
     this.edit.set(null);
@@ -385,6 +386,7 @@ export class TreeStore {
       const next = await api.moveItem(c.root, path, target, position);
       if (this.stale(c.root)) return;
       this.ws.followPath(path, next);
+      void this.ws.loadHistory(c.root);
       await this.ws.reload();
       if (this.stale(c.root)) return;
       await this.ws.refreshHeaders(this.ws.tabs().map((t) => t.path));

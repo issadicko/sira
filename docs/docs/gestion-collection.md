@@ -325,4 +325,4 @@ Chaque envoi est gardé dans l'historique de la collection : requête, méthode,
 
 - **Hors de la collection** : le fichier vit dans le dossier de données de l'application (`history/<empreinte de la racine>.json`), jamais dans la collection, qui se versionne et se partage.
 - **Pas de secret** : l'adresse gardée est celle saisie, `{{variables}}` non résolues ; ni valeur de variable, ni en-tête, ni corps n'y sont écrits.
-- Une requête renommée ou supprimée disparaît de la liste (il n'y a plus de fichier à ouvrir). Un envoi ignoré par un script n'est pas gardé.
+- **Renommer ou déplacer garde l'historique** : les envois d'une requête renommée ou déplacée la suivent (nouveau chemin, et nouveau nom affiché), ceux des requêtes d'un dossier renommé ou déplacé suivent le dossier ; l'historique est relu aussitôt dans la barre latérale. Réordonner ne change aucun chemin. Une requête supprimée disparaît de la liste (il n'y a plus de fichier à ouvrir), une requête renommée en dehors de l'application (éditeur, `git mv`) aussi : l'application ne peut pas deviner où elle est passée. Un envoi ignoré par un script n'est pas gardé.

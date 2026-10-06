@@ -72,3 +72,50 @@ fn ef_ux_02_clearing_forgets_everything_and_an_unreadable_file_starts_over() {
     assert!(history.list().is_empty());
     assert_eq!(history.push(entry(3)).unwrap().len(), 1, "un fichier illisible est remplacé");
 }
+
+#[test]
+fn ef_ux_02_the_entries_of_a_renamed_request_follow_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::of(dir.path(), "/work/shop");
+    history.push(entry(1)).unwrap();
+    history.push(entry(2)).unwrap();
+
+    assert_eq!(history.follow("r1.yml", "users/liste.yml", Some("Liste")).unwrap(), 1);
+    let entries = history.list();
+    assert_eq!((entries[0].path.as_str(), entries[0].name.as_str()), ("r2.yml", "Requête 2"));
+    assert_eq!((entries[1].path.as_str(), entries[1].name.as_str()), ("users/liste.yml", "Liste"));
+}
+
+#[test]
+fn ef_ux_02_the_entries_inside_a_renamed_or_moved_folder_follow_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::of(dir.path(), "/work/shop");
+    for path in ["users/a.yml", "users/admin/b.yml", "usersx/c.yml", "users"] {
+        history.push(Entry { path: path.into(), ..entry(0) }).unwrap();
+    }
+
+    assert_eq!(history.follow("users", "clients", None).unwrap(), 3);
+    let paths: Vec<String> = history.list().into_iter().map(|e| e.path).collect();
+    assert_eq!(paths, ["clients", "usersx/c.yml", "clients/admin/b.yml", "clients/a.yml"]);
+    assert_eq!(history.list()[0].name, "Requête 0", "le nom d'une requête ne change que sur demande");
+}
+
+#[test]
+fn ef_ux_02_a_rename_that_keeps_the_file_still_updates_the_displayed_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::of(dir.path(), "/work/shop");
+    history.push(entry(1)).unwrap();
+    assert_eq!(history.follow("r1.yml", "r1.yml", Some("Autre nom")).unwrap(), 1);
+    assert_eq!(history.list()[0].name, "Autre nom");
+}
+
+#[test]
+fn ef_ux_02_nothing_is_written_when_no_entry_is_concerned() {
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::of(dir.path(), "/work/shop");
+    assert_eq!(history.follow("a.yml", "b.yml", None).unwrap(), 0, "pas d'historique : aucun fichier créé");
+    assert!(!dir.path().join("history").exists());
+    history.push(entry(1)).unwrap();
+    assert_eq!(history.follow("autre.yml", "b.yml", None).unwrap(), 0);
+    assert_eq!(history.list()[0].path, "r1.yml");
+}
