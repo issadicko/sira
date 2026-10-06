@@ -283,23 +283,26 @@ fn identity(
     cert: &ClientCertificate,
     fill: &mut dyn FnMut(&str) -> String,
 ) -> Result<ClientIdentity, CoreError> {
+    let passphrase = fill(&cert.passphrase);
     if cert.kind == "pfx" {
-        return Err(network_error(
-            "un certificat client PKCS#12 n'est pas encore pris en charge : convertissez-le en PEM \
-             (openssl pkcs12 -in certificat.pfx -out certificat.pem -nodes)",
-        ));
+        let file = fill(&cert.pfx_file_path);
+        if file.trim().is_empty() {
+            return Err(network_error("un certificat client PKCS#12 demande son fichier (.pfx ou .p12)"));
+        }
+        let path = absolute(root, &file);
+        let data = read(&path, "certificat client PKCS#12")?;
+        let (cert_pem, key_pem) = crate::keys::from_pkcs12(&data, &passphrase)
+            .map_err(|why| network_error(format!("{} : {why}", path.display())))?;
+        return Ok(ClientIdentity { cert_pem, key_pem });
     }
     let (cert_file, key_file) = (fill(&cert.cert_file_path), fill(&cert.key_file_path));
     if cert_file.trim().is_empty() || key_file.trim().is_empty() {
         return Err(network_error("un certificat client PEM demande le fichier du certificat et celui de la clé"));
     }
-    let key = read(&absolute(root, &key_file), "clé privée du certificat client")?;
-    if String::from_utf8_lossy(&key).contains("ENCRYPTED") {
-        return Err(network_error(
-            "la clé privée du certificat client est chiffrée : retirez sa passphrase \
-             (openssl pkey -in cle.pem -out cle-sans-passphrase.pem)",
-        ));
-    }
+    let key_path = absolute(root, &key_file);
+    let key = read(&key_path, "clé privée du certificat client")?;
+    let key = crate::keys::plain_key(&key, &passphrase)
+        .map_err(|why| network_error(format!("{} : {why}", key_path.display())))?;
     Ok(ClientIdentity { cert_pem: read(&absolute(root, &cert_file), "certificat client")?, key_pem: key })
 }
 

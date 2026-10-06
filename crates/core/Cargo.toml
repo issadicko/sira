@@ -9,6 +9,8 @@ license.workspace = true
 base64 = "0.22"
 form_urlencoded = "1"
 mime_guess = "2"
+p12-keystore = "0.3"
+pkcs8 = { version = "0.11", default-features = false, features = ["alloc", "encryption", "pem", "3des"] }
 percent-encoding = "2"
 serde.workspace = true
 serde_json.workspace = true
