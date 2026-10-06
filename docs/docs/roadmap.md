@@ -191,7 +191,7 @@ Ajouté le 1er octobre 2026 : sans ce lot, on ne peut pas partir de zéro (ouvri
 | 8-9 | GraphQL : requêtes, variables, introspection, autocomplétion | EF-GQL-01 |
 | 9-10 | Génération de code (9 langages), historique local, gestionnaire de cookies, réglages réseau (timeout, proxy, mTLS, CA) | EF-GEN-01, EF-UX-02, EF-REQ-04 |
 
-**Gate 3** : les scripts et tests du corpus donnent les mêmes résultats que `bru run` (ENF-COMP-03).
+**Gate 3** : les scripts et tests du corpus donnent les mêmes résultats que `bru run` (ENF-COMP-03). **Tenue** : 27 collections sur 27 sans écart de statut, de code, d'assertion ni de test avec `@usebruno/cli` 4.2.1, figée par `crates/runner/tests/gate3.rs` ; deux écarts voulus (flux OAuth 2 interactifs, requête `websocket` en `http://`), voir `runner.md` § 8.
 
 ## 6. V2 — protocoles et fonctions avancées (10 semaines)
 

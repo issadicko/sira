@@ -1,0 +1,1162 @@
+[
+ {
+  "path": "Artifact/01 Reset.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/02 Create Artifact Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns record ID",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/03 Upload Artifact.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns artifact ID as number",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/04 Link Artifact to Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Artifact is linked to record",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/05 Download Artifact.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Content-Type is image/webp",
+    "fail"
+   ],
+   [
+    "Response has WebP header",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/06 Download Original Artifact.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Content-Type is image/jpeg",
+    "fail"
+   ],
+   [
+    "Content-Disposition has filename",
+    "fail"
+   ],
+   [
+    "Response has JPEG header",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/07 Search by Image.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ },
+ {
+  "path": "Artifact/08 Delete Artifact.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/09 Delete Artifact Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Artifact/10 Delete Non-Existing Artifact.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 404 for non-existing artifact",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Auth/Login.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Username is returned",
+    "fail"
+   ],
+   [
+    "Username matches",
+    "fail"
+   ],
+   [
+    "Login succeeds",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Import/01 Import Legacy Archive.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Entities imported",
+    "fail"
+   ],
+   [
+    "Artifacts imported",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/01 Create Parent Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns parent record ID",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/02 Create Child Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns child record ID",
+    "fail"
+   ],
+   [
+    "ParentID is set correctly",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/03 Create Grandchild Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns grandchild record ID",
+    "fail"
+   ],
+   [
+    "ParentID is set correctly",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/04 Parent Contains Child.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Test Script Error",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/05 Get Children Full.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Test Script Error",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/06 Get Children Full Recursive.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns parent, child, and grandchild",
+    "fail"
+   ],
+   [
+    "Contains child by title",
+    "fail"
+   ],
+   [
+    "Contains grandchild by title",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/07 All Records Includes Parent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Test Script Error",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/08 Delete Grandchild.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/09 Delete Child.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Nested/10 Delete Parent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/01 Reset.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/02 Create Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns record ID",
+    "fail"
+   ],
+   [
+    "Title is correct",
+    "fail"
+   ],
+   [
+    "Description is correct",
+    "fail"
+   ],
+   [
+    "Quantity is correct",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/03 Get All Records.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns an array",
+    "fail"
+   ],
+   [
+    "Contains exactly one record",
+    "fail"
+   ],
+   [
+    "Record ID is correct",
+    "fail"
+   ],
+   [
+    "Title is correct",
+    "fail"
+   ],
+   [
+    "Description is correct",
+    "fail"
+   ],
+   [
+    "Quantity is correct",
+    "fail"
+   ],
+   [
+    "No parent (top-level)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/04 List Records.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns an array",
+    "fail"
+   ],
+   [
+    "Returns exactly one top-level record",
+    "fail"
+   ],
+   [
+    "Record has no parent",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/05 Get Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "ID is correct",
+    "fail"
+   ],
+   [
+    "Title is correct",
+    "fail"
+   ],
+   [
+    "Description is correct",
+    "fail"
+   ],
+   [
+    "Quantity is correct",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ],
+   [
+    "No parent (top-level)",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/06 Replace Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "ID is correct",
+    "fail"
+   ],
+   [
+    "Title is updated",
+    "fail"
+   ],
+   [
+    "Description is updated",
+    "fail"
+   ],
+   [
+    "Quantity is updated",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/07 Patch Title.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Title is updated",
+    "fail"
+   ],
+   [
+    "Description is preserved",
+    "fail"
+   ],
+   [
+    "Quantity is preserved",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/08 Patch Description.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Description is updated",
+    "fail"
+   ],
+   [
+    "Title is preserved",
+    "fail"
+   ],
+   [
+    "Quantity is preserved",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/09 Patch Quantity.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Quantity is updated",
+    "fail"
+   ],
+   [
+    "Title is preserved",
+    "fail"
+   ],
+   [
+    "Description is preserved",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/11 Get Record Children.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns only the record itself (no children)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/12 List Top Level Records.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns exactly one top-level record",
+    "fail"
+   ],
+   [
+    "Title is correct",
+    "fail"
+   ],
+   [
+    "Description is correct",
+    "fail"
+   ],
+   [
+    "Quantity is correct",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/13 List Records Recursive.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns exactly one record (no children exist)",
+    "fail"
+   ],
+   [
+    "Title is correct",
+    "fail"
+   ],
+   [
+    "Description is correct",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/14 Top Level Contains Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Test Script Error",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/15 Get All Records.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns an array",
+    "fail"
+   ],
+   [
+    "Contains the patched record",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/16 Get Next Reference Number.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next reference number is 1 (no references exist yet)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/17 Confirm Next Reference Number.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next reference number is 1",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/18 Delete Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/19 Delete Non-Existing Record.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 404 for non-existing record",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/20 Create Referenced Record A.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "ReferenceNumber is set",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/21 Create Referenced Record B.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "ReferenceNumber is set",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/22 Check Next Ref Both Present.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next ref is 3 (refs 1 and 2 are taken)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/23 Delete Referenced Record A.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/24 Next Ref After Deleting A.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next ref is 1 (gap reopened after deleting A)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/25 Next Ref Fills Gap.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next ref is still 1 (lowest available gap)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/26 Delete Referenced Record B.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/27 Next Ref After Deleting B.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next ref is 1 (no references remain)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Record/28 Next Ref When Empty.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Next ref is 1 (empty)",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/01 Create Grandparent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns ID",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/02 Create Parent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns ID",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/03 Create Child.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns ID",
+    "fail"
+   ],
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/04 Delete Parent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/05 Child Relocated to Grandparent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ],
+   [
+    "Child ParentID is now grandparent",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/06 Grandparent Contains Child.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Test Script Error",
+    "fail"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/07 Cleanup Child.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Reparent/08 Cleanup Grandparent.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [
+   [
+    "Returns 200",
+    "pass"
+   ]
+  ],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "WS/Connect and Receive Update.yml",
+  "status": "error",
+  "http": "error",
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": true
+ }
+]

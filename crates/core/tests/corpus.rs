@@ -5,11 +5,8 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
-use serde::Deserialize;
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT, REQUEST_KINDS};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::yaml::{self, Value};
@@ -18,17 +15,12 @@ use xc_core::{
     TreeItem,
 };
 
-const FETCH_THREADS: usize = 6;
 const MIN_COLLECTIONS: usize = 20;
 
-#[derive(Deserialize)]
-struct Entry {
-    id: String,
-    repo: String,
-    commit: String,
-    path: String,
-    restyled: usize,
-}
+#[allow(dead_code)]
+#[path = "corpus/fetch.rs"]
+mod fetch;
+use fetch::{fetch_all, manifest, root_of, Entry};
 
 struct File {
     rel: String,
@@ -64,51 +56,6 @@ struct Collection {
     files: Vec<File>,
 }
 
-fn corpus_dir() -> PathBuf {
-    std::env::var_os("XC_CORPUS_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/corpus"))
-}
-
-fn git(dir: &Path, args: &[&str]) -> Result<(), String> {
-    let out = Command::new("git")
-        .args(args)
-        .current_dir(dir)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_LFS_SKIP_SMUDGE", "1")
-        .output()
-        .map_err(|e| format!("git : {e}"))?;
-    if out.status.success() {
-        Ok(())
-    } else {
-        Err(format!("git {} : {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim()))
-    }
-}
-
-/// Dossier `entry.path` du dépôt au commit épinglé, sans conversion de fin de ligne : les octets sont ceux du dépôt,
-/// sur toutes les plates-formes.
-fn fetch(entry: &Entry, dest: &Path) -> Result<(), String> {
-    let part = dest.with_extension("part");
-    fs::remove_dir_all(&part).ok();
-    fs::create_dir_all(&part).map_err(|e| format!("{} : {e}", part.display()))?;
-    let url = format!("https://github.com/{}.git", entry.repo);
-    for args in [
-        &["init", "-q"][..],
-        &["remote", "add", "origin", &url],
-        &["config", "core.sparseCheckout", "true"],
-        &["config", "core.autocrlf", "false"],
-        &["config", "core.eol", "lf"],
-        &["config", "core.longpaths", "true"],
-    ] {
-        git(&part, args)?;
-    }
-    let pattern = if entry.path.is_empty() { "/*\n".to_owned() } else { format!("/{}/\n", entry.path) };
-    fs::write(part.join(".git/info/sparse-checkout"), pattern).map_err(|e| e.to_string())?;
-    git(&part, &["fetch", "-q", "--depth", "1", "--filter=blob:none", "origin", &entry.commit])?;
-    git(&part, &["checkout", "-q", "FETCH_HEAD"])?;
-    fs::rename(&part, dest).map_err(|e| format!("{} : {e}", dest.display()))
-}
-
 fn walk(dir: &Path, root: &Path, out: &mut Vec<File>) {
     let Ok(entries) = fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
@@ -128,37 +75,12 @@ fn walk(dir: &Path, root: &Path, out: &mut Vec<File>) {
 }
 
 fn load() -> Result<Vec<Collection>, String> {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/corpus/manifest.json");
-    let entries: Vec<Entry> = serde_json::from_str(&fs::read_to_string(&manifest).map_err(|e| e.to_string())?)
-        .map_err(|e| format!("manifest.json : {e}"))?;
-    let base = corpus_dir();
-    fs::create_dir_all(&base).map_err(|e| format!("{} : {e}", base.display()))?;
-
-    let next = AtomicUsize::new(0);
-    let failures = Mutex::new(Vec::new());
-    std::thread::scope(|scope| {
-        for _ in 0..FETCH_THREADS {
-            scope.spawn(|| {
-                while let Some(entry) = entries.get(next.fetch_add(1, Ordering::Relaxed)) {
-                    let dest = base.join(&entry.id);
-                    if !dest.join(".git/HEAD").exists() {
-                        if let Err(e) = fetch(entry, &dest) {
-                            failures.lock().unwrap().push(format!("{} : {e}", entry.id));
-                        }
-                    }
-                }
-            });
-        }
-    });
-    let failures = failures.into_inner().unwrap();
-    if !failures.is_empty() {
-        return Err(failures.join("\n"));
-    }
-
+    let entries = manifest()?;
+    fetch_all(&entries)?;
     Ok(entries
         .into_iter()
         .map(|entry| {
-            let root = base.join(&entry.id).join(&entry.path);
+            let root = root_of(&entry);
             let mut files = Vec::new();
             walk(&root, &root, &mut files);
             files.sort_by(|a, b| a.rel.cmp(&b.rel));

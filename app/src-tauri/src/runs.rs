@@ -8,8 +8,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
 use xc_runner::{
-    html_page, json, junit, now_iso, read_rows, run_collection, select, AssertionResult, Event, Halt, Job, Meta,
-    Redact, RequestResult, Row, RunError, RunReport, Skip, Stage, Summary, MAX_JUMPS,
+    html_page, json, junit, now_iso, read_rows, run_collection, select_sendable, AssertionResult, Event, Halt, Job,
+    Meta, Redact, RequestResult, Row, RunError, RunReport, Skip, Stage, Summary, MAX_JUMPS,
 };
 
 use crate::{blocking, err, AppState, Reply, ScriptsDto};
@@ -183,7 +183,7 @@ pub async fn start_run<R: tauri::Runtime>(
     let (dir, picked) = (Path::new(&root).to_path_buf(), data.clone());
     let prepared = blocking(move || {
         let collection = xc_core::open_collection(&dir).map_err(err)?;
-        let items = select(&collection.items, &targets).map_err(err)?;
+        let items = select_sendable(&collection.items, &targets).map_err(err)?;
         let rows = match picked {
             Some(file) => read_rows(Path::new(&file)).map_err(err)?,
             None => Vec::new(),

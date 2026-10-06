@@ -1,0 +1,190 @@
+[
+ {
+  "path": "Monitors/Create.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.body.id",
+    "isNumber",
+    "fail"
+   ],
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/Delete All.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 204",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/Delete One.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 204",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/Get One.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.id",
+    "eq {{monitorId}}",
+    "fail"
+   ],
+   [
+    "res.body.name",
+    "isNotEmpty",
+    "fail"
+   ],
+   [
+    "res.body",
+    "isJson",
+    "pass"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/Get Results.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body",
+    "isArray",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/Import.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 204",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/List All.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body",
+    "isArray",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Monitors/Update One.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [
+   [
+    "res.status",
+    "eq 200",
+    "pass"
+   ],
+   [
+    "res.body.id",
+    "eq {{monitorId}}",
+    "fail"
+   ],
+   [
+    "res.body.name",
+    "isNotEmpty",
+    "fail"
+   ]
+  ],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Results/delete-all.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ },
+ {
+  "path": "Results/get-all.yml",
+  "status": "pass",
+  "http": 200,
+  "assertions": [],
+  "tests": [],
+  "pre": [],
+  "post": [],
+  "error": false
+ }
+]

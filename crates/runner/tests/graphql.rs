@@ -150,7 +150,11 @@ async fn ef_gql_01_a_collection_run_sends_graphql_requests_with_the_others() {
     let info = open_collection(dir.path()).unwrap();
     let items = select(&info.items, &[]).unwrap();
     let paths: Vec<&str> = items.iter().map(|i| i.path.as_str()).collect();
-    assert_eq!(paths, ["product.yml", "health.yml"], "GraphQL se lance, gRPC reste ignoré");
+    assert_eq!(paths, ["product.yml", "health.yml", "stream.yml"]);
+    let sendable = xc_runner::select_sendable(&info.items, &[]).unwrap();
+    let sendable: Vec<&str> = sendable.iter().map(|i| i.path.as_str()).collect();
+    assert_eq!(sendable, ["product.yml", "health.yml"], "l'application ne propose pas gRPC");
+    assert!(xc_runner::select_sendable(&info.items, &["stream.yml".into()]).is_err());
 
     let job = Job {
         root: dir.path(),
@@ -165,8 +169,11 @@ async fn ef_gql_01_a_collection_run_sends_graphql_requests_with_the_others() {
         cancel: Arc::new(AtomicBool::new(false)),
     };
     let report = run_collection(job, &mut Session::default(), &mut |_| {}).await;
-    assert_eq!(report.results.len(), 2);
-    assert!(!report.failed(), "{:?}", report.summary());
+    assert_eq!(report.results.len(), 3);
+    assert!(report.results[..2].iter().all(|r| r.outcome.error.is_none()), "GraphQL et HTTP se lancent");
+    let grpc = report.results[2].outcome.error.as_ref().expect("gRPC n'est pas exécuté : erreur, pas silence");
+    assert!(grpc.message.contains("grpc"), "{}", grpc.message);
     let requests = seen.lock().unwrap();
+    assert_eq!(requests.len(), 2, "{requests:?}");
     assert!(requests[0].starts_with("POST /graphql ") && requests[1].starts_with("GET /health "), "{requests:?}");
 }

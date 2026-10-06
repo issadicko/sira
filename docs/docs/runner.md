@@ -63,7 +63,7 @@ Le dossier monté doit être inscriptible pour recevoir les rapports. La CI cons
 
 La vue **Runner** (icône ▶ de la barre d'activité, commande « Ouvrir le runner », ou « Exécuter le dossier… » dans le menu d'un dossier de l'arbre) pilote le même `run_collection`, avec `execution_mode: runner` :
 
-- **Barre latérale** : ce qui s'exécute (la collection ou un dossier, avec le nombre de requêtes HTTP), l'attente entre deux requêtes, l'arrêt au premier échec, le fichier de données (le nombre d'itérations et les colonnes sont annoncés dès le choix), et les retraits du rapport exporté (sans en-têtes, sans corps).
+- **Barre latérale** : ce qui s'exécute (la collection ou un dossier, avec le nombre de requêtes), l'attente entre deux requêtes, l'arrêt au premier échec, le fichier de données (le nombre d'itérations et les colonnes sont annoncés dès le choix), et les retraits du rapport exporté (sans en-têtes, sans corps).
 - **Run en direct** : chaque requête apparaît à mesure qu'elle se termine, la requête en cours et l'attente entre deux requêtes aussi ; une ligne de résumé (réussies, en échec, ignorées, vérifications, durée) et un filtre « Échecs ». La raison d'un échec est lisible sans déplier la ligne ; déplier montre l'URL, l'erreur, les assertions, les tests par phase et la console, comme l'onglet Tests d'une réponse. Avec des données, les résultats sont groupés par itération.
 - **Annuler** (Échap) : le drapeau d'annulation interrompt les scripts et abandonne l'envoi en cours ; ce qui avait fini reste affiché, la requête abandonnée n'est pas comptée.
 - **Exporter** : le rapport du dernier run en HTML, JUnit ou JSON, dans un fichier choisi.
@@ -74,7 +74,15 @@ Côté Tauri, `start_run` annonce l'avancement par l'événement `run-event` (`b
 ## 7. Ce qui reste
 
 - `--tests-only`, `--tags` / `--exclude-tags`, `--env-file`, `--global-env`, `--sandbox`, `--insecure`, `--cacert` : options de `bru run` non reprises (les réglages réseau viennent avec le lot « réglages réseau »).
-- Les requêtes gRPC et WebSocket ne sont pas exécutées par le runner ; les requêtes GraphQL le sont, avec les requêtes HTTP (voir `graphql.md`).
+- Les requêtes gRPC et WebSocket ne sont pas exécutées par le runner : elles figurent au rapport en erreur (« protocole non pris en charge par le runner : websocket »), comme `bru run` les compte en erreur, au lieu d'être omises sans rien dire. Les requêtes GraphQL s'exécutent avec les requêtes HTTP (voir `graphql.md`).
 - Bruno ne lance un dossier que sans ses sous-dossiers, sauf `-r` ; ici un dossier est toujours parcouru récursivement.
-- Gate 3 (ENF-COMP-03) : la comparaison de `xc run` et de `bru run` sur le corpus est en cours, voir `tools/gate3/README.md`.
 - Le nom d'hôte des suites JUnit vient de `HOSTNAME`, `COMPUTERNAME` ou `/etc/hostname` ; à défaut, `localhost`.
+
+## 8. Gate 3 : mêmes résultats que `bru run`
+
+ENF-COMP-03 est tenue sur les 27 collections du corpus (1 578 fichiers de Gate 1, plus de 1 300 requêtes) : pour chacune, le statut, le code HTTP, les assertions, les tests (dont ceux des scripts pré-requête et post-réponse) et la présence d'une erreur de chaque requête sont ceux de `@usebruno/cli` 4.2.1.
+
+- **Mesure** : `tools/gate3/diff.py` lance `bru run` et `xc run` sur une copie de chaque collection dont les adresses pointent un serveur d'écho local, et compare requête par requête (`tools/gate3/README.md`). Le texte des erreurs est compté à part : QuickJS et Node n'écrivent pas les erreurs JavaScript de la même façon, seul le statut compte.
+- **Test** : `crates/runner/tests/gate3.rs` rejoue le même run avec le runner et un serveur d'écho écrit en Rust, et compare au rapport de Bruno figé dans `crates/runner/tests/fixtures/gate3/<id>.json`. Il ne lance jamais Node ; `FREEZE=1 python3 tools/gate3/diff.py` régénère les fixtures.
+- **Écarts corrigés** : les requêtes WebSocket et gRPC sont rapportées en erreur au lieu d'être omises ; un corps multipart (jusqu'à plusieurs dizaines de Mo) n'est plus recopié dans le script post-réponse, où `req.getBody()` garde la valeur d'avant l'envoi comme chez Bruno ; une requête qui demande des variables à saisir est ignorée (voir plus haut).
+- **Écarts voulus**, listés dans `fixtures/gate3/divergences.json` ou propres au flux : un flux OAuth 2 interactif (`authorization_code`, implicite) ne peut pas s'achever en ligne de commande, `xc run` le dit en erreur et n'envoie pas la requête, alors que `bru run` l'envoie sans jeton ; de même une requête de type `websocket` dont l'adresse est `http://` part en HTTP chez Bruno et est refusée ici. Envoyer une requête sans le jeton qu'elle annonce serait une défaillance silencieuse.
