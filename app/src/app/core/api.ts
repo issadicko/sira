@@ -22,6 +22,7 @@ import {
   SyncPlan,
   SyncReport,
   SyncStatus,
+  TokenInfo,
   VariableInfo,
 } from './model';
 
@@ -75,6 +76,11 @@ export interface Api {
   cancelRun(runId: string): Promise<boolean>;
   onRunEvent(handler: (event: RunEvent) => void): Promise<() => void>;
   exportRun(args: ExportArgs): Promise<void>;
+  /** Le jeton OAuth 2 gardé pour la requête (sans sa valeur) ; `null` s'il n'y en a pas. */
+  oauthStatus(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo | null>;
+  /** Demande un jeton neuf ; les flux interactifs ouvrent une fenêtre de connexion. */
+  oauthFetch(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo>;
+  oauthClear(root: string, path: string, doc: RequestDoc, env: string | null): Promise<void>;
 }
 
 const REPORT_FILTERS: Record<ReportFormat, { name: string; extensions: string[] }> = {
@@ -139,6 +145,9 @@ const tauriApi: Api = {
     return listen<RunEvent>('run-event', (event) => handler(event.payload));
   },
   exportRun: (args) => invoke('export_run', { args }),
+  oauthStatus: (root, path, doc, env) => invoke('oauth_status', { args: { root, path, doc, env } }),
+  oauthFetch: (root, path, doc, env) => invoke('oauth_fetch', { args: { root, path, doc, env } }),
+  oauthClear: (root, path, doc, env) => invoke('oauth_clear', { args: { root, path, doc, env } }),
 };
 
 type Call = (...args: unknown[]) => unknown;

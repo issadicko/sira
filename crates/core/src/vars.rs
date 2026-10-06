@@ -256,7 +256,8 @@ impl Scope {
             return self.dotenv.get(key).cloned().or_else(|| std::env::var(key).ok());
         }
         if let Some(dynamic) = name.strip_prefix('$') {
-            return dynamic_value(dynamic);
+            return dynamic_value(dynamic)
+                .or_else(|| name.starts_with("$oauth2.").then(|| self.lookup(name).map(str::to_owned)).flatten());
         }
         self.lookup(name).map(str::to_owned)
     }

@@ -1,4 +1,5 @@
 pub mod collection;
+pub mod oauth2;
 pub mod prepare;
 pub mod pretty;
 pub mod request;
@@ -12,7 +13,7 @@ pub use collection::{
     collection_name, list_environments, mark_deprecated, normalize, open_collection, read_environment, read_request,
     restyle, save_environment, save_request, set_default_environment, CollectionInfo, EnvVar, TreeItem,
 };
-pub use prepare::{merged_headers, prepare, prepare_with, Overrides, Prepared};
+pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, SendAuth};
 pub use request::{
     Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable, RequestDoc,
 };

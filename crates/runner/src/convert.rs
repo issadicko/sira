@@ -9,6 +9,9 @@ fn auth_mode(auth: &Auth) -> &'static str {
         Auth::Bearer { .. } => "bearer",
         Auth::Basic { .. } => "basic",
         Auth::Apikey { .. } => "apikey",
+        Auth::Digest { .. } => "digest",
+        Auth::Awsv4 { .. } => "awsv4",
+        Auth::Oauth2(_) => "oauth2",
         Auth::Inherit | Auth::None | Auth::Other { .. } => "none",
     }
 }

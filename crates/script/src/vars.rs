@@ -63,7 +63,8 @@ impl Vars {
     /// Valeur d'un `{{chemin}}` : clé exacte, sinon chemin `a.b[0]["c"]` à travers les objets (comme `lodash.get`).
     fn resolve(&self, placeholder: &str, dynamic: &dyn Fn(&str) -> Option<String>) -> Option<String> {
         if let Some(name) = placeholder.strip_prefix('$') {
-            return dynamic(name);
+            return dynamic(name)
+                .or_else(|| self.oauth2.get(placeholder).map(text).filter(|_| placeholder.starts_with("$oauth2.")));
         }
         if let Some(key) = placeholder.strip_prefix("process.env.") {
             return self.process_env.get(key).map(text);

@@ -61,7 +61,7 @@ cargo run -p xc-cli -- check chemin/vers/une-collection-bruno
 cargo run -p xc-cli -- import https://petstore3.swagger.io/api/v3/openapi.json ~/collections --group-by tags
 ```
 
-`run` sort avec le code 1 si une assertion, un test ou un envoi échoue, 2 si la ligne de commande ou la collection est invalide. Il accepte plusieurs chemins (requêtes ou dossiers), `--delay`, `--bail`, `--data fichier.csv|json` (une itération par ligne) et écrit des rapports `--reporter-json`, `--reporter-junit`, `--reporter-html` (ou `-o` avec `-f`) ; voir `docs/docs/runner.md`, qui décrit aussi l'image Docker. `check` relit et réécrit chaque fichier en mémoire et signale ceux qui ne reviendraient pas à l'identique (`--diff` montre la première ligne qui change). `import` crée une collection à partir d'une spec OpenAPI (fichier ou URL) et affiche son chemin.
+`run` sort avec le code 1 si une assertion, un test ou un envoi échoue, 2 si la ligne de commande ou la collection est invalide. Il accepte plusieurs chemins (requêtes ou dossiers), `--delay`, `--bail`, `--data fichier.csv|json` (une itération par ligne) et écrit des rapports `--reporter-json`, `--reporter-junit`, `--reporter-html` (ou `-o` avec `-f`) ; voir `docs/docs/runner.md`, qui décrit aussi l'image Docker, et `docs/docs/auth.md` pour Digest, AWS SigV4 et OAuth 2.0. `check` relit et réécrit chaque fichier en mémoire et signale ceux qui ne reviendraient pas à l'identique (`--diff` montre la première ligne qui change). `import` crée une collection à partir d'une spec OpenAPI (fichier ou URL) et affiche son chemin.
 
 ```bash
 cargo run -p xc-cli -- sync chemin/vers/la-collection --check

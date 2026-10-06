@@ -32,6 +32,7 @@ fn session_of(vars: &Vars, env: Option<&str>) -> Session {
         global: vars.global.clone(),
         env: Some(EnvWrites { name: env.map(str::to_owned), vars: vars.env.clone() }),
         collection: Some(vars.collection.clone()),
+        ..Session::default()
     }
 }
 

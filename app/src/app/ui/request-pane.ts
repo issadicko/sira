@@ -1,12 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { api } from '../core/api';
 import { switchBody, withFile } from '../core/body';
-import { Assertion, Auth, Body, KeyValue, MultipartField, Param } from '../core/model';
+import { Assertion, Auth, Body, KeyValue, MultipartField, Param, TokenInfo } from '../core/model';
 import { relativeToRoot } from '../core/paths';
 import { SCRIPT_KINDS, scriptCode, withScript } from '../core/scripts';
 import { Workspace } from '../core/store';
 import { prettyJson } from '../core/highlight';
+import { AuthEditor } from './auth-editor';
 import { CodeEditor } from './code-editor';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
@@ -29,13 +30,6 @@ const BODY_TYPES: { type: Body['type']; label: string }[] = [
 ];
 const BODY_BADGES: Partial<Record<Body['type'], string>> = { 'form-urlencoded': 'FORM', 'multipart-form': 'MULTIPART' };
 const TEXT_BODIES = new Set<Body['type']>(['json', 'text', 'xml']);
-const AUTH_TYPES: { type: Auth['type']; label: string }[] = [
-  { type: 'inherit', label: 'Hériter du parent' },
-  { type: 'none', label: 'Aucune' },
-  { type: 'bearer', label: 'Bearer Token' },
-  { type: 'basic', label: 'Basic' },
-  { type: 'apikey', label: 'API Key' },
-];
 
 const OUTSIDE_COLLECTION =
   "Ce fichier est hors de la collection : le moteur n'envoie que des fichiers du dossier de la collection. Copie-le dedans, puis choisis-le à nouveau.";
@@ -43,7 +37,7 @@ const OUTSIDE_COLLECTION =
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, MultipartTable, CodeEditor],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor],
   host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -136,35 +130,17 @@ const OUTSIDE_COLLECTION =
         }
         @case ('auth') {
           <div class="pane-body">
-            <section class="sec">
-              <div class="sec-head"><span class="sec-title">Type</span></div>
-              @if (tab.doc.auth.type === 'other') {
-                <div class="banner"><app-ic name="alert" [size]="15" /><span><b>{{ $any(tab.doc.auth).label }}.</b> Ce type arrive en V1 ; il est conservé tel quel dans le fichier.</span></div>
-              } @else {
-                <div class="seg" role="group" aria-label="Type d'authentification">
-                  @for (a of authTypes; track a.type) {
-                    <button [attr.aria-pressed]="tab.doc.auth.type === a.type" (click)="setAuthType(a.type)">{{ a.label }}</button>
-                  }
-                </div>
-              }
-            </section>
-            @switch (tab.doc.auth.type) {
-              @case ('bearer') {
-                <label class="field"><span>Jeton</span><input type="text" spellcheck="false" [value]="$any(tab.doc.auth).token" (input)="setAuthField('token', $event)" placeholder="{{ '{{token}}' }}" /></label>
-              }
-              @case ('basic') {
-                <label class="field"><span>Utilisateur</span><input type="text" spellcheck="false" [value]="$any(tab.doc.auth).username" (input)="setAuthField('username', $event)" /></label>
-                <label class="field"><span>Mot de passe</span><input type="password" [value]="$any(tab.doc.auth).password" (input)="setAuthField('password', $event)" placeholder="{{ '{{process.env.MOT_DE_PASSE}}' }}" /></label>
-              }
-              @case ('apikey') {
-                <label class="field"><span>Clé</span><input type="text" spellcheck="false" [value]="$any(tab.doc.auth).key" (input)="setAuthField('key', $event)" /></label>
-                <label class="field"><span>Valeur</span><input type="text" spellcheck="false" [value]="$any(tab.doc.auth).value" (input)="setAuthField('value', $event)" /></label>
-              }
-              @case ('inherit') {
-                <div class="note"><app-ic name="shield" [size]="14" /><span>L'auth du dossier le plus proche, sinon celle de opencollection.yml, est appliquée à l'envoi.</span></div>
-              }
+            @defer (on immediate) {
+              <app-auth-editor
+                [auth]="tab.doc.auth"
+                [token]="token()"
+                [busy]="tokenBusy()"
+                [error]="tokenError()"
+                (authChange)="setAuth($event)"
+                (tokenFetch)="fetchToken()"
+                (tokenClear)="forgetToken()"
+              />
             }
-            <p class="faint" style="font-size: calc(12 * var(--px)); margin: 12px 2px 0">Préfère une variable ({{ '{{token}}' }}, {{ '{{process.env.NOM}}' }}) à une valeur en clair : ce fichier est versionné.</p>
           </div>
         }
         @case ('tests') {
@@ -224,9 +200,6 @@ const OUTSIDE_COLLECTION =
     .pane-body.fill { display: flex; flex-direction: column; }
     .pane-body.fill > .empty { flex: 1; height: auto; }
     .body-sec { margin-bottom: 12px; }
-    .field { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: calc(12.5 * var(--px)); color: var(--muted); }
-    .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: var(--code-size) var(--code-font); outline: 0; }
-    .field input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .asserts .kv-row { grid-template-columns: 32px minmax(0, 1.2fr) 120px minmax(0, 1fr); }
     .op { width: 100%; height: max(28px, 1.5em); border: 0; background: transparent; font: var(--code-size) var(--code-font); outline: 0; }
     .op option { background: var(--pop); }
@@ -242,10 +215,69 @@ export class RequestPane {
   protected readonly ws = inject(Workspace);
   protected readonly section = signal<Section>('params');
   protected readonly bodyTypes = BODY_TYPES;
-  protected readonly authTypes = AUTH_TYPES;
   protected readonly operators = OPERATORS;
   protected readonly scriptKinds = SCRIPT_KINDS;
   protected readonly lockAll = () => true;
+
+  protected readonly token = signal<TokenInfo | null>(null);
+  protected readonly tokenBusy = signal(false);
+  protected readonly tokenError = signal<string | null>(null);
+
+  constructor() {
+    // Le jeton gardé pour la requête, relu quand on ouvre l'onglet Auth, après chaque envoi et un instant après une frappe.
+    effect((onCleanup) => {
+      const tab = this.ws.active();
+      const root = this.ws.collection()?.root;
+      const env = this.ws.env();
+      if (this.section() !== 'auth' || !tab || !root || tab.doc.auth.type !== 'oauth2') {
+        untracked(() => {
+          this.token.set(null);
+          this.tokenError.set(null);
+        });
+        return;
+      }
+      void tab.sentAt;
+      let live = true;
+      const timer = setTimeout(() => {
+        api
+          .oauthStatus(root, tab.path, tab.doc, env)
+          .catch(() => null)
+          .then((info) => live && this.token.set(info));
+      }, 250);
+      onCleanup(() => {
+        live = false;
+        clearTimeout(timer);
+      });
+    });
+  }
+
+  protected async fetchToken() {
+    const root = this.ws.collection()?.root;
+    const tab = this.ws.active();
+    if (!root || !tab || this.tokenBusy()) return;
+    this.tokenBusy.set(true);
+    this.tokenError.set(null);
+    try {
+      const info = await api.oauthFetch(root, tab.path, tab.doc, this.ws.env());
+      if (this.ws.activePath() === tab.path) this.token.set(info);
+    } catch (e) {
+      this.tokenError.set(String(e));
+    } finally {
+      this.tokenBusy.set(false);
+    }
+  }
+
+  protected async forgetToken() {
+    const root = this.ws.collection()?.root;
+    const tab = this.ws.active();
+    if (!root || !tab) return;
+    try {
+      await api.oauthClear(root, tab.path, tab.doc, this.ws.env());
+      this.token.set(null);
+    } catch (e) {
+      this.tokenError.set(String(e));
+    }
+  }
 
   protected readonly query = computed(() => this.ws.active()?.doc.params.filter((p) => p.kind === 'query') ?? []);
   protected readonly path = computed(() => this.ws.active()?.doc.params.filter((p) => p.kind === 'path') ?? []);
@@ -325,19 +357,8 @@ export class RequestPane {
     else this.ws.notify('JSON invalide ou contenant des variables non guillemetées : rien à formater.');
   }
 
-  protected setAuthType(type: Auth['type']) {
-    const auth: Auth =
-      type === 'bearer' ? { type, token: '{{token}}' }
-      : type === 'basic' ? { type, username: '', password: '' }
-      : type === 'apikey' ? { type, key: 'X-API-Key', value: '', placement: 'header' }
-      : type === 'none' ? { type: 'none' }
-      : { type: 'inherit' };
+  protected setAuth(auth: Auth) {
     this.ws.edit((d) => ({ ...d, auth }));
-  }
-
-  protected setAuthField(field: string, event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    this.ws.edit((d) => ({ ...d, auth: { ...d.auth, [field]: value } as Auth }));
   }
 
   protected unary(op: string) {

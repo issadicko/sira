@@ -28,12 +28,59 @@ export type Body =
   | { type: 'multipart-form'; fields: MultipartField[] }
   | { type: 'other'; label: string; config?: string };
 
+/** Un paramètre ajouté à une des requêtes du flux OAuth 2. */
+export interface OAuthParam {
+  stage: 'authorization' | 'token' | 'refresh';
+  name: string;
+  value: string;
+  placement: 'header' | 'query' | 'body';
+}
+
+export interface OAuth2Auth {
+  type: 'oauth2';
+  flow: string;
+  authorizationUrl: string;
+  accessTokenUrl: string;
+  refreshTokenUrl: string;
+  callbackUrl: string;
+  clientId: string;
+  clientSecret: string;
+  credentialsPlacement: string;
+  username: string;
+  password: string;
+  scope: string;
+  state: string;
+  pkce: boolean;
+  tokenId: string;
+  tokenPlacement: string;
+  tokenPrefix: string;
+  tokenQueryKey: string;
+  tokenSource: string;
+  autoFetchToken: boolean;
+  autoRefreshToken: boolean;
+  parameters: OAuthParam[];
+}
+
+/** Le jeton OAuth 2 gardé pour une requête ; sa valeur ne quitte jamais le processus de l'application. */
+export interface TokenInfo {
+  id: string;
+  tokenType: string | null;
+  scope: string | null;
+  /** Millisecondes Unix ; `null` : le serveur n'a pas annoncé de durée. */
+  expiresAt: number | null;
+  expired: boolean;
+  hasRefreshToken: boolean;
+}
+
 export type Auth =
   | { type: 'inherit' }
   | { type: 'none' }
   | { type: 'bearer'; token: string }
   | { type: 'basic'; username: string; password: string }
   | { type: 'apikey'; key: string; value: string; placement: string }
+  | { type: 'digest'; username: string; password: string }
+  | { type: 'awsv4'; accessKeyId: string; secretAccessKey: string; sessionToken: string; service: string; region: string; profileName: string }
+  | OAuth2Auth
   | { type: 'other'; label: string; config?: string };
 
 export interface Assertion {

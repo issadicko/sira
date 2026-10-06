@@ -8,6 +8,7 @@ use base64::Engine as _;
 use xc_engine::HttpRequest;
 
 use crate::collection::resolve_visible_path;
+use crate::oauth2::OAuth2;
 use crate::request::{
     auth_from, key_values, Auth, Body, KeyValue, MultipartField, MultipartValue, ParamKind, RequestDoc,
 };
@@ -20,6 +21,34 @@ const MAX_MULTIPART_BODY: u64 = 512 << 20;
 pub struct Prepared {
     pub request: HttpRequest,
     pub unresolved: Vec<String>,
+    /// Ce que l'auth fait à l'envoi même, une fois les variables résolues : elle dépend de la requête finale ou de la
+    /// réponse du serveur (signature, défi Digest).
+    pub auth: SendAuth,
+}
+
+/// L'auth qui s'applique au moment de l'envoi.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum SendAuth {
+    #[default]
+    None,
+    Digest {
+        username: String,
+        password: String,
+    },
+    Aws(AwsSettings),
+    /// OAuth 2.0, champs résolus : le jeton s'obtient (ou se rafraîchit) avant l'envoi.
+    Oauth2(Box<OAuth2>),
+}
+
+/// La configuration AWS Signature V4 d'une requête, variables résolues ; un champ vide est absent.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AwsSettings {
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub session_token: String,
+    pub service: String,
+    pub region: String,
+    pub profile_name: String,
 }
 
 /// Ce qu'un script pré-requête a changé et que `doc` ne dit pas : les en-têtes de la collection, des dossiers et de la
@@ -100,7 +129,22 @@ pub fn prepare_with(
         push(fill(name), fill(value));
     }
 
+    let mut send_auth = SendAuth::None;
     match effective_auth(doc, &ctx) {
+        Auth::Digest { username, password } => {
+            send_auth = SendAuth::Digest { username: fill(&username), password: fill(&password) };
+        }
+        Auth::Oauth2(config) => send_auth = SendAuth::Oauth2(Box::new(config.resolved(&mut fill))),
+        Auth::Awsv4 { access_key_id, secret_access_key, session_token, service, region, profile_name } => {
+            send_auth = SendAuth::Aws(AwsSettings {
+                access_key_id: fill(&access_key_id),
+                secret_access_key: fill(&secret_access_key),
+                session_token: fill(&session_token),
+                service: fill(&service),
+                region: fill(&region),
+                profile_name: fill(&profile_name),
+            });
+        }
         Auth::Bearer { token } => push("Authorization".into(), format!("Bearer {}", fill(&token))),
         Auth::Basic { username, password } => {
             let raw = format!("{}:{}", fill(&username), fill(&password));
@@ -146,6 +190,7 @@ pub fn prepare_with(
             max_response_body: None,
         },
         unresolved,
+        auth: send_auth,
     })
 }
 

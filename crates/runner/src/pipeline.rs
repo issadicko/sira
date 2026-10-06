@@ -148,7 +148,7 @@ fn vars_for(scope: &Scope, session: &Session, env: Option<&str>) -> Vars {
         collection: session.collection.clone().unwrap_or_else(|| typed(scope.vars_of("Collection"))),
         folder: typed(scope.vars_of("Dossier")),
         request: typed(scope.vars_of("Requête")),
-        oauth2: Map::new(),
+        oauth2: crate::oauth2::script_vars(&session.tokens),
         process_env,
     }
 }
@@ -294,11 +294,15 @@ fn post_variables_call(doc: &RequestDoc) -> String {
     }
 }
 
-fn sent_request(before: &ScriptRequest, prepared: &xc_engine::HttpRequest) -> ScriptRequest {
+fn sent_request(
+    before: &ScriptRequest,
+    prepared: &xc_engine::HttpRequest,
+    headers: Vec<(String, String)>,
+) -> ScriptRequest {
     ScriptRequest {
         method: prepared.method.clone(),
         url: prepared.url.clone(),
-        headers: prepared.headers.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect(),
+        headers: headers.into_iter().map(|(k, v)| (k, Value::String(v))).collect(),
         data: prepared.body.as_ref().map(|b| Value::String(xc_engine::lossy_text(b.clone()))),
         timeout: Some(prepared.timeout.as_millis() as u64).filter(|_| false),
         ..before.clone()
@@ -356,14 +360,14 @@ pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, dept
     out.method.clone_from(&prepared.request.method);
     out.url.clone_from(&prepared.request.url);
     out.unresolved = prepared.unresolved;
-    let sent = sent_request(&pre.request, &prepared.request);
-    out.sent_headers.clone_from(&prepared.request.headers);
-    out.sent_body = prepared.request.body.clone().map(xc_engine::lossy_text);
-
-    let mut response = match xc_engine::send(prepared.request).await {
-        Ok(response) => response,
+    let sent = match crate::auth::send(prepared.request.clone(), &prepared.auth, session).await {
+        Ok(sent) => sent,
         Err(e) => return out.fail(Stage::Send, e),
     };
+    out.sent_headers.clone_from(&sent.headers);
+    out.sent_body = prepared.request.body.clone().map(xc_engine::lossy_text);
+    let (mut response, headers) = (sent.response, sent.headers);
+    let sent = sent_request(&pre.request, &prepared.request, headers);
 
     let parse_json = !pre.disable_json_parsing;
     let view = script_response(&response, &out.url, parse_json);

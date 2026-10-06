@@ -1,3 +1,6 @@
+pub mod aws;
+pub mod digest;
+mod time;
 mod tls;
 
 use std::net::SocketAddr;
@@ -12,6 +15,8 @@ use serde::Serialize;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use url::Url;
+
+pub use time::{amz_date, iso_from_millis, millis};
 
 #[derive(Debug, Clone)]
 pub struct HttpRequest {

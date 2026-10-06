@@ -101,7 +101,7 @@ pub enum Body {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
+#[serde(tag = "type", rename_all = "kebab-case", rename_all_fields = "camelCase")]
 pub enum Auth {
     Inherit,
     None,
@@ -116,6 +116,20 @@ pub enum Auth {
         key: String,
         value: String,
         placement: String,
+    },
+    Digest {
+        username: String,
+        password: String,
+    },
+    Oauth2(Box<crate::oauth2::OAuth2>),
+    /// AWS Signature V4 ; un champ vide est absent du fichier.
+    Awsv4 {
+        access_key_id: String,
+        secret_access_key: String,
+        session_token: String,
+        service: String,
+        region: String,
+        profile_name: String,
     },
     /// Type non édité ici : son nom, et le texte YAML canonique du reste de sa configuration.
     Other {
@@ -408,6 +422,16 @@ fn auth_of(m: &Map) -> Auth {
             value: field("value"),
             placement: m.str("placement").unwrap_or("header").into(),
         },
+        "oauth2" => Auth::Oauth2(Box::new(crate::oauth2::read(m))),
+        "digest" => Auth::Digest { username: field("username"), password: field("password") },
+        "awsv4" => Auth::Awsv4 {
+            access_key_id: field("accessKeyId"),
+            secret_access_key: field("secretAccessKey"),
+            session_token: field("sessionToken"),
+            service: field("service"),
+            region: field("region"),
+            profile_name: field("profileName"),
+        },
         "inherit" => Auth::Inherit,
         other => Auth::Other { label: other.into(), config: canonical(m) },
     }
@@ -573,7 +597,34 @@ pub(crate) fn set_list<T: Entry>(map: &mut Map, key: &str, items: &[T], order: &
 }
 
 const BODY_ORDER: &[&str] = &["type", "data"];
-const AUTH_ORDER: &[&str] = &["type", "token", "username", "password", "key", "value", "placement"];
+const AUTH_ORDER: &[&str] = &[
+    "type",
+    "token",
+    "username",
+    "password",
+    "key",
+    "value",
+    "placement",
+    "accessKeyId",
+    "secretAccessKey",
+    "sessionToken",
+    "service",
+    "region",
+    "profileName",
+    "flow",
+    "authorizationUrl",
+    "accessTokenUrl",
+    "refreshTokenUrl",
+    "callbackUrl",
+    "credentials",
+    "resourceOwner",
+    "scope",
+    "state",
+    "additionalParameters",
+    "pkce",
+    "tokenConfig",
+    "settings",
+];
 
 /// Type et contenu texte du corps ; les champs d'un formulaire sont écrits à part, par [`set_list`].
 fn body_scalars(body: &Body) -> Option<Map> {
@@ -623,6 +674,21 @@ fn auth_table(auth: &Auth) -> Option<Map> {
             ("key", Value::str(key)),
             ("value", Value::str(value)),
             ("placement", Value::str(placement)),
+        ]),
+        Auth::Oauth2(config) => crate::oauth2::write(config),
+        Auth::Digest { username, password } => table(vec![
+            ("type", Value::str("digest")),
+            ("username", Value::str(username)),
+            ("password", Value::str(password)),
+        ]),
+        Auth::Awsv4 { access_key_id, secret_access_key, session_token, service, region, profile_name } => table(vec![
+            ("type", Value::str("awsv4")),
+            ("accessKeyId", Value::str(access_key_id)),
+            ("secretAccessKey", Value::str(secret_access_key)),
+            ("sessionToken", Value::str(session_token)),
+            ("service", Value::str(service)),
+            ("region", Value::str(region)),
+            ("profileName", Value::str(profile_name)),
         ]),
     })
 }

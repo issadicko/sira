@@ -255,6 +255,9 @@ fn show_auth(auth: &Auth) -> Option<String> {
         Auth::Bearer { token } => format!("bearer : {token}"),
         Auth::Basic { username, .. } => format!("basic : {username}"),
         Auth::Apikey { key, placement, .. } => format!("apikey : {key} ({placement})"),
+        Auth::Digest { username, .. } => format!("digest : {username}"),
+        Auth::Awsv4 { access_key_id, region, service, .. } => format!("awsv4 : {access_key_id} ({service} {region})"),
+        Auth::Oauth2(config) => show_other("oauth2", &xc_core::oauth2::canonical(config)),
         Auth::Other { label, config } => show_other(label, config),
     })
 }

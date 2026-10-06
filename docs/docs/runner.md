@@ -2,6 +2,8 @@
 
 Le crate `xc-runner` exécute une requête de bout en bout (voir `scripts.md`), puis une collection entière : c'est lui qui sert `xc run` et le runner de l'application. Les rapports reprennent ceux de `bru run`, relevés dans le code de Bruno (`bruno-cli/src/commands/run.js`, `reporters/`, `bruno-common/src/runner`, commit épinglé).
 
+Les jetons OAuth 2 obtenus pendant un run restent dans la `Session` et servent aux requêtes suivantes ; voir `auth.md`.
+
 ## 1. Ce que fait un run
 
 `run_collection(Job, &mut Session, rappel) -> RunReport` parcourt les requêtes HTTP choisies dans l'ordre de l'arbre (`seq`, puis nom), chacune avec le pipeline complet, et garde dans la `Session` les variables que les scripts écrivent, d'une requête et d'une itération à l'autre.

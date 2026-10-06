@@ -6,11 +6,13 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+base64 = "0.22"
 form_urlencoded = "1"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+url = "2"
 xc-core.workspace = true
 xc-engine.workspace = true
 xc-script.workspace = true

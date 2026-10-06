@@ -15,6 +15,7 @@ use xc_sync::manage::{self, DropPosition, FolderKind};
 use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
+mod oauth;
 mod runs;
 
 #[derive(Default)]
@@ -256,9 +257,14 @@ fn variables(
 }
 
 #[tauri::command]
-async fn send_request(state: State<'_, AppState>, args: SendArgs) -> Reply<SendResult> {
+async fn send_request<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, AppState>,
+    args: SendArgs,
+) -> Reply<SendResult> {
     let SendArgs { id, root: root_path, path, doc, env } = args;
     let mut session = state.sessions.lock().map_err(err)?.get(&root_path).cloned().unwrap_or_default();
+    session.authorizer = Some(oauth::authorizer(&app));
     let cancel = Arc::new(AtomicBool::new(false));
     let (dir, flag) = (root(&root_path), Arc::clone(&cancel));
     let task = tokio::spawn(async move {
@@ -518,7 +524,10 @@ pub fn run() {
             runs::start_run,
             runs::cancel_run,
             runs::inspect_run_data,
-            runs::export_run
+            runs::export_run,
+            oauth::oauth_status,
+            oauth::oauth_fetch,
+            oauth::oauth_clear
         ])
         .run(tauri::generate_context!())
         .expect("impossible de démarrer l'application");
@@ -706,11 +715,11 @@ paths:
         )
         .unwrap();
 
-        let first = send_request(state(), send_args(&root, "login.yml", "a")).await.unwrap();
+        let first = send_request(app.handle().clone(), state(), send_args(&root, "login.yml", "a")).await.unwrap();
         assert_eq!(first.response.as_ref().map(|r| r.status), Some(200));
         assert_eq!(first.scripts.tests.results.len(), 1);
         assert_eq!(first.scripts.tests.logs[0].args, serde_json::json!(["seen", 200]));
-        let second = send_request(state(), send_args(&root, "next.yml", "b")).await.unwrap();
+        let second = send_request(app.handle().clone(), state(), send_args(&root, "next.yml", "b")).await.unwrap();
         assert!(second.error.is_none(), "{:?}", second.error.map(|e| e.message));
         assert_eq!(second.scripts.tests.results[0].status, "pass");
     }

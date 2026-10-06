@@ -4,7 +4,7 @@ import { createDemoEnvironments } from './demo-env';
 import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { emptyReport } from './scripts';
-import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, EnvVar, KeyValue, OpenApiPreview, Param, RequestDoc, Rung, SendResult, TokenInfo, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -190,6 +190,8 @@ const SPEC: OpenApiPreview = {
 };
 
 const timers = new Map<string, () => void>();
+/** Les jetons OAuth 2 de la démo, par requête : rien n'est demandé à un serveur. */
+const tokens = new Map<string, TokenInfo>();
 
 const demoSync = createDemoSync(files);
 
@@ -217,6 +219,15 @@ export const demoApi: Api = {
     return true;
   },
   variables: async (_root, path, _doc, env) => variables(path, env),
+  oauthStatus: async (_root, path) => structuredClone(tokens.get(path) ?? null),
+  oauthFetch: async (_root, path, doc) => {
+    if (doc.auth.type !== 'oauth2') throw "Cette requête n'utilise pas OAuth 2";
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    const token: TokenInfo = { id: doc.auth.tokenId, tokenType: 'Bearer', scope: doc.auth.scope || null, expiresAt: Date.now() + 3_600_000, expired: false, hasRefreshToken: doc.auth.flow !== 'client_credentials' };
+    tokens.set(path, token);
+    return structuredClone(token);
+  },
+  oauthClear: async (_root, path) => void tokens.delete(path),
   send: (id, _root, path, d, env) =>
     new Promise<SendResult>((resolve, reject) => {
       const t = setTimeout(() => {
