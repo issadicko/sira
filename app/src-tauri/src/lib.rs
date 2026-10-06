@@ -117,6 +117,9 @@ struct ResponseDto {
     pretty: Option<String>,
     size: usize,
     timings: Timings,
+    /// L'adresse de la réponse (celle du dernier saut) et les redirections suivies pour y arriver.
+    url: String,
+    redirects: Vec<xc_engine::RedirectStep>,
 }
 
 #[derive(Serialize)]
@@ -428,6 +431,8 @@ async fn send_request<R: tauri::Runtime>(
             body,
             headers: res.headers,
             timings: res.timings,
+            url: res.url,
+            redirects: res.redirects,
         }
     });
     Ok(SendResult {

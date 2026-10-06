@@ -298,6 +298,8 @@ export const demoApi: Api = {
             body: text,
             pretty,
             size: text.length,
+            url,
+            redirects: [],
             timings: { dnsMs: 4, tcpMs: 11, tlsMs: 28, ttfbMs: total - 55, downloadMs: 12, totalMs: total },
           },
         });

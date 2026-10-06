@@ -816,6 +816,8 @@ button.metric:hover { background: var(--hover); color: var(--ink); }
 .tl-track { height: 10px; position: relative; border-radius: 3px; background: var(--sunken); }
 .tl-bar { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 2px; }
 .tl-ms { font: calc(var(--code-size) - .5px) var(--code-font); text-align: right; font-variant-numeric: tabular-nums; }
+.hop { display: block; overflow-wrap: anywhere; }
+.hop-code { display: inline-block; min-width: 3ch; margin-right: 8px; color: var(--warn); font-weight: 600; }
 .tl-total { border-top: 1px solid var(--line); padding-top: 10px; font-weight: 600; }
 .ph-dns { background: var(--faint); }
 .ph-tcp { background: var(--muted); }

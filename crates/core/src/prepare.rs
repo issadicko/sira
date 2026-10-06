@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use base64::Engine as _;
 use xc_codegen::{Auth as SnippetAuth, Body as SnippetBody, Part, PartValue, Snippet};
-use xc_engine::HttpRequest;
+use xc_engine::{HttpRequest, Network, Redirects};
 
 use crate::collection::resolve_visible_path;
 use crate::graphql;
@@ -79,6 +79,15 @@ pub fn merged_headers(ctx: &Context, doc: &RequestDoc) -> Vec<(String, String)> 
         }
     }
     headers
+}
+
+/// Les redirections que la requête demande dans son bloc `settings`, avec les défauts d'exécution de Bruno.
+pub fn redirects_of(doc: &RequestDoc) -> Redirects {
+    Redirects {
+        follow: doc.follow_redirects.unwrap_or(true),
+        max: doc.max_redirects.map_or(Redirects::DEFAULT_MAX, |max| u32::try_from(max).unwrap_or(u32::MAX)),
+        forward_authorization: doc.forward_authorization_header.unwrap_or(true),
+    }
 }
 
 /// Construit la requête prête à partir : variables résolues, en-têtes et auth hérités.
@@ -193,6 +202,7 @@ pub fn prepare_with(
             body: body.map(|(bytes, _)| bytes),
             timeout: doc.timeout_ms.map(Duration::from_millis).unwrap_or(NO_TIMEOUT),
             max_response_body: None,
+            network: Network { redirects: redirects_of(doc) },
         },
         unresolved,
         auth: send_auth,

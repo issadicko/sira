@@ -171,6 +171,7 @@ async fn ef_aut_01_aws_signs_the_request_that_is_sent() {
         body: None,
         timeout: std::time::Duration::from_secs(1),
         max_response_body: None,
+        network: xc_engine::Network::default(),
     };
     let creds = aws::AwsCredentials {
         access_key_id: "AKIDEXAMPLE".into(),

@@ -743,6 +743,8 @@ mod tests {
             ],
             body: br#"{"ok":true}"#.to_vec(),
             timings: Timings { total_ms: 12.0, ..Timings::default() },
+            url: String::new(),
+            redirects: Vec::new(),
         });
         RequestResult {
             iteration: 0,

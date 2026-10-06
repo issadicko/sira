@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use xc_engine::{send, EngineError, HttpRequest};
+use xc_engine::{send, EngineError, HttpRequest, Network};
 
 async fn serve_once(response: &'static str) -> (String, tokio::task::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -26,6 +26,7 @@ fn request(method: &str, url: String) -> HttpRequest {
         body: None,
         timeout: Duration::from_secs(5),
         max_response_body: None,
+        network: Network::default(),
     }
 }
 

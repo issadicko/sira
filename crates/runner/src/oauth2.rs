@@ -151,6 +151,7 @@ fn token_request(config: &OAuth2, url: &str, stage: &str, mut grant: Vec<(String
         body: Some(form(&grant)),
         timeout: TOKEN_TIMEOUT,
         max_response_body: Some(1 << 20),
+        network: xc_engine::Network::default(),
     }
 }
 

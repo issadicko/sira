@@ -92,6 +92,15 @@ const FORMATS: Record<CodeLanguage, string> = { json: 'JSON', xml: 'XML', yaml: 
                 </div>
                 <dl class="dl">
                   <dt>URL envoyée</dt><dd>{{ r.method }} {{ r.url }}</dd>
+                  @if (r.response.redirects.length) {
+                    <dt>Redirections</dt>
+                    <dd>
+                      @for (step of r.response.redirects; track $index) {
+                        <span class="hop"><span class="hop-code">{{ step.status }}</span>{{ step.url }}</span>
+                      }
+                    </dd>
+                    <dt>URL finale</dt><dd>{{ r.response.url }}</dd>
+                  }
                   <dt>Protocole</dt><dd>{{ r.response.httpVersion }}</dd>
                   <dt>Adresse distante</dt><dd>{{ r.response.remoteAddr }}</dd>
                   <dt>Reçu</dt><dd>{{ size() }}</dd>

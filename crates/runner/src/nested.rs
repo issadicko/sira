@@ -105,6 +105,7 @@ fn http_request(config: &Value) -> Result<HttpRequest, String> {
         body,
         timeout: get("timeout").and_then(Value::as_u64).filter(|t| *t > 0).map_or(NO_TIMEOUT, Duration::from_millis),
         max_response_body: None,
+        network: xc_engine::Network::default(),
     })
 }
 

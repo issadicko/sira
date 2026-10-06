@@ -1,5 +1,7 @@
 pub mod aws;
 pub mod digest;
+mod network;
+mod redirect;
 mod time;
 mod tls;
 
@@ -16,6 +18,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use url::Url;
 
+use redirect::Hop;
+
+pub use network::{Network, Redirects};
 pub use time::{amz_date, iso_from_millis, millis};
 
 #[derive(Debug, Clone)]
@@ -27,6 +32,7 @@ pub struct HttpRequest {
     pub timeout: Duration,
     /// Taille maximale, en octets, du corps de la réponse ; `None` ne la borne pas.
     pub max_response_body: Option<u64>,
+    pub network: Network,
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
@@ -48,7 +54,18 @@ pub struct HttpResponse {
     pub remote_addr: String,
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
+    /// Les durées ; avec des redirections, la somme de celles de chaque saut.
     pub timings: Timings,
+    /// L'adresse de la réponse : celle du dernier saut.
+    pub url: String,
+    /// Les redirections suivies pour y arriver : l'adresse demandée et le statut reçu, dans l'ordre.
+    pub redirects: Vec<RedirectStep>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct RedirectStep {
+    pub url: String,
+    pub status: u16,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -77,12 +94,52 @@ const fn ms(d: Duration) -> f64 {
     d.as_secs_f64() * 1000.0
 }
 
-pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
-    let timeout = request.timeout;
-    tokio::time::timeout(timeout, send_inner(request)).await.map_err(|_| EngineError::Timeout(timeout.as_millis()))?
+impl Timings {
+    fn add(&mut self, other: &Timings) {
+        self.dns_ms += other.dns_ms;
+        self.tcp_ms += other.tcp_ms;
+        self.tls_ms += other.tls_ms;
+        self.ttfb_ms += other.ttfb_ms;
+        self.download_ms += other.download_ms;
+        self.total_ms += other.total_ms;
+    }
 }
 
-async fn send_inner(request: HttpRequest) -> Result<HttpResponse, EngineError> {
+/// Envoie la requête et suit les redirections que `request.network` demande. Le délai s'applique à chaque saut.
+pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
+    let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
+    let mut hop =
+        Hop { method: request.method.clone(), url, headers: request.headers.clone(), body: request.body.clone() };
+    let (mut timings, mut steps) = (Timings::default(), Vec::new());
+    loop {
+        let sent = HttpRequest {
+            method: hop.method.clone(),
+            url: hop.url.to_string(),
+            headers: hop.headers.clone(),
+            body: hop.body.clone(),
+            ..request.clone()
+        };
+        let timeout = request.timeout;
+        let mut response = tokio::time::timeout(timeout, send_hop(sent))
+            .await
+            .map_err(|_| EngineError::Timeout(timeout.as_millis()))??;
+        timings.add(&response.timings);
+        match redirect::next(&hop, &response, &request.network.redirects, steps.len() as u32) {
+            Some(next) => {
+                steps.push(RedirectStep { url: hop.url.to_string(), status: response.status });
+                hop = next;
+            }
+            None => {
+                response.timings = timings;
+                response.url = hop.url.to_string();
+                response.redirects = steps;
+                return Ok(response);
+            }
+        }
+    }
+}
+
+async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
     let start = Instant::now();
     let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
     let secure = match url.scheme() {
@@ -204,6 +261,8 @@ where
         headers,
         body,
         timings: timings.clone(),
+        url: String::new(),
+        redirects: Vec::new(),
     })
 }
 

@@ -6,7 +6,7 @@ use std::path::{Component, Path};
 use std::time::Duration;
 
 use url::Url;
-use xc_engine::{HttpRequest, HttpResponse};
+use xc_engine::{HttpRequest, HttpResponse, Network, Redirects};
 
 use super::ImportError;
 
@@ -43,6 +43,7 @@ pub async fn fetch_spec(source: &str) -> Result<String, ImportError> {
             body: None,
             timeout: TIMEOUT,
             max_response_body: Some(MAX_SPEC_BYTES),
+            network: Network { redirects: Redirects::none() },
         };
         let response = xc_engine::send(request).await.map_err(|e| source_error(format!("{url} : {e}")))?;
         if (200..300).contains(&response.status) {
@@ -146,6 +147,8 @@ mod tests {
             headers: vec![("Location".into(), location.into())],
             body: Vec::new(),
             timings: Default::default(),
+            url: String::new(),
+            redirects: Vec::new(),
         }
     }
 

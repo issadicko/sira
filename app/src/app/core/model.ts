@@ -108,7 +108,12 @@ export interface RequestDoc {
   /** Variables posées après la réponse (lues seulement : le fichier garde ses actions). */
   postVariables?: { name: string; expression: string; enabled: boolean }[];
   docs?: string | null;
+  /** Délai en millisecondes ; `null` : aucun. */
   timeoutMs?: number | null;
+  /** Réglages de redirection du fichier ; `null` ou absents, l'exécution suit les défauts de Bruno (suivre, 5 sauts, transmettre `Authorization`). */
+  followRedirects?: boolean | null;
+  maxRedirects?: number | null;
+  forwardAuthorizationHeader?: boolean | null;
 }
 
 /** Le schéma GraphQL d'un serveur, tel que l'introspection l'a donné, gardé dans `.oc-sync/graphql/`. */
@@ -198,6 +203,9 @@ export interface ResponseDto {
   pretty: string | null;
   size: number;
   timings: Timings;
+  /** L'adresse de la réponse (celle du dernier saut) et les redirections suivies pour y arriver. */
+  url: string;
+  redirects: { url: string; status: number }[];
 }
 
 export interface AssertionResult {

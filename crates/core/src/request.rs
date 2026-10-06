@@ -194,6 +194,21 @@ pub struct RequestDoc {
     pub post_variables: Vec<PostVariable>,
     pub docs: Option<String>,
     pub timeout_ms: Option<u64>,
+    /// Réglages de redirection du bloc `settings` ; absents du fichier, l'exécution suit Bruno : suivre, 5 sauts au plus,
+    /// transmettre `Authorization`.
+    #[serde(default)]
+    pub follow_redirects: Option<bool>,
+    #[serde(default)]
+    pub max_redirects: Option<u64>,
+    #[serde(default)]
+    pub forward_authorization_header: Option<bool>,
+}
+
+fn flag(v: Option<&Value>) -> Option<bool> {
+    match v {
+        Some(Value::Bool(b)) => Some(*b),
+        _ => None,
+    }
 }
 
 pub(crate) fn text(v: Option<&Value>) -> String {
@@ -502,6 +517,9 @@ impl RequestDoc {
             post_variables: post_variables(runtime.seq("actions")),
             docs: root.get("docs").and_then(Value::scalar),
             timeout_ms: settings.get("timeout").and_then(Value::as_i64).filter(|t| *t > 0).map(|t| t as u64),
+            follow_redirects: flag(settings.get("followRedirects")),
+            max_redirects: settings.get("maxRedirects").and_then(Value::as_i64).and_then(|n| u64::try_from(n).ok()),
+            forward_authorization_header: flag(settings.get("forwardAuthorizationHeader")),
         }
     }
 
@@ -552,6 +570,26 @@ impl RequestDoc {
                 root.remove("runtime");
             }
         }
+        if self.settings() != previous.settings() {
+            let settings = root.map_mut_or_insert("settings", TOP_ORDER);
+            let (timeout, follow, max, forward) = self.settings();
+            if timeout != previous.timeout_ms {
+                settings.set(
+                    "timeout",
+                    Value::Int(timeout.map_or(0, |t| i64::try_from(t).unwrap_or(i64::MAX))),
+                    SETTINGS_ORDER,
+                );
+            }
+            if follow != previous.follow_redirects {
+                set_or_remove(settings, "followRedirects", follow.map(Value::Bool));
+            }
+            if max != previous.max_redirects {
+                set_or_remove(settings, "maxRedirects", max.map(|m| Value::Int(i64::try_from(m).unwrap_or(i64::MAX))));
+            }
+            if forward != previous.forward_authorization_header {
+                set_or_remove(settings, "forwardAuthorizationHeader", forward.map(Value::Bool));
+            }
+        }
         if self.docs != previous.docs {
             match self.docs.as_deref().filter(|d| !d.is_empty()) {
                 Some(d) => root.set("docs", Value::str(d), TOP_ORDER),
@@ -560,6 +598,24 @@ impl RequestDoc {
                 }
             }
         }
+    }
+}
+
+const SETTINGS_ORDER: &[&str] =
+    &["encodeUrl", "timeout", "followRedirects", "maxRedirects", "forwardAuthorizationHeader"];
+
+fn set_or_remove(settings: &mut Map, key: &str, value: Option<Value>) {
+    match value {
+        Some(value) => settings.set(key, value, SETTINGS_ORDER),
+        None => {
+            settings.remove(key);
+        }
+    }
+}
+
+impl RequestDoc {
+    fn settings(&self) -> (Option<u64>, Option<bool>, Option<u64>, Option<bool>) {
+        (self.timeout_ms, self.follow_redirects, self.max_redirects, self.forward_authorization_header)
     }
 }
 

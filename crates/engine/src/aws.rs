@@ -207,6 +207,7 @@ mod tests {
             body: (!body.is_empty()).then(|| body.as_bytes().to_vec()),
             timeout: Duration::from_secs(1),
             max_response_body: None,
+            network: crate::Network::default(),
         }
     }
 

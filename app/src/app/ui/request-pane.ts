@@ -10,11 +10,12 @@ import { prettyJson } from '../core/highlight';
 import { AuthEditor } from './auth-editor';
 import { CodeEditor } from './code-editor';
 import { GraphqlEditor } from './graphql-editor';
+import { RequestSettings } from './request-settings';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
 import { MultipartTable } from './multipart-table';
 
-type Section = 'params' | 'body' | 'headers' | 'auth' | 'tests' | 'scripts' | 'docs';
+type Section = 'params' | 'body' | 'headers' | 'auth' | 'tests' | 'scripts' | 'settings' | 'docs';
 const OPERATORS = [
   'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn', 'contains', 'notContains', 'length', 'matches', 'notMatches', 'startsWith',
   'endsWith', 'between', 'isEmpty', 'isNotEmpty', 'isNull', 'isUndefined', 'isDefined', 'isTruthy', 'isFalsy', 'isJson', 'isNumber',
@@ -38,7 +39,7 @@ const OUTSIDE_COLLECTION =
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, RequestSettings],
   host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -191,6 +192,13 @@ const OUTSIDE_COLLECTION =
             <div class="note"><app-ic name="shield" [size]="14" /><span>Les scripts tournent dans un sandbox sans accès au disque ni au réseau, avec l'API de Bruno (<span class="mono">bru</span>, <span class="mono">req</span>, <span class="mono">res</span>). Ceux de la collection et des dossiers s'exécutent aussi : avant celui-ci à l'aller, après lui au retour.</span></div>
           </div>
         }
+        @case ('settings') {
+          <div class="pane-body">
+            @defer (on immediate) {
+              <app-request-settings />
+            }
+          </div>
+        }
         @case ('docs') {
           <div class="pane-body fill">
             <textarea class="docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
@@ -304,6 +312,7 @@ export class RequestPane {
       { id: 'auth' as const, label: 'Auth', count: d.auth.type === 'inherit' ? 'hérité' : d.auth.type === 'none' ? '' : d.auth.type },
       { id: 'tests' as const, label: 'Tests', count: d.assertions.filter((a) => a.enabled).length || '' },
       { id: 'scripts' as const, label: 'Scripts', count: d.scripts.length || '' },
+      { id: 'settings' as const, label: 'Réglages', count: '' },
       { id: 'docs' as const, label: 'Docs', count: '' },
     ];
   });
