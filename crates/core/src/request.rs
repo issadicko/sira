@@ -415,13 +415,14 @@ fn read_list<T: Entry>(items: &[Value]) -> Vec<T> {
     items.iter().filter_map(Value::as_map).map(T::read).collect()
 }
 
-pub(crate) fn key_values(items: &[Value]) -> Vec<KeyValue> {
+pub fn key_values(items: &[Value]) -> Vec<KeyValue> {
     read_list(items)
 }
 
 /// Auth d'un fichier : `Other` garde le type et le reste de la configuration sous forme canonique, pour que deux
 /// configurations différentes ne soient jamais prises pour la même.
-pub(crate) fn auth_from(value: Option<&Value>) -> Auth {
+/// L'authentification décrite par la valeur `auth` d'une requête, d'un dossier ou de la collection ; absente : aucune.
+pub fn auth_from(value: Option<&Value>) -> Auth {
     let Some(value) = value else { return Auth::None };
     if value.as_str() == Some("inherit") {
         return Auth::Inherit;

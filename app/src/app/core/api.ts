@@ -16,6 +16,7 @@ import {
   GeneratedCode,
   GroupBy,
   HistoryEntry,
+  ExportFormat,
   ImportedCollection,
   NetworkPrefs,
   NetworkView,
@@ -103,6 +104,10 @@ export interface Api {
   pickInsomniaFile(): Promise<string | null>;
   /** Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location`. */
   importInsomnia(source: string, location: string): Promise<ImportedCollection>;
+  /** Où enregistrer l'export d'une collection ; `null` si l'utilisateur renonce. */
+  pickExportPath(defaultName: string): Promise<string | null>;
+  /** Exporte la collection `root` dans le fichier `path` ; renvoie ce qui n'a pas pu l'être, un message par élément. */
+  exportCollection(root: string, format: ExportFormat, path: string): Promise<string[]>;
   syncStatus(root: string): Promise<SyncStatus>;
   syncPlan(root: string, source: string | null, pairings: [string, string][]): Promise<SyncPlan>;
   syncOpView(planId: string, key: string, decisions: SyncDecisions): Promise<OpView>;
@@ -194,6 +199,8 @@ const tauriApi: Api = {
   pickInsomniaFile: () => pick({ title: 'Choisir un export Insomnia', filters: [{ name: 'Export Insomnia (JSON ou YAML)', extensions: ['json', 'yaml', 'yml'] }] }),
   importInsomnia: (source, location) => invoke('import_insomnia', { source, location }),
   importBru: (source, location) => invoke('import_bru', { source, location }),
+  pickExportPath: (defaultName) => save({ title: 'Exporter la collection', defaultPath: defaultName, filters: [{ name: 'JSON', extensions: ['json'] }] }),
+  exportCollection: (root, format, path) => invoke('export_collection', { root, format, path }),
   syncStatus: (root) => invoke('sync_status', { root }),
   syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),
   syncOpView: (planId, key, decisions) => invoke('sync_op_view', { planId, key, decisions }),

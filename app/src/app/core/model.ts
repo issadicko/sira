@@ -542,6 +542,9 @@ export interface ImportedCollection {
   issues: ImportIssue[];
 }
 
+/** Les formats d'export d'une collection : Postman v2.1 et OpenAPI 3.0.3, tous deux en JSON. */
+export type ExportFormat = 'postman' | 'openapi';
+
 export type CodeLanguage = 'curl' | 'javascript' | 'python' | 'go' | 'java' | 'kotlin' | 'dart' | 'php' | 'csharp';
 
 /** Les langages de « Générer du code », dans l'ordre de l'interface ; `library` est celle que l'extrait utilise. */

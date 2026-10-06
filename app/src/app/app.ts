@@ -23,6 +23,7 @@ import { HISTORY_LIMIT, HISTORY_PREVIEW, describeEntry, statusLabel, whenLabel }
 import { methodClass, shortMethod } from './ui/method';
 import { MoveDialog } from './ui/move-dialog';
 import { OpenApiDialog } from './ui/openapi-dialog';
+import { ExportDialog } from './ui/export-dialog';
 import { ImportDialog } from './ui/import-dialog';
 import { Palette } from './ui/palette';
 import { RunnerSidebar } from './ui/runner-sidebar';
@@ -62,6 +63,7 @@ import { Welcome } from './ui/welcome';
     CurlDialog,
     OpenApiDialog,
     ImportDialog,
+    ExportDialog,
     CollectionDialog,
     MoveDialog,
     DeleteDialog,
@@ -125,6 +127,7 @@ export class App {
       { id: 'collection.postman', title: 'Importer depuis Postman…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('postman') },
       { id: 'collection.insomnia', title: 'Importer depuis Insomnia…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('insomnia') },
       { id: 'collection.bruno', title: 'Convertir une collection .bru…', group: 'Collection', icon: 'import', run: () => { ws.importSource.set(null); ws.dialog.set('bruno'); } },
+      { id: 'collection.export', title: 'Exporter la collection…', group: 'Collection', icon: 'export', when: opened, run: () => ws.dialog.set('export') },
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
       { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
       { id: 'env.new', title: 'Nouvel environnement…', group: 'Collection', icon: 'plus', when: opened, run: () => envs.beginNaming({ mode: 'create' }) },

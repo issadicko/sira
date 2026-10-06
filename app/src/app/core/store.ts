@@ -44,7 +44,7 @@ export interface Discard {
 
 export type View = 'collections' | 'env' | 'sync' | 'runner' | 'settings';
 export type Theme = 'dark' | 'light';
-export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'bruno' | 'code' | 'collection' | 'delete' | 'move' | 'env';
+export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'bruno' | 'export' | 'code' | 'collection' | 'delete' | 'move' | 'env';
 
 /** Dossier existant, vide ou non, où l'on propose de créer une collection. */
 export interface FolderTarget {

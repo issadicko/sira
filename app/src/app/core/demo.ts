@@ -359,6 +359,8 @@ export const demoApi: Api = {
   importPostmanEnvironment: desktopOnly,
   pickInsomniaFile: async () => '~/démo/shop.insomnia.json',
   importInsomnia: desktopOnly,
+  pickExportPath: desktopOnly,
+  exportCollection: desktopOnly,
   importBru: desktopOnly,
   ...createDemoTree(collections),
   ...createDemoEnvironments(collections),

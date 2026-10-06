@@ -81,6 +81,21 @@ pub struct CollectionInfo {
     pub request_count: usize,
 }
 
+/// Le fichier de la collection (`opencollection.yml`), tel qu'il est lu.
+pub fn read_collection_file(root: &Path) -> Result<Map, CoreError> {
+    read_tree(&root.join(COLLECTION_FILE))
+}
+
+/// Le fichier du dossier `dir` (chemin relatif à la racine) ; vide quand le dossier n'a pas de `folder.yml`.
+pub fn read_folder_file(root: &Path, dir: &str) -> Result<Map, CoreError> {
+    let file = resolve_path(root, &format!("{dir}/{FOLDER_FILE}"))?;
+    if file.is_file() {
+        read_tree(&file)
+    } else {
+        Ok(Map::default())
+    }
+}
+
 pub(crate) fn read_tree(path: &Path) -> Result<Map, CoreError> {
     let text = fs::read_to_string(path).map_err(|e| CoreError::io(path, e))?;
     parse_tree(&text, path)

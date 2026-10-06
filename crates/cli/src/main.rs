@@ -2,10 +2,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use clap::{ArgGroup, Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
 use xc_core::collection::{COLLECTION_FILE, ENV_DIR, FOLDER_FILE, REQUEST_EXT};
 use xc_core::request::BLANK_BEFORE;
 use xc_core::restyle;
+use xc_sync::export::{self, Exported};
 use xc_sync::import::{
     fetch_spec, import_bru as bru_collection, import_insomnia as insomnia_collection,
     import_postman as postman_collection, import_postman_environment, import_spec, ImportError,
@@ -94,6 +95,21 @@ enum Command {
         #[arg(long = "env-var", value_parser = run::parse_pair)]
         env_vars: Vec<(String, String)>,
     },
+    /// Exporte la collection en JSON, au format Postman v2.1 ou OpenAPI 3.0.3 ; ce qui n'a pas pu l'être est listé sur
+    /// la sortie d'erreur. Sans --output, l'export est écrit sur la sortie standard
+    Export {
+        /// Dossier de la collection (contient opencollection.yml)
+        collection: PathBuf,
+        /// Format de l'export
+        #[arg(long)]
+        format: ExportFormat,
+        /// Fichier à écrire ; un fichier existant n'est jamais remplacé sans --force
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+        /// Avec --output : remplace le fichier s'il existe
+        #[arg(long, requires = "output")]
+        force: bool,
+    },
     /// Compare la collection à la spec OpenAPI (fusion à 3 voies) : `--check` pour la CI, `--apply` pour écrire
     #[command(group(ArgGroup::new("mode").required(true).args(["check", "apply"])))]
     Sync {
@@ -123,6 +139,12 @@ enum Command {
     },
 }
 
+#[derive(Clone, Copy, ValueEnum)]
+enum ExportFormat {
+    Postman,
+    Openapi,
+}
+
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Run(args) => {
@@ -139,6 +161,7 @@ fn main() -> ExitCode {
         }
         Command::ImportPostman { file, location, environment } => import_postman(&file, &location, environment),
         Command::ImportInsomnia { file, location } => import_insomnia(&file, &location),
+        Command::Export { collection, format, output, force } => export(&collection, format, output.as_deref(), force),
         Command::ImportBru { source, location } => {
             report_import(bru_collection(&source, &location).map(|(root, issues)| (root.display().to_string(), issues)))
         }
@@ -324,6 +347,52 @@ fn import_insomnia(file: &Path, location: &Path) -> ExitCode {
         Err(code) => return code,
     };
     report_import(insomnia_collection(&text, location).map(|(root, issues)| (root.display().to_string(), issues)))
+}
+
+fn export(collection: &Path, format: ExportFormat, output: Option<&Path>, force: bool) -> ExitCode {
+    let exported = match format {
+        ExportFormat::Postman => export::postman::collection(collection),
+        ExportFormat::Openapi => export::openapi(collection),
+    };
+    let Exported { text, issues } = match exported {
+        Ok(exported) => exported,
+        Err(e) => return run::input_error(e),
+    };
+    for issue in &issues {
+        eprintln!("avertissement : {issue}");
+    }
+    let Some(output) = output else {
+        println!("{text}");
+        return ExitCode::SUCCESS;
+    };
+    match write_export(output, &text, force) {
+        Ok(()) => {
+            println!("{}", output.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => run::input_error(e),
+    }
+}
+
+/// Écrit l'export dans un nouveau fichier ; un fichier existant n'est remplacé qu'avec `force`, et jamais à travers un
+/// lien symbolique.
+fn write_export(output: &Path, text: &str, force: bool) -> Result<(), String> {
+    use std::io::Write;
+    if output.is_symlink() {
+        return Err(format!("{} est un lien symbolique : il n'est pas suivi", output.display()));
+    }
+    let mut options = fs::OpenOptions::new();
+    options.write(true);
+    if force {
+        options.create(true).truncate(true);
+    } else {
+        options.create_new(true);
+    }
+    let mut file = options.open(output).map_err(|e| match e.kind() {
+        std::io::ErrorKind::AlreadyExists => format!("{} existe déjà (--force pour le remplacer)", output.display()),
+        _ => format!("{} : {e}", output.display()),
+    })?;
+    file.write_all(text.as_bytes()).map_err(|e| format!("{} : {e}", output.display()))
 }
 
 fn code(collection: &Path, request: &str, lang: &str, env: Option<&str>, env_vars: Vec<(String, String)>) -> ExitCode {

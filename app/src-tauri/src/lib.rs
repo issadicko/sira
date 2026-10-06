@@ -601,6 +601,26 @@ async fn import_insomnia(state: State<'_, AppState>, source: String, location: S
     Ok(ImportedCollection { root: root.display().to_string(), issues })
 }
 
+/// Exporte la collection `root` au format `postman` (v2.1) ou `openapi` (3.0.3) dans le fichier `path`, que
+/// l'utilisateur vient de choisir ; renvoie ce qui n'a pas pu l'être. Un lien symbolique n'est jamais suivi.
+#[tauri::command]
+async fn export_collection(root: String, format: String, path: String) -> Reply<Vec<String>> {
+    blocking(move || {
+        let exported = match format.as_str() {
+            "postman" => xc_sync::export::postman::collection(Path::new(&root)),
+            "openapi" => xc_sync::export::openapi(Path::new(&root)),
+            other => return Err(format!("format d'export inconnu : {other}")),
+        }
+        .map_err(err)?;
+        if Path::new(&path).is_symlink() {
+            return Err(format!("{path} est un lien symbolique : il n'est pas suivi"));
+        }
+        std::fs::write(&path, exported.text).map_err(|e| format!("écriture de {path} impossible : {e}"))?;
+        Ok(exported.issues)
+    })
+    .await
+}
+
 /// Ajoute un environnement Postman à la collection `root` ; renvoie son nom.
 #[tauri::command]
 async fn import_postman_environment(state: State<'_, AppState>, root: String, source: String) -> Reply<String> {
@@ -787,6 +807,7 @@ pub fn run() {
             import_postman_environment,
             import_insomnia,
             import_bru,
+            export_collection,
             generate_code,
             inspect_folder,
             create_collection,
@@ -1043,6 +1064,62 @@ paths:
         let refused =
             import_postman(state(), unsupported.display().to_string(), parent.display().to_string()).await.unwrap_err();
         assert!(refused.contains("v2.0 et v2.1"), "{refused}");
+    }
+
+    #[tokio::test]
+    async fn ef_imp_03_command_exports_the_collection_in_the_chosen_format_and_reports_what_was_left_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("shop");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: Shop\n").unwrap();
+        fs::write(
+            root.join("list.yml"),
+            "info:\n  name: List\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: https://shop.test/items\n  auth: inherit\n",
+        )
+        .unwrap();
+        fs::write(root.join("g.yml"), "info:\n  name: G\n  type: grpc\n  seq: 2\n\ngrpc:\n  url: localhost:50051\n")
+            .unwrap();
+        let root = root.display().to_string();
+
+        let spec = dir.path().join("shop.openapi.json").display().to_string();
+        let issues = export_collection(root.clone(), "openapi".into(), spec.clone()).await.unwrap();
+        assert_eq!(issues.len(), 1);
+        assert!(issues[0].contains('G') && issues[0].contains("grpc"), "{issues:?}");
+        let written: serde_json::Value = serde_json::from_str(&fs::read_to_string(&spec).unwrap()).unwrap();
+        assert_eq!(written["openapi"], "3.0.3");
+        assert!(written["paths"]["/items"]["get"].is_object());
+
+        let postman = dir.path().join("shop.postman.json").display().to_string();
+        export_collection(root.clone(), "postman".into(), postman.clone()).await.unwrap();
+        let written: serde_json::Value = serde_json::from_str(&fs::read_to_string(&postman).unwrap()).unwrap();
+        assert_eq!(written["info"]["name"], "Shop");
+
+        let unknown = export_collection(root.clone(), "yaml".into(), spec.clone()).await.unwrap_err();
+        assert!(unknown.contains("format d'export inconnu"), "{unknown}");
+        let missing = export_collection(dir.path().join("rien").display().to_string(), "postman".into(), spec.clone())
+            .await
+            .unwrap_err();
+        assert!(!missing.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn ef_imp_03_command_does_not_export_through_a_symbolic_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("shop");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: Shop\n").unwrap();
+        let target = dir.path().join("cible.json");
+        fs::write(&target, "intact").unwrap();
+        let link = dir.path().join("lien.json");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let refused = export_collection(root.display().to_string(), "postman".into(), link.display().to_string())
+            .await
+            .unwrap_err();
+
+        assert!(refused.contains("lien symbolique"), "{refused}");
+        assert_eq!(fs::read_to_string(&target).unwrap(), "intact");
     }
 
     #[tokio::test]
