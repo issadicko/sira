@@ -1,6 +1,6 @@
 import type { Api } from './api';
 import { createDemoSync } from './demo-sync';
-import { createDemoEnvironments } from './demo-env';
+import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { emptyReport } from './scripts';
@@ -130,18 +130,21 @@ const envValue = (env: string | null, name: string): string | null =>
 const collectionVars: Record<string, string> = { baseUrl: 'https://api.paiements.test/v1' };
 const folderVars: Record<string, string> = { canal: 'USSD' };
 
+const SECRET_MASK = '••••••••';
+const declaresSecret = (env: string | null, name: string) => !!env && !!environments[env]?.some((v) => v.secret && v.name === name);
+
 function variables(path: string, env: string | null): VariableInfo[] {
-  const names = new Set([...Object.values(environments).flatMap((vars) => vars.filter((v) => !v.secret).map((v) => v.name)), ...Object.keys(collectionVars), ...Object.keys(folderVars), 'token']);
+  const names = new Set([...Object.values(environments).flatMap((vars) => vars.map((v) => v.name)), ...Object.keys(collectionVars), ...Object.keys(folderVars)]);
   return [...names].sort().map((name) => {
     const rungs: Rung[] = [
       { level: 'Runtime', source: 'bru.setVar()', value: null },
       { level: 'Requête', source: path, value: null },
       { level: 'Dossier Transactions', source: 'transactions/folder.yml', value: path.startsWith('transactions/') ? folderVars[name] ?? null : null },
-      { level: `Environnement ${env ?? '(aucun)'}`, source: `environments/${env}.yml`, value: envValue(env, name) },
+      { level: `Environnement ${env ?? '(aucun)'}`, source: `environments/${env}.yml`, value: declaresSecret(env, name) ? (demoKeychain.has(secretSlot(ROOT, env ?? '', name)) ? SECRET_MASK : null) : envValue(env, name) },
       { level: 'Collection', source: 'opencollection.yml', value: collectionVars[name] ?? null },
     ];
     const win = rungs.find((r) => r.value != null);
-    return { name, value: win?.value ?? null, level: win?.level ?? null, secret: name === 'token', rungs };
+    return { name, value: win?.value ?? null, level: win?.level ?? null, secret: Object.values(environments).some((vars) => vars.some((v) => v.secret && v.name === name)), rungs };
   });
 }
 
@@ -232,7 +235,7 @@ export const demoApi: Api = {
     new Promise<SendResult>((resolve, reject) => {
       const t = setTimeout(() => {
         timers.delete(id);
-        const vars = Object.fromEntries(variables(path, env).map((v) => [v.name, v.value]));
+        const vars = Object.fromEntries(variables(path, env).map((v) => [v.name, v.secret && env ? (demoKeychain.get(secretSlot(ROOT, env, v.name)) ?? v.value) : v.value]));
         const unresolved: string[] = [];
         const url = d.url.replace(/\{\{([^}]+)\}\}/g, (all, n: string) => {
           const v = vars[n.trim()];

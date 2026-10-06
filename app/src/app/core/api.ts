@@ -81,6 +81,8 @@ export interface Api {
   /** Demande un jeton neuf ; les flux interactifs ouvrent une fenêtre de connexion. */
   oauthFetch(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo>;
   oauthClear(root: string, path: string, doc: RequestDoc, env: string | null): Promise<void>;
+  /** Les secrets de l'environnement dont le trousseau garde une valeur ; l'interface ne reçoit jamais plus que leurs noms. */
+  secretNames(root: string, env: string): Promise<string[]>;
 }
 
 const REPORT_FILTERS: Record<ReportFormat, { name: string; extensions: string[] }> = {
@@ -148,6 +150,7 @@ const tauriApi: Api = {
   oauthStatus: (root, path, doc, env) => invoke('oauth_status', { args: { root, path, doc, env } }),
   oauthFetch: (root, path, doc, env) => invoke('oauth_fetch', { args: { root, path, doc, env } }),
   oauthClear: (root, path, doc, env) => invoke('oauth_clear', { args: { root, path, doc, env } }),
+  secretNames: (root, env) => invoke('secret_names', { root, env }),
 };
 
 type Call = (...args: unknown[]) => unknown;

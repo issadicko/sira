@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { reconciled, sameVars, varsKey } from './disk-sync.ts';
-import { blankVar, varProblems } from './env-ops.ts';
+import { blankVar, toggledSecret, varProblems } from './env-ops.ts';
 import type { EnvVar } from './model.ts';
 import { cloneName, envFileName, envNameProblem, validateName } from './tree-ops.ts';
 
@@ -25,9 +25,11 @@ test('ef_var_01_une_valeur_absente_et_une_valeur_vide_sont_la_meme_variable', ()
   assert.ok(!sameVars([v('a', '8080')], [v('a', '8080', { dataType: 'number' })]));
 });
 
-test('enf_sec_01_la_valeur_d_un_secret_ne_compte_jamais', () => {
-  assert.ok(sameVars([v('t', 'x', { secret: true })], [v('t', null, { secret: true })]));
-  assert.equal(varsKey([v('t', 'x', { secret: true })]), varsKey([v('t', null, { secret: true })]));
+test('enf_sec_01_la_valeur_saisie_d_un_secret_compte_comme_une_modification', () => {
+  assert.ok(!sameVars([v('t', 'x', { secret: true })], [v('t', null, { secret: true })]), 'saisie en attente');
+  assert.ok(!sameVars([v('t', '', { secret: true })], [v('t', null, { secret: true })]), 'effacement demandé');
+  assert.ok(sameVars([v('t', null, { secret: true })], [{ name: 't', secret: true, enabled: true }]), 'un secret intact est celui du fichier');
+  assert.notEqual(varsKey([v('t', 'x', { secret: true })]), varsKey([v('t', 'y', { secret: true })]));
 });
 
 test('ef_var_01_une_variable_neuve_est_vide_activee_et_sans_type', () => {
@@ -126,4 +128,16 @@ test('ef_col_03_la_comparaison_du_disque_ignore_la_forme_que_rust_donne_aux_vale
   const next = reconciled({ base: rust, draft: edited, stale: false }, rust);
   assert.equal(next.stale, false);
   assert.deepEqual(next.draft, edited);
+});
+
+test('enf_sec_01_rendre_une_variable_secrete_garde_sa_valeur_en_attente_pour_le_trousseau', () => {
+  const secret = toggledSecret(v('t', 'abc'));
+  assert.deepEqual([secret.secret, secret.value], [true, 'abc']);
+  assert.equal(toggledSecret(v('t', '')).value, null, 'une valeur vide ne devient pas un effacement');
+});
+
+test('enf_sec_01_un_secret_redevenu_ordinaire_repart_vide', () => {
+  const plain = toggledSecret(v('t', null, { secret: true }));
+  assert.deepEqual([plain.secret, plain.value], [false, '']);
+  assert.equal(toggledSecret(v('t', 'saisie', { secret: true })).value, 'saisie');
 });

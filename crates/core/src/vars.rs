@@ -84,7 +84,13 @@ pub struct ScopeOverrides {
     pub global: Vec<(String, String)>,
     pub collection: Option<Vec<(String, String)>>,
     pub env: Option<Vec<(String, String)>>,
+    /// Valeurs des variables que l'environnement déclare secrètes (`secret: true`), gardées hors des fichiers. Une valeur
+    /// dont le nom n'est pas déclaré secret est ignorée.
+    pub secrets: Vec<(String, String)>,
 }
+
+/// Ce que l'interface voit à la place de la valeur d'un secret : qu'il en ait une, jamais laquelle.
+pub const SECRET_MASK: &str = "••••••••";
 
 /// Pile de portées dans l'ordre de Bruno : runtime > requête > dossier > environnement > collection > globales.
 pub struct Scope {
@@ -135,7 +141,7 @@ impl Scope {
     }
 
     pub fn with_overrides(mut self, overrides: ScopeOverrides) -> Self {
-        let ScopeOverrides { global, collection, env } = overrides;
+        let ScopeOverrides { global, collection, env, secrets } = overrides;
         if let Some(vars) = env {
             match self.layers.iter_mut().find(|l| l.level.starts_with("Environnement")) {
                 Some(layer) => layer.vars = vars,
@@ -143,6 +149,20 @@ impl Scope {
                     let at = self.layers.iter().position(|l| l.level == "Collection").unwrap_or(self.layers.len());
                     self.layers
                         .insert(at, Layer { level: "Environnement".into(), source: "bru.setEnvVar()".into(), vars });
+                }
+            }
+        }
+        // Après les écritures des scripts : une valeur saisie depuis a priorité sur un instantané plus ancien.
+        let secrets: Vec<(String, String)> =
+            secrets.into_iter().filter(|(name, _)| self.secrets.contains(name)).collect();
+        if !secrets.is_empty() {
+            let at = self.layers.iter().position(|l| l.level.starts_with("Environnement"));
+            if let Some(layer) = at.map(|i| &mut self.layers[i]) {
+                for (name, value) in secrets {
+                    match layer.vars.iter_mut().find(|(k, _)| *k == name) {
+                        Some(slot) => slot.1 = value,
+                        None => layer.vars.push((name, value)),
+                    }
                 }
             }
         }
@@ -209,12 +229,18 @@ impl Scope {
                 value: l.vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()),
             })
             .collect();
+        let secret = self.secrets.iter().any(|s| s == name);
+        let rungs: Vec<Rung> = if secret {
+            rungs.into_iter().map(|r| Rung { value: r.value.map(|_| SECRET_MASK.to_owned()), ..r }).collect()
+        } else {
+            rungs
+        };
         let winner = rungs.iter().find(|r| r.value.is_some());
         VariableInfo {
             name: name.to_owned(),
             value: winner.and_then(|r| r.value.clone()),
             level: winner.map(|r| r.level.clone()),
-            secret: self.secrets.iter().any(|s| s == name),
+            secret,
             rungs,
         }
     }

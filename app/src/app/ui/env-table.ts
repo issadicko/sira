@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
-import { blankVar } from '../core/env-ops';
+import { blankVar, toggledSecret } from '../core/env-ops';
 import { EnvVar } from '../core/model';
 import { Icon } from './icon';
 
 /**
- * Variables d'un environnement, éditables. La valeur d'un secret n'est jamais dans le fichier : elle n'est ni affichée ni saisissable
- * (trousseau en V1). La dernière ligne fantôme crée une variable dès la première frappe.
+ * Variables d'un environnement, éditables. La valeur d'un secret se saisit ici mais vit dans le trousseau du système : elle n'est jamais dans
+ * le fichier, et l'interface ne la relit jamais (elle sait seulement qu'une valeur est gardée). La dernière ligne fantôme crée une variable dès la
+ * première frappe.
  */
 @Component({
   selector: 'app-env-table',
@@ -32,13 +33,38 @@ import { Icon } from './icon';
           </span>
           <span class="kv-cell m-cell">
             @if (row.secret) {
-              <span class="secret" title="La valeur d'un secret n'est jamais écrite dans le fichier."><app-ic name="lock" [size]="13" />hors fichier</span>
+              @if (row.value === '') {
+                <span class="secret erase"><app-ic name="trash" [size]="13" />Effacée du trousseau à l'enregistrement</span>
+                <button class="btn ghost sm" type="button" (click)="patch(i, { value: null })">Annuler</button>
+              } @else {
+                <input
+                  type="password"
+                  autocomplete="new-password"
+                  spellcheck="false"
+                  [value]="row.value ?? ''"
+                  (input)="patch(i, { value: $any($event.target).value || null })"
+                  [attr.aria-label]="'Valeur du secret ' + row.name"
+                  [placeholder]="isStored(row.name) ? '•••••••• gardée dans le trousseau · saisir pour remplacer' : 'Valeur · gardée dans le trousseau, hors fichier'"
+                />
+                @if (isStored(row.name) && row.value == null) {
+                  <button class="icon-btn sm" type="button" (click)="patch(i, { value: '' })" [attr.aria-label]="'Effacer la valeur de ' + row.name + ' du trousseau'" title="Effacer la valeur du trousseau"><app-ic name="trash" [size]="13" /></button>
+                }
+              }
             } @else {
               <input type="text" spellcheck="false" autocomplete="off" [value]="row.value ?? ''" (input)="patch(i, { value: $any($event.target).value })" [attr.aria-label]="'Valeur de ' + row.name" />
               @if (row.dataType) {
                 <span class="tag" [title]="'Valeur de type ' + row.dataType + ', conservé à l\\'enregistrement'">{{ row.dataType }}</span>
               }
             }
+            <button
+              class="icon-btn sm lock"
+              type="button"
+              [class.on]="row.secret"
+              [attr.aria-pressed]="row.secret"
+              (click)="toggleSecret(i)"
+              [attr.aria-label]="'Secret : ' + row.name"
+              [attr.title]="row.secret ? 'Secret : la valeur reste dans le trousseau, jamais dans le fichier' : 'Marquer comme secret : la valeur ira dans le trousseau, hors fichier'"
+            ><app-ic name="lock" [size]="13" /></button>
             <button class="icon-btn sm row-x" (click)="remove(i)" [attr.aria-label]="'Supprimer ' + row.name"><app-ic name="x" [size]="13" /></button>
           </span>
         </div>
@@ -51,8 +77,12 @@ import { Icon } from './icon';
     </div>
   `,
   styles: `
-    .row-x { opacity: 0; margin-left: auto; flex-shrink: 0; }
+    .row-x { opacity: 0; flex-shrink: 0; }
     .kv-row:hover .row-x, .row-x:focus-visible { opacity: 1; }
+    .lock { margin-left: auto; flex-shrink: 0; opacity: 0; color: var(--faint); }
+    .lock.on { opacity: 1; color: var(--accent); }
+    .kv-row:hover .lock, .lock:focus-visible { opacity: 1; }
+    .secret.erase { color: var(--warn); }
   `,
 })
 export class EnvTable {
@@ -61,11 +91,21 @@ export class EnvTable {
   readonly problems = input<(string | null)[]>([]);
   /** Nom de la variable dont la résolution est affichée à côté. */
   readonly picked = input<string | null>(null);
+  /** Secrets dont le trousseau garde une valeur. */
+  readonly stored = input<string[]>([]);
   readonly rowsChange = output<EnvVar[]>();
   readonly pick = output<string>();
 
   protected patch(i: number, change: Partial<EnvVar>) {
     this.rowsChange.emit(this.rows().map((row, j) => (j === i ? { ...row, ...change } : row)));
+  }
+
+  protected isStored(name: string) {
+    return this.stored().includes(name);
+  }
+
+  protected toggleSecret(i: number) {
+    this.rowsChange.emit(this.rows().map((row, j) => (j === i ? toggledSecret(row) : row)));
   }
 
   protected remove(i: number) {

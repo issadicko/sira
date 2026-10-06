@@ -64,6 +64,6 @@ Chaque champ de la réponse du serveur est lisible par `{{$oauth2.<nom>.<champ>}
 
 ## Limites connues
 
-- Les secrets (mot de passe, secret client, clés AWS) restent des variables ou des valeurs de fichier ; le trousseau du système (EF-VAR-03) n'est pas encore branché.
+- Le mot de passe, le secret client et les clés AWS se référencent par des variables : mettre le secret dans une variable d'environnement marquée secrète (`{{client_secret}}`) garde sa valeur dans le trousseau du système plutôt que dans le fichier versionné (voir `gestion-collection.md`).
 - Une requête nécessitant une re-authentification sur un 401 n'est pas rejouée avec un jeton neuf (Bruno ne le fait pas non plus).
 - NTLM et OAuth 1.0 sont prévus en V2 (EF-AUT-03).

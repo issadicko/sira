@@ -8,6 +8,14 @@ export function blankVar(name = ''): EnvVar {
 }
 
 /**
+ * La ligne dont l'état secret est inversé. Une valeur saisie passe dans le trousseau (ou en revient) ; la valeur déjà gardée n'est jamais lue
+ * par l'interface : devenu ordinaire, le secret repart vide, et le trousseau l'oublie à l'enregistrement.
+ */
+export function toggledSecret(row: EnvVar): EnvVar {
+  return row.secret ? { ...row, secret: false, value: row.value ?? '' } : { ...row, secret: true, value: row.value ? row.value : null };
+}
+
+/**
  * Ce qui empêche d'enregistrer chaque ligne, `null` quand elle convient : un nom, des caractères permis (seulement pour un nom nouveau, un fichier
  * écrit à la main garde ses noms), pas deux fois le même nom (sauf les doublons que le fichier contient déjà : les corriger détruirait une donnée).
  */

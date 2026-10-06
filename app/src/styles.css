@@ -636,7 +636,7 @@ input, textarea { caret-color: var(--accent); }
 .kv-cell:first-child { border-left: 0; justify-content: center; padding: 0; }
 .kv-cell.m-cell { font: var(--code-size) var(--code-font); overflow: hidden; white-space: nowrap; }
 .kv-cell.desc { color: var(--muted); font-size: calc(12 * var(--px)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kv input[type="text"] {
+.kv input[type="text"], .kv input[type="password"] {
   width: 100%; min-width: 0; height: max(28px, 1.5em);
   border: 0; outline: 0; background: transparent; padding: 0;
   font: var(--code-size) var(--code-font); color: var(--ink);
@@ -1173,7 +1173,7 @@ button.sb-item:hover { background: var(--hover); color: var(--ink); }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-.kv input[type="text"] { text-overflow: ellipsis; }
+.kv input[type="text"], .kv input[type="password"] { text-overflow: ellipsis; }
 .jp input { text-overflow: ellipsis; }
 .clip-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdesc { margin-left: auto; padding-left: 10px; min-width: 0; color: var(--faint); font: calc(12 * var(--px)) var(--font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

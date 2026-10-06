@@ -57,11 +57,16 @@ import { Icon } from './icon';
               <div class="banner err" role="alert"><app-ic name="alert" [size]="15" /><span>Impossible de relire <span class="mono">{{ env }}.yml</span> : {{ e }}. Le tableau montre la dernière version lue.</span></div>
             }
           }
-          <app-env-table [rows]="store.draft()" [problems]="store.problems()" [picked]="selected()" (rowsChange)="store.edit($event)" (pick)="selected.set($event)" />
+          @if (store.keychainError(); as why) {
+            @if (hasSecrets()) {
+              <div class="banner err" role="alert"><app-ic name="alert" [size]="15" /><span>Trousseau indisponible : {{ why }}. Les valeurs des secrets ne peuvent être ni lues ni enregistrées ; <span class="mono">{{ '{{process.env.NOM}}' }}</span> lit le fichier <span class="mono">.env</span> de la collection.</span></div>
+            }
+          }
+          <app-env-table [rows]="store.draft()" [problems]="store.problems()" [picked]="selected()" [stored]="store.stored()" (rowsChange)="store.edit($event)" (pick)="selected.set($event)" />
           @for (p of problemList(); track p.row) {
             <p class="env-problem" role="alert"><app-ic name="alert" [size]="13" />Ligne {{ p.row }} : {{ p.text }}</p>
           }
-          <p class="faint env-note">Un secret n'a jamais sa valeur dans le fichier : seul <span class="mono">secret: true</span> y figure. Sa saisie dans le trousseau est prévue en V1 ; en attendant, <span class="mono">{{ '{{process.env.NOM}}' }}</span> lit le fichier <span class="mono">.env</span> de la collection.</p>
+          <p class="faint env-note">La valeur d'un secret est gardée dans le trousseau du système, jamais dans le fichier ni dans l'interface : seul <span class="mono">secret: true</span> figure dans le fichier. Elle reste sur cette machine. Sur une machine sans trousseau, <span class="mono">{{ '{{process.env.NOM}}' }}</span> lit le fichier <span class="mono">.env</span> de la collection.</p>
         </div>
         <aside class="resolve" aria-label="Résolution">
           @if (info(); as i) {
@@ -113,6 +118,7 @@ export class EnvView {
   protected readonly store = inject(EnvStore);
   private readonly commands = inject(COMMANDS);
   protected readonly selected = signal<string | null>(null);
+  protected readonly hasSecrets = computed(() => this.store.draft().some((v) => v.secret));
   protected readonly isDefault = computed(() => !!this.store.owner() && this.ws.collection()?.defaultEnvironment === this.store.owner());
   protected readonly info = computed(() => {
     const name = this.selected() ?? this.store.draft()[0]?.name;

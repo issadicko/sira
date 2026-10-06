@@ -15,6 +15,8 @@ pub struct Session {
     pub collection: Option<Map<String, Value>>,
     /// Les jetons OAuth 2 obtenus, par `token_key` : ils servent aux requêtes suivantes tant qu'ils sont valides.
     pub tokens: HashMap<String, Token>,
+    /// Valeurs des variables secrètes de l'environnement choisi, lues dans le trousseau par l'hôte avant l'exécution.
+    pub secrets: Vec<(String, String)>,
     /// Ce qui ouvre la fenêtre de connexion des flux interactifs (code d'autorisation, implicite) ; absent en CLI.
     pub authorizer: Option<SharedAuthorizer>,
 }
@@ -51,6 +53,7 @@ impl Session {
             env: self
                 .env_for(env)
                 .map(|vars| pairs(vars).into_iter().filter(|(k, _)| k != xc_script::ENV_NAME).collect()),
+            secrets: self.secrets.clone(),
         }
     }
 

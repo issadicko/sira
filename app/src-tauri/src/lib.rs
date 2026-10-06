@@ -17,11 +17,13 @@ use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
 mod oauth;
 mod runs;
+mod secrets;
 
 #[derive(Default)]
 struct AppState {
     sessions: Mutex<HashMap<String, Session>>,
     runs: runs::Runs,
+    secrets: secrets::Secrets,
     inflight: Mutex<HashMap<String, Inflight>>,
     plans: Arc<Plans>,
     writes: tokio::sync::Mutex<()>,
@@ -208,7 +210,14 @@ async fn save_environment(
     vars: Vec<EnvVar>,
     create: bool,
 ) -> Reply<bool> {
-    writing(&state, move || xc_core::save_environment(Path::new(&root), &name, &vars, create)).await
+    if !create && xc_core::read_environment(Path::new(&root), &name).is_err() {
+        return writing(&state, move || xc_core::save_environment(Path::new(&root), &name, &vars, create)).await;
+    }
+    let store = Arc::clone(&state.secrets.0);
+    let (dir, env) = (root.clone(), name.clone());
+    let (vars, stored) = blocking(move || secrets::apply(&*store, &dir, &env, &vars)).await?;
+    let wrote = writing(&state, move || xc_core::save_environment(Path::new(&root), &name, &vars, create)).await?;
+    Ok(wrote || stored)
 }
 
 #[tauri::command]
@@ -216,21 +225,74 @@ async fn create_environment(state: State<'_, AppState>, root: String, name: Stri
     writing(&state, move || manage::create_environment(Path::new(&root), &name)).await
 }
 
+/// Les valeurs des secrets de `env`, lues avant qu'un renommage ou une duplication ne change le fichier. Un trousseau
+/// indisponible n'en garde aucune : l'opération sur le fichier n'a alors rien à perdre.
+async fn secrets_of(state: &AppState, root: &str, env: &str) -> Vec<(String, String)> {
+    let (store, dir, env) = (Arc::clone(&state.secrets.0), root.to_owned(), env.to_owned());
+    blocking(move || Ok::<_, String>(secrets::take(&*store, &dir, &env).unwrap_or_default())).await.unwrap_or_default()
+}
+
+/// Range les secrets de l'environnement `from` sous `to` ; les oublie sous `from` quand l'environnement a été renommé.
+async fn carry_secrets(
+    state: &AppState,
+    root: &str,
+    from: &str,
+    to: &str,
+    values: Vec<(String, String)>,
+    forget: bool,
+) -> Reply<()> {
+    if values.is_empty() {
+        return Ok(());
+    }
+    let (store, dir, from, to) = (Arc::clone(&state.secrets.0), root.to_owned(), from.to_owned(), to.to_owned());
+    let label = to.clone();
+    blocking(move || {
+        secrets::put(&*store, &dir, &to, &values)?;
+        if forget {
+            let names: Vec<String> = values.into_iter().map(|(name, _)| name).collect();
+            secrets::forget(&*store, &dir, &from, &names);
+        }
+        Ok::<_, String>(())
+    })
+    .await
+    .map_err(|e| {
+        format!(
+            "L'environnement « {label} » est prêt, mais ses secrets n'ont pas pu être copiés ({e}) : ressaisis-les."
+        )
+    })
+}
+
 #[tauri::command]
 async fn rename_environment(state: State<'_, AppState>, root: String, from: String, name: String) -> Reply<String> {
-    writing(&state, move || manage::rename_environment(Path::new(&root), &from, &name)).await
+    let values = secrets_of(&state, &root, &from).await;
+    let (dir, old) = (root.clone(), from.clone());
+    let renamed = writing(&state, move || manage::rename_environment(Path::new(&dir), &old, &name)).await?;
+    carry_secrets(&state, &root, &from, &renamed, values, true).await?;
+    Ok(renamed)
 }
 
 #[tauri::command]
 async fn clone_environment(state: State<'_, AppState>, root: String, from: String, name: String) -> Reply<String> {
-    writing(&state, move || manage::clone_environment(Path::new(&root), &from, &name)).await
+    let values = secrets_of(&state, &root, &from).await;
+    let (dir, old) = (root.clone(), from.clone());
+    let cloned = writing(&state, move || manage::clone_environment(Path::new(&dir), &old, &name)).await?;
+    carry_secrets(&state, &root, &from, &cloned, values, false).await?;
+    Ok(cloned)
 }
 
-/// Envoie l'environnement à la corbeille du système.
+/// Envoie l'environnement à la corbeille du système et oublie ses secrets.
 #[tauri::command]
 async fn delete_environment(state: State<'_, AppState>, root: String, name: String) -> Reply<()> {
+    let names = secrets::declared(&root, &name);
+    let (dir, env) = (root.clone(), name.clone());
     writing(&state, move || {
-        manage::delete_environment(Path::new(&root), &name, |file| trash_context().delete(file).map_err(trash_message))
+        manage::delete_environment(Path::new(&dir), &env, |file| trash_context().delete(file).map_err(trash_message))
+    })
+    .await?;
+    let (store, dir) = (Arc::clone(&state.secrets.0), root);
+    blocking(move || {
+        secrets::forget(&*store, &dir, &name, &names);
+        Ok::<_, String>(())
     })
     .await
 }
@@ -242,7 +304,7 @@ async fn set_default_environment(state: State<'_, AppState>, root: String, name:
 }
 
 #[tauri::command]
-fn variables(
+async fn variables(
     state: State<'_, AppState>,
     root: String,
     path: String,
@@ -250,7 +312,9 @@ fn variables(
     env: Option<String>,
 ) -> Reply<Vec<VariableInfo>> {
     let dir = Path::new(&root);
-    let session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
+    let mut session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
+    let (store, folder, picked) = (Arc::clone(&state.secrets.0), root.clone(), env.clone());
+    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
     let ctx = Context::load(dir, &path).map_err(err)?;
     let scope = Scope::build(dir, &ctx, &path, &doc, env.as_deref(), &session.runtime_strings()).map_err(err)?;
     Ok(scope.with_overrides(session.overrides(env.as_deref())).infos())
@@ -265,6 +329,8 @@ async fn send_request<R: tauri::Runtime>(
     let SendArgs { id, root: root_path, path, doc, env } = args;
     let mut session = state.sessions.lock().map_err(err)?.get(&root_path).cloned().unwrap_or_default();
     session.authorizer = Some(oauth::authorizer(&app));
+    let (store, dir, picked) = (Arc::clone(&state.secrets.0), root_path.clone(), env.clone());
+    session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &dir, picked.as_deref()))).await?;
     let cancel = Arc::new(AtomicBool::new(false));
     let (dir, flag) = (root(&root_path), Arc::clone(&cancel));
     let task = tokio::spawn(async move {
@@ -525,6 +591,7 @@ pub fn run() {
             runs::cancel_run,
             runs::inspect_run_data,
             runs::export_run,
+            secrets::secret_names,
             oauth::oauth_status,
             oauth::oauth_fetch,
             oauth::oauth_clear

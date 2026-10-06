@@ -26,6 +26,9 @@ export class EnvStore {
   /** Le fichier a changé sur le disque alors que le brouillon a des modifications : l'enregistrer les écraserait. */
   readonly stale = signal(false);
   readonly saving = signal(false);
+  /** Secrets dont le trousseau garde une valeur (leurs noms seulement) et pourquoi il ne répond pas, le cas échéant. */
+  readonly stored = signal<string[]>([]);
+  readonly keychainError = signal<string | null>(null);
   readonly naming = signal<EnvNaming | null>(null);
   readonly namingBusy = signal(false);
   readonly namingError = signal<string | null>(null);
@@ -63,6 +66,28 @@ export class EnvStore {
     this.base.set(vars);
     this.draft.set(structuredClone(vars));
     this.stale.set(false);
+    void this.loadStored();
+  }
+
+  /** Relit quels secrets ont une valeur dans le trousseau ; sans trousseau, aucun, avec la raison. */
+  async loadStored() {
+    const root = this.ws.collection()?.root;
+    const env = this.owner();
+    if (!root || !env) {
+      this.stored.set([]);
+      this.keychainError.set(null);
+      return;
+    }
+    try {
+      const names = await api.secretNames(root, env);
+      if (this.owner() !== env || this.ws.collection()?.root !== root) return;
+      this.stored.set(names);
+      this.keychainError.set(null);
+    } catch (e) {
+      if (this.owner() !== env) return;
+      this.stored.set([]);
+      this.keychainError.set(String(e));
+    }
   }
 
   /** Accorde le brouillon à ce que le disque contient : adopté s'il n'y a rien à perdre, périmé sinon. */
@@ -161,6 +186,7 @@ export class EnvStore {
         this.stale.set(false);
         if (recreated) await this.ws.reload();
         await this.ws.loadEnv();
+        await this.loadStored();
       });
       this.ws.notify(recreated ? `${env}.yml recréé sur le disque` : `Enregistré dans ${env}.yml`);
     } catch (e) {

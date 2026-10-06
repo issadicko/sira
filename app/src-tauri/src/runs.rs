@@ -194,6 +194,8 @@ pub async fn start_run<R: tauri::Runtime>(
     let cancel = state.runs.register(&run_id)?;
     let mut session = state.sessions.lock().map_err(err)?.get(&root).cloned().unwrap_or_default();
     session.authorizer = Some(crate::oauth::authorizer(&app));
+    let (store, dir, picked) = (Arc::clone(&state.secrets.0), root.clone(), env.clone());
+    session.secrets = blocking(move || Ok::<_, String>(crate::secrets::load(&*store, &dir, picked.as_deref()))).await?;
     emit(&app, RunEvent::Begin { run_id: run_id.clone(), requests: items.len(), iterations: rows.len().max(1) });
 
     let dir = Path::new(&root);

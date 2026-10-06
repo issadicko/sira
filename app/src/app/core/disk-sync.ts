@@ -55,7 +55,7 @@ export function describeDiskChange(outcome: { closed: string[]; reloaded: number
 function canonical(v: EnvVar) {
   return {
     name: v.name,
-    value: v.secret ? null : (v.value ?? ''),
+    value: v.secret ? (v.value ?? null) : (v.value ?? ''),
     secret: v.secret,
     enabled: v.enabled,
     description: v.description?.trim() ? v.description : null,
@@ -63,7 +63,10 @@ function canonical(v: EnvVar) {
   };
 }
 
-/** Forme comparable de variables : une valeur absente et une valeur vide sont la même, un secret n'a pas de valeur. */
+/**
+ * Forme comparable de variables : une valeur absente et une valeur vide sont la même. Le fichier n'a jamais de valeur pour un secret : celle d'un
+ * brouillon est une saisie en attente (`null` : rien de saisi, texte : à ranger dans le trousseau, `''` : à effacer), donc une modification.
+ */
 export function varsKey(vars: EnvVar[]): string {
   return JSON.stringify(vars.map(canonical));
 }

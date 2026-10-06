@@ -139,6 +139,7 @@ fn vars_for(scope: &Scope, session: &Session, env: Option<&str>) -> Vars {
     if let Some(name) = env {
         env_vars.insert(xc_script::ENV_NAME.into(), Value::String(name.to_owned()));
     }
+    env_vars.extend(session.secrets.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))));
     let mut process_env: Map<String, Value> = std::env::vars().map(|(k, v)| (k, Value::String(v))).collect();
     process_env.extend(scope.dotenv().iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))));
     Vars {
