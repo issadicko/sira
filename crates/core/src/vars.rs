@@ -192,6 +192,39 @@ impl Scope {
         merged
     }
 
+    /// Les variables à saisir (`{{?nom}}`) que la requête ou une valeur de variable demande, sans doublon, dans l'ordre :
+    /// adresse, paramètres, en-têtes, corps, authentification, scripts, puis variables et fichier `.env`. Bruno ne sait pas
+    /// les demander en ligne de commande : il ignore la requête.
+    pub fn prompt_variables(&self, doc: &RequestDoc) -> Vec<String> {
+        let mut found = Vec::new();
+        let mut scan = |text: &str| prompts_in(text, &mut found);
+        scan(&doc.url);
+        for p in &doc.params {
+            scan(&p.name);
+            scan(&p.value);
+        }
+        for h in &doc.headers {
+            scan(&h.name);
+            scan(&h.value);
+        }
+        scan(&serde_json::to_string(&doc.body).unwrap_or_default());
+        scan(&serde_json::to_string(&doc.auth).unwrap_or_default());
+        for script in &doc.scripts {
+            scan(&script.code);
+        }
+        for layer in &self.layers {
+            for (_, value) in &layer.vars {
+                scan(value);
+            }
+        }
+        let mut dotenv: Vec<(&String, &String)> = self.dotenv.iter().collect();
+        dotenv.sort();
+        for (_, value) in dotenv {
+            scan(value);
+        }
+        found
+    }
+
     /// Variables du fichier `.env` de la collection.
     pub fn dotenv(&self) -> &HashMap<String, String> {
         &self.dotenv
@@ -295,6 +328,26 @@ fn sorted(map: &HashMap<String, String>) -> Vec<(String, String)> {
     v
 }
 
+/// Ajoute à `found` les noms `{{?nom}}` de `text` : un nom ne contient ni accolade ni espace en tête ou en queue.
+fn prompts_in(text: &str, found: &mut Vec<String>) {
+    let mut rest = text;
+    while let Some(start) = rest.find("{{?") {
+        let after = &rest[start + 3..];
+        let end = after.find(['{', '}']).unwrap_or(after.len());
+        let name = &after[..end];
+        let trimmed = name.chars().next().is_some_and(|c| !c.is_whitespace())
+            && name.chars().last().is_some_and(|c| !c.is_whitespace());
+        if after[end..].starts_with("}}") && trimmed {
+            if !found.iter().any(|n| n == name) {
+                found.push(name.to_owned());
+            }
+            rest = &after[end + 2..];
+        } else {
+            rest = &rest[start + 1..];
+        }
+    }
+}
+
 pub fn dynamic_value(name: &str) -> Option<String> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     match name {
@@ -330,11 +383,27 @@ fn iso8601(millis: u128) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::iso8601;
+    use super::{iso8601, prompts_in};
+
+    fn prompts(text: &str) -> Vec<String> {
+        let mut found = Vec::new();
+        prompts_in(text, &mut found);
+        found
+    }
 
     #[test]
     fn iso_timestamp_is_utc() {
         assert_eq!(iso8601(1_790_816_588_196), "2026-10-01T01:03:08.196Z");
         assert_eq!(iso8601(0), "1970-01-01T00:00:00.000Z");
+    }
+
+    #[test]
+    fn ef_run_01_prompt_variables_are_the_names_between_double_braces_after_a_question_mark() {
+        assert_eq!(prompts("{{?Code}}"), ["Code"]);
+        assert_eq!(prompts("a={{?one}}&b={{?two words}}&c={{?one}}"), ["one", "two words"]);
+        assert_eq!(prompts("{{?  padded }}"), Vec::<String>::new());
+        assert_eq!(prompts("{{? x}} {{?x }} {{?}} {{?a{b}} {{?{{?ok}}"), ["ok"]);
+        assert_eq!(prompts("{{plain}} {{ ?no}} {?no}"), Vec::<String>::new());
+        assert_eq!(prompts("{{?é}}"), ["é"]);
     }
 }

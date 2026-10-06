@@ -285,6 +285,13 @@ fn print_result(result: &RequestResult) {
             println!("- {method} {name}  ignorée par un script");
             return;
         }
+        Some(Skip::Prompts(names)) => {
+            println!(
+                "- {method} {name}  ignorée : variables à saisir ({}), que la ligne de commande ne sait pas demander",
+                names.join(", ")
+            );
+            return;
+        }
         Some(Skip::Bail | Skip::StopExecution) => return,
         Some(Skip::Unreadable(why)) => {
             println!("- {name}  ignorée, fichier illisible : {why}");

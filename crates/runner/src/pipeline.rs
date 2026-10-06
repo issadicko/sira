@@ -69,6 +69,8 @@ pub struct Outcome {
     pub assertions: Vec<AssertionResult>,
     pub next_request: NextRequest,
     pub skipped: bool,
+    /// Les variables à saisir (`{{?nom}}`) qui ont fait ignorer la requête : un run ne peut pas les demander.
+    pub prompts: Vec<String>,
     pub stop: bool,
     pub error: Option<RunError>,
 }
@@ -93,6 +95,7 @@ impl Outcome {
             assertions: Vec::new(),
             next_request: NextRequest::Unset,
             skipped: false,
+            prompts: Vec::new(),
             stop: false,
             error: None,
         }
@@ -336,6 +339,13 @@ pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, dept
         Ok(scope) => scope,
         Err(e) => return out.fail(Stage::Prepare, e),
     };
+    if req.execution_mode != "standalone" {
+        out.prompts = scope.prompt_variables(req.doc);
+        if !out.prompts.is_empty() {
+            out.skipped = true;
+            return out;
+        }
+    }
     let phases = Phases { request: &req, scope: &scope, ctx: &ctx, depth };
     let before = script_request(&ctx, req.doc);
 

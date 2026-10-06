@@ -452,7 +452,7 @@ export interface RunArgs {
 
 /** `fail` : un test, une assertion ou un script a échoué ; `error` : la requête n'a pas abouti. */
 export type RunStatus = 'pass' | 'fail' | 'error' | 'skipped';
-export type RunSkip = 'script' | 'bail' | 'stopExecution' | 'unreadable';
+export type RunSkip = 'script' | 'bail' | 'stopExecution' | 'prompts' | 'unreadable';
 
 export interface RunResult {
   iteration: number;

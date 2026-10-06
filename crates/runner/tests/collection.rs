@@ -315,6 +315,47 @@ async fn ef_run_01_a_script_can_skip_a_request() {
 }
 
 #[tokio::test]
+async fn ef_run_01_a_request_with_prompt_variables_is_skipped_like_bru_run() {
+    let (base, seen) = serve();
+    let dir = new_collection(&base);
+    request(dir.path(), "a.yml", "A", 1, "{{baseUrl}}/a?code={{?Code}}&who={{?Who am I}}", &[PASS]);
+    request(dir.path(), "b.yml", "B", 2, "{{baseUrl}}/b", &[PASS]);
+    let run = go(dir.path(), &[], &[], false, Duration::ZERO).await;
+
+    assert_eq!(run.report.results[0].skip, Some(Skip::Prompts(vec!["Code".into(), "Who am I".into()])));
+    assert_eq!(run.report.results[1].skip, None);
+    assert_eq!(seen.lock().unwrap().len(), 1, "seule B part");
+    assert_eq!(run.report.summary().skipped_requests, 1);
+    assert!(!run.report.failed());
+
+    let report: Value = serde_json::from_str(&xc_runner::json(&run.report, &xc_runner::Redact::default())).unwrap();
+    let skipped = &report["results"][0];
+    assert_eq!(skipped["status"], "skipped");
+    assert_eq!(skipped["skipped"], true);
+    assert_eq!(skipped["error"], Value::Null);
+    assert_eq!(
+        skipped["response"]["statusText"],
+        "Prompt variables detected in request. CLI execution is not supported for requests with prompt variables. \nPrompts: Code, Who am I"
+    );
+}
+
+#[tokio::test]
+async fn ef_run_01_prompt_variables_in_a_variable_value_skip_the_requests_that_see_it() {
+    let (base, seen) = serve();
+    let dir = tempfile::tempdir().unwrap();
+    write(
+        dir.path(),
+        "opencollection.yml",
+        &format!("opencollection: 1.0.0\n\ninfo:\n  name: Shop\n\nrequest:\n  variables:\n    - name: baseUrl\n      value: {base}\n    - name: token\n      value: \"{{{{?Token}}}}\"\n"),
+    );
+    request(dir.path(), "a.yml", "A", 1, "{{baseUrl}}/a", &[PASS]);
+    let run = go(dir.path(), &[], &[], false, Duration::ZERO).await;
+
+    assert_eq!(run.report.results[0].skip, Some(Skip::Prompts(vec!["Token".into()])));
+    assert!(seen.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn ef_run_01_an_unreadable_file_is_reported_as_skipped_without_stopping_the_run() {
     let (base, _) = serve();
     let dir = three(&base);

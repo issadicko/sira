@@ -167,6 +167,7 @@ export const SKIP_LABELS: Record<string, string> = {
   script: 'ignorée par un script',
   bail: 'ignorée après un échec',
   stopExecution: 'ignorée : un script a arrêté le run',
+  prompts: 'ignorée : elle demande des variables à saisir ({{?nom}}), que le runner ne sait pas demander',
   unreadable: 'fichier illisible',
 };
 

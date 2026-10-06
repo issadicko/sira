@@ -153,6 +153,14 @@ fn assertion(a: &AssertionResult) -> AssertionEntry {
     }
 }
 
+/// Ce que dit `bru run` d'une requête qu'il ignore faute de pouvoir demander ses variables.
+pub(crate) fn prompts_message(names: &[String]) -> String {
+    format!(
+        "Prompt variables detected in request. CLI execution is not supported for requests with prompt variables. \nPrompts: {}",
+        names.join(", ")
+    )
+}
+
 impl Entry {
     pub(crate) fn of(r: &RequestResult) -> Self {
         let o = &r.outcome;
@@ -164,6 +172,7 @@ impl Entry {
         let (status, error, status_text) = match (&r.skip, &o.error) {
             (Some(Skip::Unreadable(why)), _) => ("skipped", Some(why.clone()), Some(why.clone())),
             (Some(Skip::Script), _) => ("skipped", None, Some("request skipped via pre-request script".to_owned())),
+            (Some(Skip::Prompts(names)), _) => ("skipped", None, Some(prompts_message(names))),
             (Some(_), _) => ("skipped", None, None),
             (None, Some(e)) => ("error", Some(e.message.clone()), None),
             (None, None) => ("pass", None, o.response.as_ref().map(|res| res.reason.clone())),

@@ -1,0 +1,8 @@
+{
+  "name": "gate3",
+  "private": true,
+  "description": "Gate 3 : compare les résultats de `xc run` et de `bru run` sur le corpus Bruno",
+  "dependencies": {
+    "@usebruno/cli": "4.2.1"
+  }
+}

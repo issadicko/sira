@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { RunEvent, RunResult, TreeItem } from './model.ts';
-import { duration, filterResults, firstProblem, fraction, groupByIteration, haltText, idle, reduce, rowLabel, scopes, tallyResults } from './runner.ts';
+import type { RunEvent, RunResult, RunSkip, TreeItem } from './model.ts';
+import { SKIP_LABELS, duration, filterResults, firstProblem, fraction, groupByIteration, haltText, idle, reduce, rowLabel, scopes, tallyResults } from './runner.ts';
 
 const phase = () => ({ results: [], logs: [] });
 
@@ -133,4 +133,10 @@ test('ef_run_01 la première raison d\'un échec vient de l\'erreur, puis des as
   const tests = { results: [{ description: 'ok', status: 'pass' }, { description: 'total', status: 'fail', error: 'expected 1 to equal 2' }], logs: [] };
   assert.equal(firstProblem(result({ status: 'fail', scripts: { pre: phase(), post: phase(), tests } })), 'total : expected 1 to equal 2');
   assert.equal(firstProblem(result({ scripts: { pre: phase(), post: { results: [], logs: [], error: 'boom' }, tests: phase() } })), 'boom');
+});
+
+test('ef_run_01 chaque motif d\'une requête ignorée a son libellé', () => {
+  const reasons = ['script', 'bail', 'stopExecution', 'prompts', 'unreadable'] satisfies RunSkip[];
+  for (const why of reasons) assert.ok(SKIP_LABELS[why], why);
+  assert.match(SKIP_LABELS['prompts'] ?? '', /variables à saisir/);
 });

@@ -98,6 +98,8 @@ pub enum Skip {
     /// Un script a appelé `bru.runner.stopExecution()`.
     StopExecution,
     Unreadable(String),
+    /// La requête demande des variables à saisir (`{{?nom}}`) : un run ne peut pas les demander, comme `bru run`.
+    Prompts(Vec<String>),
 }
 
 /// La requête telle que le run l'a menée, avec son rang d'itération.
@@ -257,7 +259,10 @@ async fn run_item(job: &Job<'_>, iteration: usize, item: &Item, session: &mut Se
         iteration,
         name: item.name.clone(),
         path: item.path.clone(),
-        skip: outcome.skipped.then_some(Skip::Script),
+        skip: outcome.skipped.then(|| match outcome.prompts.as_slice() {
+            [] => Skip::Script,
+            names => Skip::Prompts(names.to_vec()),
+        }),
         duration: started.elapsed(),
         outcome,
     })

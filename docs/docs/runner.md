@@ -12,6 +12,7 @@ Les jetons OAuth 2 obtenus pendant un run restent dans la `Session` et servent a
 - **Délai** (`--delay ms`) : attente entre deux requêtes, jamais après la dernière. Elle réagit à l'annulation.
 - **Arrêt au premier échec** (`--bail`) : une requête qui échoue (erreur d'envoi ou de script pré-requête, assertion, test de n'importe quelle phase, erreur de script) arrête le run ; ce qui restait à exécuter est listé comme ignoré (`skipReason: bail`) et le motif suit l'ordre de Bruno : `request failure`, `assertion failure`, `pre-request test failure`, `post-response test failure`, `test failure`.
 - **Sauts et arrêts** : `bru.setNextRequest(nom)` saute à la première requête de ce nom (avant ou après), `null` termine le run, `bru.runner.skipRequest()` ignore la requête en cours, `bru.runner.stopExecution()` arrête le run et marque le reste ignoré (`skipReason: stopExecution`). Au-delà de 10 000 sauts le run s'arrête comme une boucle sans fin (échec).
+- **Variables à saisir** : une requête dont l'adresse, les en-têtes, le corps, l'authentification, les scripts ou une variable contiennent `{{?nom}}` est ignorée (statut `skipped`, `response.statusText` : `Prompt variables detected in request. CLI execution is not supported for requests with prompt variables.` puis `Prompts: nom, …`), comme `bru run` : un run ne peut pas demander une valeur. Le reste du run continue ; l'envoi seul depuis l'application laisse la variable non résolue.
 - **Annulation** : un drapeau levé d'un autre fil arrête le run avant la requête suivante et interrompt le script ou l'envoi en cours.
 
 ## 2. Itérations pilotées par des données (EF-RUN-02)
@@ -75,4 +76,5 @@ Côté Tauri, `start_run` annonce l'avancement par l'événement `run-event` (`b
 - `--tests-only`, `--tags` / `--exclude-tags`, `--env-file`, `--global-env`, `--sandbox`, `--insecure`, `--cacert` : options de `bru run` non reprises (les réglages réseau viennent avec le lot « réglages réseau »).
 - Les requêtes gRPC et WebSocket ne sont pas exécutées par le runner ; les requêtes GraphQL le sont, avec les requêtes HTTP (voir `graphql.md`).
 - Bruno ne lance un dossier que sans ses sous-dossiers, sauf `-r` ; ici un dossier est toujours parcouru récursivement.
+- Gate 3 (ENF-COMP-03) : la comparaison de `xc run` et de `bru run` sur le corpus est en cours, voir `tools/gate3/README.md`.
 - Le nom d'hôte des suites JUnit vient de `HOSTNAME`, `COMPUTERNAME` ou `/etc/hostname` ; à défaut, `localhost`.

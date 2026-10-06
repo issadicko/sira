@@ -55,7 +55,7 @@ struct RunResultDto {
     url: String,
     /// `pass`, `fail` (un test, une assertion ou un script a échoué), `error` (pas de réponse) ou `skipped`.
     status: &'static str,
-    /// Pourquoi elle n'a pas tourné : `script`, `bail`, `stopExecution` ou `unreadable` (le motif est dans `error`).
+    /// Pourquoi elle n'a pas tourné : `script`, `bail`, `stopExecution`, `prompts` (variables à saisir, que le run ne sait pas demander) ou `unreadable` (le motif est dans `error`).
     skipped: Option<String>,
     http: Option<HttpDto>,
     error: Option<RunError>,
@@ -71,6 +71,7 @@ impl RunResultDto {
             Skip::Bail => "bail",
             Skip::StopExecution => "stopExecution",
             Skip::Unreadable(_) => "unreadable",
+            Skip::Prompts(_) => "prompts",
         });
         let o = &result.outcome;
         let error = match &result.skip {
