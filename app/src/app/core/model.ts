@@ -107,6 +107,8 @@ export interface RequestDoc {
   scripts: Script[];
   /** Variables posées après la réponse (lues seulement : le fichier garde ses actions). */
   postVariables?: { name: string; expression: string; enabled: boolean }[];
+  /** `info.tags` du fichier, lus seulement : `xc run --tags` les filtre. */
+  tags?: string[];
   docs?: string | null;
   /** Délai en millisecondes ; `null` : aucun. */
   timeoutMs?: number | null;

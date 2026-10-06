@@ -338,7 +338,7 @@ pub async fn run_collection(job: Job<'_>, session: &mut Session, on: &mut (dyn F
         report.iterations.push(Iteration { index, row: row.cloned() });
         on(Event::Iteration { index, total: rows.len(), row: *row });
 
-        let mut at = Some(0);
+        let mut at = (!job.items.is_empty()).then_some(0);
         while let Some(position) = at {
             if job.cancel.load(Ordering::Relaxed) {
                 report.halt = Some(Halt::Cancelled);

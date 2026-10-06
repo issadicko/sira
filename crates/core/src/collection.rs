@@ -13,8 +13,8 @@ use crate::CoreError;
 mod environment;
 
 pub use environment::{
-    default_environment, environment_file, list_environments, read_environment, save_environment,
-    set_default_environment, with_environment_name, EnvVar,
+    default_environment, environment_file, list_environments, read_environment, read_environment_file,
+    save_environment, set_default_environment, with_environment_name, EnvVar,
 };
 
 pub const COLLECTION_FILE: &str = "opencollection.yml";

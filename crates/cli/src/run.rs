@@ -12,8 +12,8 @@ use std::time::Duration;
 use clap::Args;
 use xc_core::{open_collection, ClientCertificate, NetworkPrefs};
 use xc_runner::{
-    html_page, json, junit, now_iso, read_rows, run_collection, select, Event, Halt, Job, Meta, PhaseReport, Redact,
-    RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
+    filter_items, html_page, json, junit, load_env_file, now_iso, read_rows, run_collection, select, Event, Filter,
+    Halt, Job, Meta, PhaseReport, Redact, RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
 };
 
 #[derive(Args)]
@@ -25,9 +25,21 @@ pub struct RunArgs {
     /// Environnement à utiliser (nom du fichier dans environments/)
     #[arg(long)]
     env: Option<String>,
+    /// Fichier d'environnement (.json ou .yml), absolu ou relatif à la collection, à la place de --env
+    #[arg(long = "env-file", value_name = "FICHIER", conflicts_with = "env")]
+    env_file: Option<PathBuf>,
     /// Variable runtime, répétable : --env-var nom=valeur
     #[arg(long = "env-var", value_parser = parse_pair)]
     env_vars: Vec<(String, String)>,
+    /// Ne lance que les requêtes qui ont un test ou une assertion active
+    #[arg(long)]
+    tests_only: bool,
+    /// Ne lance que les requêtes qui portent l'un de ces tags, séparés par des virgules
+    #[arg(long, value_name = "TAGS")]
+    tags: Option<String>,
+    /// Écarte les requêtes qui portent l'un de ces tags, séparés par des virgules
+    #[arg(long, value_name = "TAGS")]
+    exclude_tags: Option<String>,
     /// S'arrête au premier échec d'une requête, d'un test ou d'une assertion ; le reste est ignoré
     #[arg(long)]
     bail: bool,
@@ -200,13 +212,28 @@ pub async fn run(args: RunArgs) -> ExitCode {
         Ok(items) => items,
         Err(e) => return input_error(e),
     };
-    let env = args.env.clone().or(collection.default_environment.clone());
+    let filter = Filter {
+        tests_only: args.tests_only,
+        tags: Filter::split(args.tags.as_deref()),
+        exclude_tags: Filter::split(args.exclude_tags.as_deref()),
+    };
+    let items = filter_items(root, items, &filter);
+    if items.is_empty() {
+        eprintln!("  ! aucune requête ne correspond à --tests-only, --tags ou --exclude-tags");
+    }
+    let (env, env_writes) = match &args.env_file {
+        Some(file) => match load_env_file(&root.join(file)) {
+            Ok(writes) => (None, Some(writes)),
+            Err(e) => return input_error(e),
+        },
+        None => (args.env.clone().or(collection.default_environment.clone()), None),
+    };
 
     let network = match network_prefs(&args) {
         Ok(network) => network,
         Err(e) => return input_error(e),
     };
-    let mut session = Session { network, ..Session::default() };
+    let mut session = Session { network, env: env_writes, ..Session::default() };
     let runtime: HashMap<String, String> = args.env_vars.iter().cloned().collect();
     session.runtime.extend(runtime.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))));
     let job = Job {

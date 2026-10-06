@@ -4,6 +4,8 @@
 mod auth;
 mod convert;
 mod data;
+mod envfile;
+mod filter;
 mod nested;
 mod oauth2;
 mod pipeline;
@@ -15,6 +17,8 @@ mod sequence;
 mod session;
 
 pub use data::{parse_csv, parse_json, read_rows, DataError, Row};
+pub use envfile::load_env_file;
+pub use filter::{filter_items, has_executable_test, Filter};
 pub use oauth2::{
     fetch as fetch_oauth2_token, redirect_params, refresh as refresh_oauth2_token, token_key, Authorization,
     AuthorizationRequest, Authorizer, SharedAuthorizer, Token, TokenInfo,
