@@ -8,6 +8,7 @@ mod envfile;
 mod filter;
 mod nested;
 mod oauth2;
+mod persist;
 mod pipeline;
 mod report;
 mod run;
@@ -23,6 +24,7 @@ pub use oauth2::{
     fetch as fetch_oauth2_token, redirect_params, refresh as refresh_oauth2_token, token_key, Authorization,
     AuthorizationRequest, Authorizer, SharedAuthorizer, Token, TokenInfo,
 };
+pub use persist::{persist_variables, Persisted};
 pub use pipeline::{run_request, AssertionResult, Outcome, PhaseReport, Request, RunError, Stage};
 pub use report::{
     html_page, json, junit, now_iso, AssertionEntry, Entry, Meta, Redact, RequestEntry, ResponseEntry, Summary,

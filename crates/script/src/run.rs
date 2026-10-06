@@ -243,7 +243,7 @@ impl Host {
     }
 
     fn remove(&mut self, scope: &str, key: &str) {
-        if self.vars.scope_mut(scope).is_some_and(|map| map.remove(key).is_some()) {
+        if self.vars.scope_mut(scope).is_some_and(|map| map.shift_remove(key).is_some()) {
             self.mark(scope);
         }
     }

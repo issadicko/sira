@@ -224,6 +224,88 @@ pub fn set_default_environment(root: &Path, name: Option<&str>) -> Result<(), Co
     }
 }
 
+/// Variable de collection (`request.variables` de `opencollection.yml`) : la valeur en texte et, quand ce n'est pas du
+/// texte, son type (`number`, `boolean`, `object`), que le fichier écrit en `{ type, data }`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CollectionVar {
+    pub name: String,
+    pub value: String,
+    pub data_type: Option<String>,
+    pub enabled: bool,
+    pub description: Option<String>,
+}
+
+impl Entry for CollectionVar {
+    const ORDER: &'static [&'static str] = &["name", "value", "description", "disabled"];
+
+    fn read(m: &Map) -> Self {
+        let kind = m.get("value").and_then(Value::as_map).and_then(|v| v.str("type"));
+        Self {
+            name: text(m.get("name")),
+            value: text(m.get("value")),
+            data_type: kind.filter(|kind| *kind != "string").map(str::to_owned),
+            enabled: is_enabled(m),
+            description: opt_text(m, "description"),
+        }
+    }
+
+    fn build(&self) -> Map {
+        let value = match &self.data_type {
+            Some(kind) => Value::Map(table(vec![("type", Value::str(kind)), ("data", Value::Str(self.value.clone()))])),
+            None => Value::str(&self.value),
+        };
+        let mut pairs = vec![("name", Value::str(&self.name)), ("value", value)];
+        if let Some(d) = non_blank(&self.description) {
+            pairs.push(("description", Value::str(d)));
+        }
+        if !self.enabled {
+            pairs.push(("disabled", Value::Bool(true)));
+        }
+        table(pairs)
+    }
+
+    fn ident(&self) -> String {
+        self.name.clone()
+    }
+}
+
+fn collection_variables(tree: &Map) -> Vec<CollectionVar> {
+    tree.map("request")
+        .map(|r| r.seq("variables").iter().filter_map(Value::as_map).map(CollectionVar::read).collect())
+        .unwrap_or_default()
+}
+
+/// Les variables de collection (`request.variables` de `opencollection.yml`), actives ou non.
+pub fn read_collection_variables(root: &Path) -> Result<Vec<CollectionVar>, CoreError> {
+    Ok(collection_variables(&read_tree(&root.join(COLLECTION_FILE))?))
+}
+
+/// Enregistre les variables de collection, sans toucher au reste du fichier ; chaque variable reprend sa table existante
+/// (repérée par son nom). Rend `true` si le fichier a changé. Un lien symbolique est refusé.
+pub fn save_collection_variables(root: &Path, vars: &[CollectionVar]) -> Result<bool, CoreError> {
+    ensure_collection(root)?;
+    let path = root.join(COLLECTION_FILE);
+    if path.is_symlink() {
+        return Err(CoreError::Symlink(path.display().to_string()));
+    }
+    let text = fs::read_to_string(&path).map_err(|e| CoreError::io(&path, e))?;
+    let updated = rewrite(&path, &text, |tree| {
+        if collection_variables(tree) == vars {
+            return Ok(false);
+        }
+        let request = tree.map_mut_or_insert("request", COLLECTION_ORDER);
+        set_list(request, "variables", vars, CollectionVar::ORDER);
+        if request.is_empty() {
+            tree.remove("request");
+        }
+        Ok(true)
+    })?;
+    match updated == text {
+        true => Ok(false),
+        false => write_atomic(root, &path, &updated).map(|()| true),
+    }
+}
+
 /// Retire `defaultEnvironment`, puis chaque table qui devient vide. Faux quand il n'y avait rien à retirer.
 fn clear_default(tree: &mut Map) -> bool {
     let Some(Value::Map(extensions)) = tree.get_mut("extensions") else { return false };
