@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use xc_core::open_collection;
 use xc_runner::{
-    filter_items, has_executable_test, load_env_file, run_collection, select, EnvWrites, Filter, Job, Session,
-    MAX_JUMPS,
+    filter_items, has_executable_test, load_env_file, persist_variables, run_collection, select, EnvWrites, Filter,
+    Job, Session, MAX_JUMPS,
 };
 
 type Seen = Arc<Mutex<Vec<String>>>;
@@ -353,4 +353,148 @@ async fn ef_run_03_req_set_max_redirects_in_a_pre_request_script_limits_the_hops
     let status = |i: usize| report.results[i].outcome.response.as_ref().map(|r| r.status);
     assert_eq!(status(0), Some(302), "aucun saut suivi");
     assert_eq!(status(2), Some(200), "sans script, la redirection est suivie");
+}
+
+async fn run_in_env(root: &Path, env: Option<&str>) -> Session {
+    let info = open_collection(root).unwrap();
+    let items = select(&info.items, &[]).unwrap();
+    let job = Job {
+        root,
+        collection_name: &info.name,
+        env,
+        items: &items,
+        rows: &[],
+        bail: false,
+        delay: Duration::ZERO,
+        max_jumps: MAX_JUMPS,
+        execution_mode: "cli",
+        cancel: Arc::new(AtomicBool::new(false)),
+    };
+    let mut session = Session::default();
+    run_collection(job, &mut session, &mut |_| {}).await;
+    session
+}
+
+fn persisting_collection(base: &str, code: &str) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    write(
+        dir.path(),
+        "opencollection.yml",
+        "opencollection: 1.0.0\n\ninfo:\n  name: PV\n\nrequest:\n  variables:\n    - name: region\n      value: us\n    - name: kept\n      value: keep\n      disabled: true\n",
+    );
+    write(
+        dir.path(),
+        "environments/dev.yml",
+        "name: dev\nvariables:\n  - name: host\n    value: old\n  - name: stale\n    value: gone\n  - name: off\n    value: kept\n    disabled: true\n  - secret: true\n    name: token\n",
+    );
+    write(
+        dir.path(),
+        "a.yml",
+        &format!(
+            "info:\n  name: A\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: \"{base}/a\"\n\nruntime:\n{}",
+            script("after-response", code)
+        ),
+    );
+    dir
+}
+
+#[tokio::test]
+async fn ef_run_03_persisted_variables_follow_the_merge_rules_of_bru_run() {
+    let (base, _) = serve();
+    let dir = persisting_collection(
+        &base,
+        "bru.setEnvVar('host', 'new');\nbru.setEnvVar('port', 3000);\nbru.setEnvVar('flag', true);\nbru.setEnvVar('cfg', {a: 1});\nbru.deleteEnvVar('stale');\nbru.setCollectionVar('region', 'eu');\nbru.setCollectionVar('retries', 3);",
+    );
+    let root = dir.path();
+    let session = run_in_env(root, Some("dev")).await;
+    let done = persist_variables(root, &session, Some("dev")).unwrap();
+
+    assert_eq!(done.environment.as_deref(), Some("environments/dev.yml"));
+    assert!(done.collection);
+    assert_eq!(
+        fs::read_to_string(root.join("environments/dev.yml")).unwrap(),
+        "name: dev\nvariables:\n  - name: host\n    value: new\n  - name: off\n    value: kept\n    disabled: true\n  - secret: true\n    name: token\n  - name: port\n    value:\n      type: number\n      data: \"3000\"\n  - name: flag\n    value:\n      type: boolean\n      data: \"true\"\n  - name: cfg\n    value:\n      type: object\n      data: |-\n        {\n          \"a\": 1\n        }\n",
+        "valeur mise à jour, retirée, désactivée gardée, nouvelles en fin dans l'ordre du script, typées"
+    );
+    let collection = fs::read_to_string(root.join("opencollection.yml")).unwrap();
+    assert!(collection.contains("name: region\n      value: eu"), "{collection}");
+    assert!(collection.contains("name: kept\n      value: keep\n      disabled: true"), "{collection}");
+    assert!(
+        collection.contains("name: retries\n      value:\n        type: number\n        data: \"3\""),
+        "{collection}"
+    );
+}
+
+#[tokio::test]
+async fn ef_run_03_nothing_is_written_when_no_script_touched_a_variable() {
+    let (base, _) = serve();
+    let dir = persisting_collection(&base, "console.log('rien');");
+    let root = dir.path();
+    let (env_before, collection_before) = (
+        fs::read_to_string(root.join("environments/dev.yml")).unwrap(),
+        fs::read_to_string(root.join("opencollection.yml")).unwrap(),
+    );
+    let session = run_in_env(root, Some("dev")).await;
+    let done = persist_variables(root, &session, Some("dev")).unwrap();
+
+    assert_eq!(done, xc_runner::Persisted::default());
+    assert_eq!(fs::read_to_string(root.join("environments/dev.yml")).unwrap(), env_before);
+    assert_eq!(fs::read_to_string(root.join("opencollection.yml")).unwrap(), collection_before);
+}
+
+#[tokio::test]
+async fn ef_run_03_a_secret_row_is_never_dropped_nor_given_a_value() {
+    let (base, _) = serve();
+    let dir = persisting_collection(&base, "bru.setEnvVar('token', 'rotated');\nbru.setEnvVar('other', 'x');");
+    let root = dir.path();
+    let session = run_in_env(root, Some("dev")).await;
+    persist_variables(root, &session, Some("dev")).unwrap();
+
+    let env = fs::read_to_string(root.join("environments/dev.yml")).unwrap();
+    assert!(env.contains("  - secret: true\n    name: token\n"), "{env}");
+    assert!(!env.contains("rotated"), "{env}");
+    assert!(env.contains("name: other"), "{env}");
+}
+
+#[tokio::test]
+async fn ef_run_03_a_secret_missing_from_the_script_variables_stays_in_the_file() {
+    let (base, _) = serve();
+    let dir = persisting_collection(&base, "bru.setEnvVar('other', 'x');");
+    let root = dir.path();
+    let session = run_in_env(root, Some("dev")).await;
+    assert!(
+        !session.env.as_ref().unwrap().vars.contains_key("token"),
+        "pas de trousseau : le script ne voit pas le secret"
+    );
+    persist_variables(root, &session, Some("dev")).unwrap();
+    let env = fs::read_to_string(root.join("environments/dev.yml")).unwrap();
+    assert!(env.contains("  - secret: true\n    name: token\n"), "{env}");
+}
+
+#[tokio::test]
+async fn ef_run_03_without_an_environment_only_collection_variables_are_written() {
+    let (base, _) = serve();
+    let dir = persisting_collection(&base, "bru.setEnvVar('x', 1);\nbru.setCollectionVar('region', 'eu');");
+    let root = dir.path();
+    let session = run_in_env(root, None).await;
+    let done = persist_variables(root, &session, None).unwrap();
+    assert_eq!(done.environment, None);
+    assert!(done.collection);
+    assert!(!fs::read_to_string(root.join("environments/dev.yml")).unwrap().contains("name: x"));
+}
+
+#[tokio::test]
+async fn ef_scr_03_deleting_an_environment_variable_keeps_the_order_of_the_others() {
+    let (base, _) = serve();
+    let dir = collection(&base);
+    write(
+        dir.path(),
+        "environments/dev.yml",
+        "name: dev\nvariables:\n  - name: a\n    value: 1\n  - name: b\n    value: 2\n  - name: c\n    value: 3\n",
+    );
+    request(dir.path(), "a.yml", 1, "", &script("after-response", "bru.setEnvVar('d', 4);\nbru.deleteEnvVar('a');"));
+    let session = run_in_env(dir.path(), Some("dev")).await;
+    let keys: Vec<&str> =
+        session.env.as_ref().unwrap().vars.keys().map(String::as_str).filter(|k| *k != "__name__").collect();
+    assert_eq!(keys, ["b", "c", "d"]);
 }

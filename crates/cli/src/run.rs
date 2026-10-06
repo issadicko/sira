@@ -12,8 +12,8 @@ use std::time::Duration;
 use clap::Args;
 use xc_core::{open_collection, read_environment, ClientCertificate, NetworkPrefs};
 use xc_runner::{
-    filter_items, html_page, json, junit, load_env_file, now_iso, read_rows, run_collection, select, Event, Filter,
-    Halt, Job, Meta, PhaseReport, Redact, RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
+    filter_items, html_page, json, junit, load_env_file, now_iso, persist_variables, read_rows, run_collection, select,
+    Event, Filter, Halt, Job, Meta, PhaseReport, Redact, RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
 };
 use xc_secrets::{collection_id, Keychain, SecretKey, SecretStore};
 
@@ -32,6 +32,10 @@ pub struct RunArgs {
     /// Variable runtime, répétable : --env-var nom=valeur
     #[arg(long = "env-var", value_parser = parse_pair)]
     env_vars: Vec<(String, String)>,
+    /// À la fin du run, écrit dans l'environnement choisi et dans opencollection.yml les variables que les scripts ont
+    /// posées (`bru.setEnvVar`, `bru.setCollectionVar`), comme le fait toujours `bru run` ; sans cette option, rien n'est écrit
+    #[arg(long)]
+    persist_vars: bool,
     /// Ne lance que les requêtes qui ont un test ou une assertion active
     #[arg(long)]
     tests_only: bool,
@@ -219,6 +223,29 @@ fn secrets_of(store: &dyn SecretStore, root: &Path, env: &str) -> (Vec<(String, 
     (values, notes)
 }
 
+/// Écrit les variables des scripts dans les fichiers ; un échec est dit sans changer le code de sortie, comme Bruno.
+fn persist(root: &Path, session: &Session, env: Option<&str>, from_file: bool) {
+    if from_file {
+        eprintln!(
+            "  ! --persist-vars n'écrit pas dans un fichier --env-file : seules les variables de collection le sont"
+        );
+    }
+    match persist_variables(root, session, env) {
+        Ok(done) => {
+            let files: Vec<&str> = done
+                .environment
+                .as_deref()
+                .into_iter()
+                .chain(done.collection.then_some("opencollection.yml"))
+                .collect();
+            if !files.is_empty() {
+                println!("  Variables enregistrées : {}", files.join(", "));
+            }
+        }
+        Err(e) => eprintln!("  ! variables non enregistrées : {e}"),
+    }
+}
+
 pub async fn run_with(args: RunArgs, store: &dyn SecretStore) -> ExitCode {
     let reporters = reporters(&args);
     for (_, path) in &reporters {
@@ -295,6 +322,9 @@ pub async fn run_with(args: RunArgs, store: &dyn SecretStore) -> ExitCode {
     };
     let report = run_collection(job, &mut session, &mut |event| show(&event)).await;
     summarize(&report);
+    if args.persist_vars {
+        persist(root, &session, env.as_deref(), args.env_file.is_some());
+    }
 
     let redact = redact(&args);
     let meta = Meta { collection: collection.name.clone(), completed_at: now_iso() };
@@ -533,6 +563,62 @@ mod tests {
         assert_eq!(code, ExitCode::SUCCESS);
         let head = seen.lock().unwrap().to_ascii_lowercase();
         assert!(head.contains("authorization: bearer s3cret"), "{head}");
+    }
+
+    fn serve_ok() -> String {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { return };
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+            }
+        });
+        base
+    }
+
+    fn collection_with_script(base: &str) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        env_with_secrets(dir.path(), &[]);
+        std::fs::write(
+            dir.path().join("a.yml"),
+            format!(
+                "info:\n  name: A\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: \"{base}/a\"\n\nruntime:\n  scripts:\n    - type: after-response\n      code: |-\n        bru.setEnvVar('host', 'new');\n        bru.setCollectionVar('region', 'eu');\n"
+            ),
+        )
+        .unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn ef_run_03_persist_vars_writes_the_variables_the_scripts_set_and_only_then() {
+        let base = serve_ok();
+        let store = xc_secrets::MemoryStore::default();
+        for flag in [false, true] {
+            let dir = collection_with_script(&base);
+            let env_file = dir.path().join("environments/dev.yml");
+            let before = std::fs::read_to_string(&env_file).unwrap();
+            let root = dir.path().display().to_string();
+            let mut argv = vec!["xc", &root, "--env", "dev", "--noproxy"];
+            if flag {
+                argv.push("--persist-vars");
+            }
+            let code = run_with(Wrapper::try_parse_from(argv).unwrap().args, &store).await;
+            assert_eq!(code, ExitCode::SUCCESS);
+
+            let after = std::fs::read_to_string(&env_file).unwrap();
+            let collection = std::fs::read_to_string(dir.path().join("opencollection.yml")).unwrap();
+            if flag {
+                assert!(after.contains("name: host\n    value: new"), "{after}");
+                assert!(collection.contains("name: region") && collection.contains("value: eu"), "{collection}");
+            } else {
+                assert_eq!(after, before, "sans --persist-vars, rien n'est écrit");
+                assert!(!collection.contains("region"), "{collection}");
+            }
+        }
     }
 
     #[test]
