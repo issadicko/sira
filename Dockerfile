@@ -12,7 +12,8 @@ WORKDIR /src
 COPY Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml ./
 COPY crates crates
 COPY app/src-tauri app/src-tauri
-RUN cargo build --release --locked -p xc-cli
+# Sans trousseau du système (ni libdbus dans l'image) : les secrets passent par --env-var.
+RUN cargo build --release --locked -p xc-cli --no-default-features
 
 FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=build /src/target/release/xc /usr/local/bin/xc

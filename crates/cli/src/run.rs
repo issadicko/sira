@@ -10,11 +10,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Args;
-use xc_core::{open_collection, ClientCertificate, NetworkPrefs};
+use xc_core::{open_collection, read_environment, ClientCertificate, NetworkPrefs};
 use xc_runner::{
     filter_items, html_page, json, junit, load_env_file, now_iso, read_rows, run_collection, select, Event, Filter,
     Halt, Job, Meta, PhaseReport, Redact, RequestResult, Row, RunReport, Session, Skip, MAX_JUMPS,
 };
+use xc_secrets::{collection_id, Keychain, SecretKey, SecretStore};
 
 #[derive(Args)]
 pub struct RunArgs {
@@ -179,6 +180,46 @@ fn redact(args: &RunArgs) -> Redact {
 }
 
 pub async fn run(args: RunArgs) -> ExitCode {
+    run_with(args, &Keychain).await
+}
+
+/// Les valeurs des secrets de l'environnement `env`, lues dans le trousseau (celles que l'application y a rangées), et ce
+/// qu'il faut dire à l'utilisateur : un trousseau indisponible ou un secret sans valeur ne bloque pas le run, la requête
+/// qui en dépend signale la variable non résolue. Le trousseau n'est jamais ouvert pour un environnement sans secret.
+fn secrets_of(store: &dyn SecretStore, root: &Path, env: &str) -> (Vec<(String, String)>, Vec<String>) {
+    let declared: Vec<String> = read_environment(root, env)
+        .map(|vars| vars.into_iter().filter(|v| v.secret).map(|v| v.name).collect())
+        .unwrap_or_default();
+    if declared.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+    let id = collection_id(&root.display().to_string());
+    let mut values = Vec::new();
+    let mut missing = Vec::new();
+    for name in declared {
+        match store.get(&SecretKey::new(&id, env, &name)) {
+            Ok(Some(value)) => values.push((name, value)),
+            Ok(None) => missing.push(name),
+            Err(e) => {
+                return (
+                    Vec::new(),
+                    vec![format!("{e} : les secrets de l'environnement « {env} » restent sans valeur")],
+                )
+            }
+        }
+    }
+    let notes = if missing.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "secrets sans valeur dans le trousseau pour « {env} » : {} (à saisir dans l'application)",
+            missing.join(", ")
+        )]
+    };
+    (values, notes)
+}
+
+pub async fn run_with(args: RunArgs, store: &dyn SecretStore) -> ExitCode {
     let reporters = reporters(&args);
     for (_, path) in &reporters {
         let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
@@ -233,7 +274,11 @@ pub async fn run(args: RunArgs) -> ExitCode {
         Ok(network) => network,
         Err(e) => return input_error(e),
     };
-    let mut session = Session { network, env: env_writes, ..Session::default() };
+    let (secrets, notes) = env.as_deref().map(|name| secrets_of(store, root, name)).unwrap_or_default();
+    for note in &notes {
+        eprintln!("  ! {note}");
+    }
+    let mut session = Session { network, env: env_writes, secrets, ..Session::default() };
     let runtime: HashMap<String, String> = args.env_vars.iter().cloned().collect();
     session.runtime.extend(runtime.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))));
     let job = Job {
@@ -397,6 +442,97 @@ mod tests {
         let mut argv = vec!["xc", "collection"];
         argv.extend_from_slice(options);
         network_prefs(&Wrapper::try_parse_from(argv).unwrap().args)
+    }
+
+    fn env_with_secrets(dir: &Path, secrets: &[&str]) {
+        std::fs::create_dir_all(dir.join("environments")).unwrap();
+        std::fs::write(dir.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: Shop\n").unwrap();
+        let mut text = String::from("name: dev\nvariables:\n  - name: host\n    value: h\n");
+        for name in secrets {
+            text.push_str(&format!("  - secret: true\n    name: {name}\n"));
+        }
+        std::fs::write(dir.join("environments/dev.yml"), text).unwrap();
+    }
+
+    fn keep(store: &xc_secrets::MemoryStore, dir: &Path, name: &str, value: &str) {
+        store.set(&SecretKey::new(&collection_id(&dir.display().to_string()), "dev", name), value).unwrap();
+    }
+
+    #[test]
+    fn ef_var_03_a_run_reads_the_secrets_the_application_keeps_in_the_keychain() {
+        let dir = tempfile::tempdir().unwrap();
+        env_with_secrets(dir.path(), &["token", "other"]);
+        let store = xc_secrets::MemoryStore::default();
+        keep(&store, dir.path(), "token", "s3cret");
+        keep(&store, dir.path(), "other", "o");
+        let (values, notes) = secrets_of(&store, dir.path(), "dev");
+        assert_eq!(values, [("token".to_owned(), "s3cret".to_owned()), ("other".to_owned(), "o".to_owned())]);
+        assert!(notes.is_empty());
+    }
+
+    #[test]
+    fn ef_var_03_a_secret_without_a_value_is_named_and_the_run_goes_on() {
+        let dir = tempfile::tempdir().unwrap();
+        env_with_secrets(dir.path(), &["token", "other"]);
+        let store = xc_secrets::MemoryStore::default();
+        keep(&store, dir.path(), "token", "s3cret");
+        let (values, notes) = secrets_of(&store, dir.path(), "dev");
+        assert_eq!(values, [("token".to_owned(), "s3cret".to_owned())]);
+        assert_eq!(notes.len(), 1);
+        assert!(notes[0].contains("other") && !notes[0].contains("token"), "{notes:?}");
+    }
+
+    #[test]
+    fn ef_var_03_an_unavailable_keychain_is_said_and_never_stops_the_run() {
+        let dir = tempfile::tempdir().unwrap();
+        env_with_secrets(dir.path(), &["token"]);
+        let (values, notes) = secrets_of(&xc_secrets::MemoryStore::broken(), dir.path(), "dev");
+        assert!(values.is_empty());
+        assert!(notes[0].contains("trousseau indisponible") && notes[0].contains("dev"), "{notes:?}");
+    }
+
+    #[test]
+    fn ef_var_03_the_keychain_is_never_opened_for_an_environment_without_secrets() {
+        let dir = tempfile::tempdir().unwrap();
+        env_with_secrets(dir.path(), &[]);
+        let (values, notes) = secrets_of(&xc_secrets::MemoryStore::broken(), dir.path(), "dev");
+        assert!(values.is_empty() && notes.is_empty());
+        assert!(secrets_of(&xc_secrets::MemoryStore::broken(), dir.path(), "absent").1.is_empty());
+    }
+
+    #[tokio::test]
+    async fn ef_var_03_a_secret_of_the_keychain_reaches_the_request() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+        let log = std::sync::Arc::clone(&seen);
+        std::thread::spawn(move || {
+            let Ok((mut stream, _)) = listener.accept() else { return };
+            let mut buf = [0u8; 8192];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            *log.lock().unwrap() = String::from_utf8_lossy(&buf[..n]).into_owned();
+            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+        });
+        let dir = tempfile::tempdir().unwrap();
+        env_with_secrets(dir.path(), &["token"]);
+        std::fs::write(
+            dir.path().join("a.yml"),
+            format!(
+                "info:\n  name: A\n  type: http\n  seq: 1\n\nhttp:\n  method: GET\n  url: \"{base}/a\"\n  headers:\n    - name: Authorization\n      value: Bearer {{{{token}}}}\n"
+            ),
+        )
+        .unwrap();
+        let store = xc_secrets::MemoryStore::default();
+        keep(&store, dir.path(), "token", "s3cret");
+
+        let root = dir.path().display().to_string();
+        let args = Wrapper::try_parse_from(["xc", &root, "--env", "dev", "--noproxy"]).unwrap().args;
+        let code = run_with(args, &store).await;
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        let head = seen.lock().unwrap().to_ascii_lowercase();
+        assert!(head.contains("authorization: bearer s3cret"), "{head}");
     }
 
     #[test]

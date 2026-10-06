@@ -12,6 +12,12 @@ pub enum SecretError {
     Failed(String),
 }
 
+/// L'identifiant d'une collection dans le trousseau : son chemin réel, pour que deux chemins vers le même dossier
+/// (lien, chemin relatif) partagent leurs secrets, que l'application et `xc run` lisent donc au même endroit.
+pub fn collection_id(root: &str) -> String {
+    std::fs::canonicalize(root).map_or_else(|_| root.to_owned(), |path| path.display().to_string())
+}
+
 /// Où vit un secret : une variable d'un environnement d'une collection. `collection` est le chemin de la collection :
 /// les secrets restent sur cette machine et ne suivent pas un dossier copié ailleurs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -27,6 +33,7 @@ impl SecretKey {
     }
 
     /// Le nom du compte dans le trousseau : les trois parties, séparées par un caractère qu'aucune ne contient.
+    #[cfg(any(feature = "keychain", test))]
     fn account(&self) -> String {
         format!("{}\u{1f}{}\u{1f}{}", self.collection, self.environment, self.name)
     }
@@ -40,48 +47,76 @@ pub trait SecretStore: Send + Sync + std::fmt::Debug {
     fn delete(&self, key: &SecretKey) -> Result<(), SecretError>;
 }
 
-/// Le trousseau du système.
+/// Le trousseau du système. Sans la fonctionnalité `keychain`, chaque opération échoue comme un trousseau indisponible.
 #[derive(Debug, Default)]
 pub struct Keychain;
 
-const SERVICE: &str = "io.github.issadicko.sira";
+#[cfg(feature = "keychain")]
+mod system {
+    use super::{Keychain, SecretError, SecretKey, SecretStore};
 
-impl Keychain {
-    fn entry(key: &SecretKey) -> Result<keyring::Entry, SecretError> {
-        keyring::Entry::new(SERVICE, &key.account()).map_err(unavailable)
-    }
-}
+    const SERVICE: &str = "io.github.issadicko.sira";
 
-fn unavailable(e: keyring::Error) -> SecretError {
-    SecretError::Unavailable(e.to_string())
-}
-
-fn failed(e: keyring::Error) -> SecretError {
-    match e {
-        keyring::Error::NoStorageAccess(_) | keyring::Error::PlatformFailure(_) => {
-            SecretError::Unavailable(e.to_string())
-        }
-        other => SecretError::Failed(other.to_string()),
-    }
-}
-
-impl SecretStore for Keychain {
-    fn get(&self, key: &SecretKey) -> Result<Option<String>, SecretError> {
-        match Self::entry(key)?.get_password() {
-            Ok(value) => Ok(Some(value)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(failed(e)),
+    impl Keychain {
+        fn entry(key: &SecretKey) -> Result<keyring::Entry, SecretError> {
+            keyring::Entry::new(SERVICE, &key.account()).map_err(unavailable)
         }
     }
 
-    fn set(&self, key: &SecretKey, value: &str) -> Result<(), SecretError> {
-        Self::entry(key)?.set_password(value).map_err(failed)
+    fn unavailable(e: keyring::Error) -> SecretError {
+        SecretError::Unavailable(e.to_string())
     }
 
-    fn delete(&self, key: &SecretKey) -> Result<(), SecretError> {
-        match Self::entry(key)?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(failed(e)),
+    fn failed(e: keyring::Error) -> SecretError {
+        match e {
+            keyring::Error::NoStorageAccess(_) | keyring::Error::PlatformFailure(_) => {
+                SecretError::Unavailable(e.to_string())
+            }
+            other => SecretError::Failed(other.to_string()),
+        }
+    }
+
+    impl SecretStore for Keychain {
+        fn get(&self, key: &SecretKey) -> Result<Option<String>, SecretError> {
+            match Self::entry(key)?.get_password() {
+                Ok(value) => Ok(Some(value)),
+                Err(keyring::Error::NoEntry) => Ok(None),
+                Err(e) => Err(failed(e)),
+            }
+        }
+
+        fn set(&self, key: &SecretKey, value: &str) -> Result<(), SecretError> {
+            Self::entry(key)?.set_password(value).map_err(failed)
+        }
+
+        fn delete(&self, key: &SecretKey) -> Result<(), SecretError> {
+            match Self::entry(key)?.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(e) => Err(failed(e)),
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "keychain"))]
+mod system {
+    use super::{Keychain, SecretError, SecretKey, SecretStore};
+
+    fn absent() -> SecretError {
+        SecretError::Unavailable("ce binaire est compilé sans trousseau, passe les secrets avec --env-var".into())
+    }
+
+    impl SecretStore for Keychain {
+        fn get(&self, _: &SecretKey) -> Result<Option<String>, SecretError> {
+            Err(absent())
+        }
+
+        fn set(&self, _: &SecretKey, _: &str) -> Result<(), SecretError> {
+            Err(absent())
+        }
+
+        fn delete(&self, _: &SecretKey) -> Result<(), SecretError> {
+            Err(absent())
         }
     }
 }
@@ -137,6 +172,22 @@ mod tests {
 
     fn key(name: &str) -> SecretKey {
         SecretKey::new("/c", "dev", name)
+    }
+
+    #[cfg(not(feature = "keychain"))]
+    #[test]
+    fn ef_var_03_without_the_keychain_feature_every_operation_says_so() {
+        let message = Keychain.get(&key("a")).unwrap_err().to_string();
+        assert!(message.contains("sans trousseau") && message.contains("--env-var"), "{message}");
+        assert!(Keychain.set(&key("a"), "v").is_err() && Keychain.delete(&key("a")).is_err());
+    }
+
+    #[test]
+    fn ef_var_03_a_collection_id_is_the_real_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = std::fs::canonicalize(dir.path()).unwrap().display().to_string();
+        assert_eq!(collection_id(&dir.path().display().to_string()), real);
+        assert_eq!(collection_id("/chemin/qui/n/existe/pas"), "/chemin/qui/n/existe/pas");
     }
 
     #[test]

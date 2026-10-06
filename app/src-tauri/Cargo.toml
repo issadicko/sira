@@ -24,7 +24,7 @@ xc-codegen.workspace = true
 xc-core.workspace = true
 xc-engine.workspace = true
 xc-runner.workspace = true
-xc-secrets.workspace = true
+xc-secrets = { workspace = true, features = ["keychain"] }
 xc-sync.workspace = true
 xc-watch.workspace = true
 
