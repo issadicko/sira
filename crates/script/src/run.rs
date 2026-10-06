@@ -86,6 +86,17 @@ pub struct ScriptResponse {
     pub size: ResponseSize,
 }
 
+/// Ce que l'hôte offre aux scripts au-delà des variables : lancer une autre requête de la collection.
+pub trait Callbacks: Send + Sync {
+    /// Exécute la requête `path` avec les variables `vars` (qu'elle peut modifier) et rend sa réponse en JSON, ou
+    /// `{ "message": … }` quand elle n'aboutit pas.
+    fn run_request(&self, path: &str, vars: &mut Vars) -> Value;
+
+    /// Envoie la requête décrite à la façon d'axios (`url`, `method`, `headers`, `data`, `params`, `timeout`) : la
+    /// réponse (`status`, `statusText`, `headers`, `data`), ou l'erreur (`message`, `code`, `response`).
+    fn send(&self, config: &Value) -> Result<Value, Value>;
+}
+
 pub struct Input {
     pub phase: Phase,
     pub script: String,
@@ -99,6 +110,8 @@ pub struct Input {
     pub limits: Limits,
     /// Levé par l'appelant (annulation de la requête), il interrompt le script.
     pub cancel: Arc<AtomicBool>,
+    /// `bru.runRequest` n'existe que si l'hôte le fournit.
+    pub callbacks: Option<Arc<dyn Callbacks>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -260,7 +273,12 @@ fn js<T>(ctx: &Ctx<'_>, outcome: rquickjs::Result<T>) -> Result<T, ScriptError> 
     outcome.catch(ctx).map_err(ScriptError::from)
 }
 
-fn install<'js>(ctx: &Ctx<'js>, host: &Rc<RefCell<Host>>, collection_path: Rc<String>) -> rquickjs::Result<()> {
+fn install<'js>(
+    ctx: &Ctx<'js>,
+    host: &Rc<RefCell<Host>>,
+    collection_path: Rc<String>,
+    callbacks: Option<Arc<dyn Callbacks>>,
+) -> rquickjs::Result<()> {
     let h = Object::new(ctx.clone())?;
     let st = Rc::clone(host);
     h.set(
@@ -317,6 +335,41 @@ fn install<'js>(ctx: &Ctx<'js>, host: &Rc<RefCell<Host>>, collection_path: Rc<St
     )?;
     let st = Rc::clone(host);
     h.set("sleep", Function::new(ctx.clone(), move |ms: f64| st.borrow().sleep(ms.max(0.0) as u64))?)?;
+    let st = Rc::clone(host);
+    let run_callbacks = callbacks.clone();
+    h.set(
+        "runRequest",
+        Function::new(ctx.clone(), move |path: String| -> String {
+            let Some(callbacks) = &run_callbacks else { return "{}".into() };
+            let mut host = st.borrow_mut();
+            let before = host.vars.clone();
+            let clock = host.clock.clone();
+            let result = clock.pause(|| callbacks.run_request(&path, &mut host.vars));
+            for scope in ["env", "runtime", "global", "collection"] {
+                if host.vars.scope(scope) != before.scope(scope) {
+                    host.mark(scope);
+                }
+            }
+            result.to_string()
+        })?,
+    )?;
+    let send_callbacks = callbacks.clone();
+    let st = Rc::clone(host);
+    h.set(
+        "send",
+        Function::new(ctx.clone(), move |config: String| -> String {
+            let Some(callbacks) = &send_callbacks else {
+                return json!({ "error": { "message": "unavailable" } }).to_string();
+            };
+            let config = serde_json::from_str(&config).unwrap_or(Value::Null);
+            let clock = st.borrow().clock.clone();
+            match clock.pause(|| callbacks.send(&config)) {
+                Ok(reply) => json!({ "ok": reply }),
+                Err(error) => json!({ "error": error }),
+            }
+            .to_string()
+        })?,
+    )?;
     h.set(
         "random",
         Function::new(ctx.clone(), |size: usize| -> String {
@@ -413,12 +466,13 @@ fn execute(input: Input) -> Result<Output, ScriptError> {
             "collectionName": input.collection_name,
             "collectionPath": input.collection_path,
             "executionMode": input.execution_mode,
+            "canRunRequest": input.callbacks.is_some(),
         },
     });
     let wrapped = format!("{PREFIX}{}{SUFFIX}", input.script.trim());
 
     let (error, collected) = sandbox.with(|ctx| -> Result<(Option<ScriptError>, Collected), ScriptError> {
-        js(&ctx, install(&ctx, &host, Rc::new(input.collection_path.clone())))?;
+        js(&ctx, install(&ctx, &host, Rc::new(input.collection_path.clone()), input.callbacks.clone()))?;
         js(&ctx, ctx.globals().set("__init", init.to_string()))?;
         let api: Object = js(&ctx, ctx.eval(PRELUDE))?;
         let error = settle(&ctx, &wrapped).err().map(|e| sandbox.explain(e));

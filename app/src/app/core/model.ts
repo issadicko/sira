@@ -57,6 +57,8 @@ export interface RequestDoc {
   assertions: Assertion[];
   variables: KeyValue[];
   scripts: Script[];
+  /** Variables posées après la réponse (lues seulement : le fichier garde ses actions). */
+  postVariables?: { name: string; expression: string; enabled: boolean }[];
   docs?: string | null;
   timeoutMs?: number | null;
 }

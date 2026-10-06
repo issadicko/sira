@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+form_urlencoded = "1"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

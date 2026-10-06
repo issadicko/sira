@@ -211,3 +211,75 @@ async fn ef_scr_02_a_connection_failure_reports_the_send_stage_without_running_a
     assert_eq!(out.error.as_ref().map(|e| e.stage), Some(Stage::Send));
     assert!(out.tests.results.is_empty());
 }
+
+#[tokio::test]
+async fn ef_var_03_post_response_variables_are_set_before_the_post_script_and_reach_the_next_request() {
+    let (base, _) = serve();
+    let dir = collection(&base);
+    let (login_path, login) = request(
+        dir.path(),
+        "users/login.yml",
+        &format!(
+            "{SHOW}    - type: before-request\n      code: bru.setVar('id', 7);\n    - type: after-response\n      code: bru.setVar('seen_by_script', bru.getVar('user-name'));\n  actions:\n    - type: set-variable\n      phase: after-response\n      selector:\n        expression: res.body.name\n        method: jsonq\n      variable:\n        name: user-name\n        scope: runtime\n    - type: set-variable\n      phase: after-response\n      selector:\n        expression: res.body.nope.deeper\n        method: jsonq\n      variable:\n        name: broken\n        scope: runtime\n    - type: set-variable\n      phase: after-response\n      selector:\n        expression: res.status\n        method: jsonq\n      variable:\n        name: off\n        scope: runtime\n      disabled: true\n"
+        ),
+    );
+    let mut session = Session::default();
+    let out = run(dir.path(), &login_path, &login, &mut session).await;
+    assert!(out.error.is_none() && out.post.error.is_none(), "{:?} {:?}", out.error, out.post.error);
+    assert_eq!(session.runtime["user-name"], "Ada");
+    assert_eq!(session.runtime["seen_by_script"], "Ada");
+    assert_eq!(
+        session.runtime["broken"]["name"], "TypeError",
+        "une expression qui échoue donne son erreur à la variable"
+    );
+    assert!(!session.runtime.contains_key("off"));
+}
+
+#[tokio::test]
+async fn ef_scr_02_run_request_runs_another_request_with_the_callers_variables() {
+    let (base, seen) = serve();
+    let dir = collection(&base);
+    let (_, _) = request(
+        dir.path(),
+        "auth/token.yml",
+        &format!(
+            "{}    - type: before-request\n      code: bru.setVar('id', 'token');\n    - type: after-response\n      code: bru.setVar('token', res.body.name); bru.setEnvVar('from-nested', 'yes');\n",
+            SHOW.replace("users", "auth")
+        ),
+    );
+    let (path, doc) = request(
+        dir.path(),
+        "users/show.yml",
+        &format!(
+            "{SHOW}    - type: before-request\n      code: |-\n        const reply = await bru.runRequest('auth/token');\n        const missing = await bru.runRequest('auth/none');\n        bru.setVar('id', 1);\n        bru.setVar('reply', [reply.status, reply.data.name, bru.getVar('token'), bru.getEnvVar('from-nested'), missing]);\n"
+        ),
+    );
+    let mut session = Session::default();
+    let out = run(dir.path(), &path, &doc, &mut session).await;
+    assert!(out.error.is_none(), "{:?}", out.error);
+    assert_eq!(session.runtime["reply"], json!([200, "Ada", "Ada", "yes", {}]));
+    assert_eq!(session.runtime["token"], "Ada");
+    let requests = seen.lock().unwrap();
+    assert!(requests[0].starts_with("GET /auth/token") && requests[1].starts_with("GET /users/1"), "{requests:?}");
+}
+
+#[tokio::test]
+async fn ef_scr_03_scripts_send_requests_with_axios_and_bru_send_request() {
+    let (base, seen) = serve();
+    let dir = collection(&base);
+    let (path, doc) = request(
+        dir.path(),
+        "users/show.yml",
+        &format!(
+            "{SHOW}    - type: before-request\n      code: |-\n        const axios = require('axios');\n        bru.setVar('id', 1);\n        const a = await axios.post(bru.getCollectionVar('baseUrl') + '/echo', {{ n: 1 }}, {{ headers: {{ 'X-Key': 'k' }} }});\n        const b = await bru.sendRequest({{ method: 'GET', url: bru.getCollectionVar('baseUrl') + '/search', params: {{ q: 'a b' }} }});\n        let gone;\n        try {{ await axios.get('http://127.0.0.1:9/nope'); }} catch (e) {{ gone = [e.isAxiosError, e.code]; }}\n        let viaCallback;\n        await bru.sendRequest(bru.getCollectionVar('baseUrl') + '/cb', (err, res) => {{ viaCallback = [err, res.status]; }});\n        bru.setVar('seen', [a.status, a.data.name, b.status, gone, viaCallback]);\n"
+        ),
+    );
+    let mut session = Session::default();
+    let out = run(dir.path(), &path, &doc, &mut session).await;
+    assert!(out.error.is_none(), "{:?}", out.error);
+    assert_eq!(session.runtime["seen"], json!([200, "Ada", 200, [true, "ECONNREFUSED"], [null, 200]]));
+    let requests = seen.lock().unwrap();
+    assert!(requests[0].starts_with("POST /echo"), "{requests:?}");
+    assert!(requests[0].contains(r#"{"n":1}"#) && requests[0].to_lowercase().contains("x-key: k"), "{}", requests[0]);
+    assert!(requests[1].starts_with("GET /search?q=a+b"), "{requests:?}");
+}

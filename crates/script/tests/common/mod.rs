@@ -40,5 +40,6 @@ pub fn input(phase: Phase, script: &str) -> Input {
         dynamic: |name| (name == "guid").then(|| "GUID".to_owned()),
         limits: Limits::default(),
         cancel: Default::default(),
+        callbacks: None,
     }
 }

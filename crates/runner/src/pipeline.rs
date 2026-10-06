@@ -10,6 +10,7 @@ use xc_engine::HttpResponse;
 use xc_script::{AssertionSpec, Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
 
 use crate::convert::{apply_request, body_bytes, script_request, script_response};
+use crate::nested::Nested;
 use crate::scripts::{merged_script, AFTER_RESPONSE, BEFORE_REQUEST, TESTS};
 use crate::session::{EnvWrites, Session};
 
@@ -172,6 +173,7 @@ struct Phases<'a> {
     request: &'a Request<'a>,
     scope: &'a Scope,
     ctx: &'a Context,
+    depth: usize,
 }
 
 impl Phases<'_> {
@@ -196,7 +198,21 @@ impl Phases<'_> {
             dynamic: dynamic_value,
             limits: Limits::default(),
             cancel: Arc::clone(&r.cancel),
+            callbacks: None,
         }
+    }
+
+    fn with_nested_requests(&self, mut input: Input) -> Input {
+        let r = self.request;
+        input.callbacks = Some(Arc::new(Nested {
+            handle: tokio::runtime::Handle::current(),
+            root: r.root.to_path_buf(),
+            env: r.env.map(str::to_owned),
+            collection_name: r.collection_name.to_owned(),
+            cancel: Arc::clone(&r.cancel),
+            depth: self.depth,
+        }));
+        input
     }
 
     async fn run(
@@ -208,8 +224,11 @@ impl Phases<'_> {
         response: Option<xc_script::ScriptResponse>,
     ) -> Result<Output, String> {
         let r = self.request;
-        let code = merged_script(self.ctx, r.root, r.path, r.doc, kind);
-        script(self.input(phase, code, session, request, response)).await
+        let mut code = merged_script(self.ctx, r.root, r.path, r.doc, kind);
+        if kind == AFTER_RESPONSE {
+            code = format!("{}{code}", post_variables_call(r.doc));
+        }
+        script(self.with_nested_requests(self.input(phase, code, session, request, response))).await
     }
 
     async fn assertions(
@@ -250,6 +269,21 @@ impl Phases<'_> {
     }
 }
 
+/// L'appel qui pose les variables « après la réponse » du fichier, avant les scripts de la phase.
+fn post_variables_call(doc: &RequestDoc) -> String {
+    let specs: Vec<Value> = doc
+        .post_variables
+        .iter()
+        .filter(|v| v.enabled)
+        .map(|v| serde_json::json!({ "name": v.name, "expression": v.expression }))
+        .collect();
+    if specs.is_empty() {
+        String::new()
+    } else {
+        format!("__vars({});\n", Value::Array(specs))
+    }
+}
+
 fn sent_request(before: &ScriptRequest, prepared: &xc_engine::HttpRequest) -> ScriptRequest {
     ScriptRequest {
         method: prepared.method.clone(),
@@ -271,6 +305,11 @@ fn steer(out: &mut Outcome, script: &Output) {
 /// Exécute une requête de bout en bout comme Bruno : script pré-requête, envoi, script post-réponse, assertions et
 /// tests. Les variables que les scripts écrivent restent dans `session` pour les requêtes suivantes.
 pub async fn run_request(req: Request<'_>, session: &mut Session) -> Outcome {
+    run_request_at(req, session, 0).await
+}
+
+/// [`run_request`] à la profondeur `depth` de `bru.runRequest` imbriqués.
+pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, depth: usize) -> Outcome {
     let mut out = Outcome::new(req.doc);
     let ctx = match Context::load(req.root, req.path) {
         Ok(ctx) => ctx,
@@ -280,7 +319,7 @@ pub async fn run_request(req: Request<'_>, session: &mut Session) -> Outcome {
         Ok(scope) => scope,
         Err(e) => return out.fail(Stage::Prepare, e),
     };
-    let phases = Phases { request: &req, scope: &scope, ctx: &ctx };
+    let phases = Phases { request: &req, scope: &scope, ctx: &ctx, depth };
     let before = script_request(&ctx, req.doc);
 
     let pre = match phases.run(Phase::Pre, BEFORE_REQUEST, session, before.clone(), None).await {

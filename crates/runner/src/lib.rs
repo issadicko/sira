@@ -1,6 +1,7 @@
 //! Exécution d'une requête de bout en bout : scripts pré-requête, envoi, scripts post-réponse, assertions, tests.
 
 mod convert;
+mod nested;
 mod pipeline;
 mod scripts;
 mod sequence;

@@ -13,7 +13,9 @@ pub use collection::{
     restyle, save_environment, save_request, set_default_environment, CollectionInfo, EnvVar, TreeItem,
 };
 pub use prepare::{merged_headers, prepare, prepare_with, Overrides, Prepared};
-pub use request::{Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, RequestDoc};
+pub use request::{
+    Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable, RequestDoc,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {

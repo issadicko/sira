@@ -51,7 +51,8 @@
     set: (key, value) => {
       if (!key) throw new Error(`Creating ${noun} without specifying a name is not allowed.`);
       checkName(key);
-      h.set(scope, key, enc(value));
+      if (value === undefined) h.remove(scope, key);
+      else h.set(scope, key, enc(value));
     },
     delete: (key) => h.remove(scope, key),
     deleteAll: () => h.clear(scope),
@@ -148,6 +149,43 @@
       summary: { total: 0, passed: 0, failed: 0, skipped: 0 },
       results: [],
     }),
+  };
+
+  if (init.meta.canRunRequest) {
+    // Comme dans le sandbox de Bruno, `runRequest` ne rejette jamais : un échec rend `{ message }`.
+    bru.runRequest = async (path) => {
+      try {
+        return JSON.parse(h.runRequest(String(path)));
+      } catch (error) {
+        return { message: error && error.message };
+      }
+    };
+  }
+
+  // ---------- requêtes envoyées par le script (axios, bru.sendRequest) ----------
+
+  const send = async (config) => {
+    const reply = JSON.parse(h.send(JSON.stringify(config)));
+    if (reply.error) throw reply.error;
+    return reply.ok;
+  };
+
+  const axios = (config) => send(config);
+  for (const method of ['get', 'delete']) axios[method] = (url, config) => send({ ...config, method, url });
+  for (const method of ['post', 'put', 'patch']) axios[method] = (url, data, config) => send({ ...config, method, url, data });
+
+  bru.sendRequest = async (config, callback) => {
+    const wanted = typeof config === 'string' ? { url: config } : config;
+    if (typeof callback !== 'function') return send(wanted);
+    let response;
+    try {
+      response = await send(wanted);
+    } catch (error) {
+      await callback(error && error.response ? { ...error, status: error.response.status } : error, null);
+      return undefined;
+    }
+    await callback(null, response);
+    return response;
   };
 
   // ---------- req ----------
@@ -476,6 +514,7 @@
     nanoid: () => lib('nanoid'),
     uuid: () => lib('uuid'),
     path: () => path,
+    axios: () => axios,
   };
 
   const isLocal = (mod) => typeof mod === 'string' && (mod.startsWith('.') || mod.startsWith(init.meta.collectionPath));
@@ -621,6 +660,22 @@
     }
   };
 
+  // Variables posées après la réponse : l'expression est évaluée comme celle d'une assertion ; une expression qui
+  // échoue donne sa valeur d'erreur à la variable, seuls les noms invalides sont rapportés.
+  const runVars = (specs) => {
+    const errors = [];
+    for (const spec of specs) {
+      const value = evaluate(spec.expression);
+      if (!spec.name) continue;
+      try {
+        bru.setVar(spec.name, value);
+      } catch (e) {
+        errors.push(`${spec.name}: ${e.message}`);
+      }
+    }
+    if (errors.length) h.log('error', JSON.stringify([`${errors.length} error(s) in post response variables: \n${errors.join('\n')}`]));
+  };
+
   const define = (name, value) =>
     Object.defineProperty(globalThis, name, { value, writable: true, configurable: true, enumerable: false });
   const lazy = (name, make) =>
@@ -645,6 +700,7 @@
   define('btoa', btoa);
   define('atob', atob);
   define('path', path);
+  define('axios', axios);
   lazy('moment', () => lib('moment'));
   lazy('Buffer', () => lib('buffer').Buffer);
   lazy('nanoid', () => lib('nanoid'));
@@ -654,6 +710,7 @@
   lazy('addFormats', () => lib('ajv').addFormats);
   lazy('expect', () => lib('chai').expect);
   lazy('assert', () => lib('chai').assert);
+  Object.defineProperty(globalThis, '__vars', { value: runVars, enumerable: false });
   Object.defineProperty(globalThis, '__assert', { value: runAssertions, enumerable: false });
   Object.defineProperty(globalThis, '__ajv', { value: () => lib('ajv'), enumerable: false });
 

@@ -144,6 +144,16 @@ pub struct Script {
     pub code: String,
 }
 
+/// Variable posée après la réponse : `name` reçoit la valeur de l'expression (`res.body.id`), comme les « post-response
+/// vars » de Bruno, stockées dans `runtime.actions` (`set-variable`, phase `after-response`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PostVariable {
+    pub name: String,
+    pub expression: String,
+    pub enabled: bool,
+}
+
 /// Vue typée d'un fichier de requête. Tout ce qui n'y figure pas reste intact dans l'arbre YAML.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -160,6 +170,9 @@ pub struct RequestDoc {
     pub assertions: Vec<Assertion>,
     pub variables: Vec<KeyValue>,
     pub scripts: Vec<Script>,
+    /// Lues seulement : le fichier garde ses actions telles quelles à l'enregistrement.
+    #[serde(default)]
+    pub post_variables: Vec<PostVariable>,
     pub docs: Option<String>,
     pub timeout_ms: Option<u64>,
 }
@@ -351,6 +364,19 @@ impl Entry for Script {
     }
 }
 
+fn post_variables(actions: &[Value]) -> Vec<PostVariable> {
+    actions
+        .iter()
+        .filter_map(Value::as_map)
+        .filter(|a| a.str("type") == Some("set-variable") && a.str("phase") == Some("after-response"))
+        .map(|a| PostVariable {
+            name: a.map("variable").and_then(|v| opt_text(v, "name")).unwrap_or_default(),
+            expression: a.map("selector").and_then(|v| opt_text(v, "expression")).unwrap_or_default(),
+            enabled: is_enabled(a),
+        })
+        .collect()
+}
+
 fn read_list<T: Entry>(items: &[Value]) -> Vec<T> {
     items.iter().filter_map(Value::as_map).map(T::read).collect()
 }
@@ -441,6 +467,7 @@ impl RequestDoc {
             assertions: read_list(runtime.seq("assertions")),
             variables: key_values(runtime.seq("variables")),
             scripts,
+            post_variables: post_variables(runtime.seq("actions")),
             docs: root.get("docs").and_then(Value::scalar),
             timeout_ms: settings.get("timeout").and_then(Value::as_i64).filter(|t| *t > 0).map(|t| t as u64),
         }

@@ -19,9 +19,13 @@ Le crate `xc-script` exécute les scripts d'une requête dans un sandbox QuickJS
 | `res` | `status`, `statusText`, `headers` (minuscules), `body`, `responseTime`, `url` ; `getStatus`, `getHeader`, `getHeaders`, `getBody`, `getSize`, `setBody` ; `res('items[?].id', fn)` (le `get` de `@usebruno/query`, porté) |
 | `test`, `expect`, `assert` | chai 4.5, plus `.json`, `.jsonSchema()` (Ajv, Draft-07) et `.jsonBody()` de Bruno ; l'ordre des résultats est celui du règlement des promesses, comme chez Bruno |
 | Bibliothèques | `chai`, `moment`, `crypto-js`, `uuid`, `nanoid`, `tv4`, `ajv`, `ajv-formats`, `buffer` / `Buffer`, `btoa`, `atob`, `path.resolve`, `crypto.randomBytes / getRandomValues` ; chargées à la demande |
+| `bru.runRequest(chemin)` | exécute une autre requête de la collection (chemin relatif à la racine, `.yml` ajouté) avec les variables du script appelant et lui rend la réponse `{ status, statusText, headers, data, url, responseTime, duration, size }` ; ne rejette jamais (`{ message }` en cas d'échec, `{}` si le fichier n'existe pas), 8 niveaux d'imbrication au plus |
+| `axios`, `bru.sendRequest` | `axios(config)`, `.get/.delete/.post/.put/.patch`, `bru.sendRequest(config ou url, rappel)` : envoi par le moteur HTTP, erreurs à la façon d'axios (`isAxiosError`, `code`, `response`, rejet au-delà de 2xx) |
 | Modules locaux | `require('./lib/x')` relatif à la racine de la collection, `.js` ajouté, refusé hors de la collection (liens suivis) |
 
 ## 3. Dans l'application et en CLI
+
+- **Assertions déclaratives** : évaluées comme chez Bruno, avec chai (voir plus bas).
 
 - **Onglet Scripts de la requête** : trois éditeurs (avant la requête, après la réponse, tests) écrits dans `runtime.scripts` du fichier, sans toucher aux autres clés. Un code vide retire le script.
 - **Envoi** : `xc-runner` enchaîne script pré-requête (collection, dossiers, requête), envoi, script post-réponse, assertions et tests, dans l'ordre de Bruno (`sandwich` par défaut, `sequential` selon `extensions.bruno.scripts.flow`). Une erreur avant l'envoi l'annule ; après, assertions et tests s'exécutent quand même.
@@ -31,7 +35,7 @@ Le crate `xc-script` exécute les scripts d'une requête dans un sandbox QuickJS
 
 ## 4. Ce qui reste
 
-Pas encore : `bru.runRequest`, `bru.sendRequest`, `axios`, `jwt`, `bru.cookies` (ils demandent le moteur HTTP et le runner), `headerList`, `req.onFail` (absent aussi du sandbox de Bruno).
+Pas encore : `jwt`, `bru.cookies`, `headerList` ; `req.onFail` est absent aussi du sandbox de Bruno.
 
 ## 5. Sandbox (ENF-SEC-02)
 
@@ -40,3 +44,9 @@ Aucun accès au disque, au réseau ni aux processus hors des fonctions que l'hô
 ## 6. Bibliothèques embarquées
 
 Les bibliothèques de `crates/script/js/libs/` sont construites par `tools/scripts-bundle` (`npm install && npm run build`, esbuild) et **commitées** : ni Node ni réseau ne sont requis pour compiler Sira. Leur reconstruction est la seule raison de rouvrir ce dossier.
+
+## 7. Assertions déclaratives (EF-TST-02)
+
+Évaluées par QuickJS et chai, comme `assert-runtime.js` de Bruno : l'expression gauche est du JavaScript évalué sur `res`, `req`, `bru` et les variables (une erreur devient la valeur : `res.body.a.b` avec `a` absent n'est pas `undefined` mais une erreur) ; l'opérande droit est interpolé (`{{var}}`, `{{process.env.X}}`) puis évalué comme littéral : nombre, `true`, `false`, `null`, `undefined`, texte avec ou sans guillemets où `${…}` est évalué ; un tableau ou un objet JSON reste un texte. `eq` est strict (`"200"` n'est pas `200`), `isTruthy` et `isFalsy` sont les booléens `true` et `false`, les comparaisons exigent des nombres. Les 28 opérateurs sont pris en charge ; `startsWith` et `endsWith` fonctionnent, alors qu'ils échouent dans le sandbox de Bruno (chai-string n'y est pas chargé). Les messages d'échec sont ceux de chai.
+
+Variables « après la réponse » (`runtime.actions`, `set-variable`) : leur expression est évaluée comme celle d'une assertion avant le script post-réponse ; une expression qui échoue donne sa valeur d'erreur à la variable, et seuls les noms invalides sont rapportés dans la console.
