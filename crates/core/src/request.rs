@@ -163,6 +163,19 @@ pub struct Script {
     pub code: String,
 }
 
+/// Un message qu'une requête WebSocket peut envoyer : `websocket.message`, soit un seul message (`type`, `data`), soit
+/// une liste d'entrées `{ title, selected, message: { type, data } }` dont celles cochées partent à l'envoi.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WsMessage {
+    /// Vide pour le message unique de la forme courte.
+    pub title: String,
+    pub selected: bool,
+    /// `text`, `json` ou `xml` : le contenu s'envoie tel quel, le type sert à l'éditeur.
+    pub kind: String,
+    pub data: String,
+}
+
 /// Variable posée après la réponse : `name` reçoit la valeur de l'expression (`res.body.id`), comme les « post-response
 /// vars » de Bruno, stockées dans `runtime.actions` (`set-variable`, phase `after-response`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -195,6 +208,13 @@ pub struct RequestDoc {
     /// Lus seulement : `info.tags`, que `xc run --tags` filtre ; le fichier les garde tels quels à l'enregistrement.
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Messages d'une requête WebSocket (`websocket.message`) ; vide pour les autres.
+    #[serde(default)]
+    pub ws_messages: Vec<WsMessage>,
+    /// Intervalle, en millisecondes, entre deux pings d'une connexion WebSocket (`settings.keepAliveInterval`) ; `None` :
+    /// aucun.
+    #[serde(default)]
+    pub keep_alive_ms: Option<u64>,
     pub docs: Option<String>,
     pub timeout_ms: Option<u64>,
     /// Réglages de redirection du bloc `settings` ; absents du fichier, l'exécution suit Bruno : suivre, 5 sauts au plus,
@@ -484,6 +504,87 @@ fn canonical(m: &Map) -> String {
     yaml::emit(&Value::Map(rest).sorted(), &[]).trim_end().to_owned()
 }
 
+const WS_SECTION_ORDER: &[&str] = &["url", "headers", "auth", "message"];
+const WS_ENTRY_ORDER: &[&str] = &["title", "selected", "message"];
+const WS_MESSAGE_ORDER: &[&str] = &["type", "data"];
+
+fn ws_message_of(m: &Map) -> (String, String) {
+    (m.str("type").unwrap_or("text").to_owned(), text(m.get("data")))
+}
+
+/// Les messages de `websocket.message`, quelle que soit sa forme.
+fn ws_messages(section: &Map) -> Vec<WsMessage> {
+    match section.get("message") {
+        Some(Value::Map(m)) => {
+            let (kind, data) = ws_message_of(m);
+            vec![WsMessage { title: String::new(), selected: true, kind, data }]
+        }
+        Some(Value::Seq(items)) => items
+            .iter()
+            .filter_map(Value::as_map)
+            .map(|m| {
+                let (kind, data) =
+                    m.map("message").map(ws_message_of).unwrap_or_else(|| ("text".into(), String::new()));
+                WsMessage {
+                    title: opt_text(m, "title").unwrap_or_default(),
+                    selected: !matches!(m.get("selected"), Some(Value::Bool(false))),
+                    kind,
+                    data,
+                }
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Écrit `next` dans `websocket.message` à la place de `previous` : un message sans titre, coché et seul reprend la forme
+/// courte, le reste la liste. Une entrée garde sa table existante (clés inconnues comprises) et seuls les champs qui ont
+/// changé sont réécrits : un message qu'on n'a pas touché reste tel que le fichier l'écrit.
+fn write_ws_messages(section: &mut Map, previous: &[WsMessage], next: &[WsMessage]) {
+    let fill = |table: &mut Map, old: Option<&WsMessage>, new: &WsMessage| {
+        if old.is_none_or(|old| old.kind != new.kind) {
+            table.set("type", Value::str(&new.kind), WS_MESSAGE_ORDER);
+        }
+        if old.is_none_or(|old| old.data != new.data) {
+            table.set("data", Value::str(&new.data), WS_MESSAGE_ORDER);
+        }
+    };
+    match next {
+        [] => {
+            section.remove("message");
+        }
+        [only] if only.title.is_empty() && only.selected => {
+            let single_before = matches!(section.get("message"), Some(Value::Map(_)));
+            let mut table = section.map("message").cloned().unwrap_or_default();
+            fill(&mut table, previous.first().filter(|_| single_before), only);
+            section.set("message", Value::Map(table), WS_SECTION_ORDER);
+        }
+        many => {
+            let existing: Vec<Value> = match section.get("message") {
+                Some(Value::Seq(items)) => items.clone(),
+                _ => Vec::new(),
+            };
+            let entries = many.iter().enumerate().map(|(i, message)| {
+                let old = previous.get(i).filter(|_| existing.get(i).is_some());
+                let mut entry = existing.get(i).and_then(Value::as_map).cloned().unwrap_or_default();
+                if old.is_none_or(|old| old.title != message.title) {
+                    entry.set("title", Value::str(&message.title), WS_ENTRY_ORDER);
+                }
+                if old.is_none_or(|old| old.selected != message.selected) {
+                    entry.set("selected", Value::Bool(message.selected), WS_ENTRY_ORDER);
+                }
+                if old.is_none_or(|old| old.kind != message.kind || old.data != message.data) {
+                    let mut inner = entry.map("message").cloned().unwrap_or_default();
+                    fill(&mut inner, old, message);
+                    entry.set("message", Value::Map(inner), WS_ENTRY_ORDER);
+                }
+                Value::Map(entry)
+            });
+            section.set("message", Value::Seq(entries.collect()), WS_SECTION_ORDER);
+        }
+    }
+}
+
 /// Table qui porte méthode, URL, en-têtes et corps : `http`, ou la section propre au protocole (`graphql`, `grpc`,
 /// `websocket`) d'une requête qui n'a pas de table `http`.
 fn section<'a>(root: &Map, request_type: &'a str) -> &'a str {
@@ -499,6 +600,7 @@ impl RequestDoc {
         let empty = Map::default();
         let info = root.map("info").unwrap_or(&empty);
         let request_type = info.str("type").unwrap_or("http").to_owned();
+        let is_websocket = request_type == "websocket";
         let http = root.map(section(root, &request_type)).unwrap_or(&empty);
         let runtime = root.map("runtime").unwrap_or(&empty);
         let settings = root.map("settings").unwrap_or(&empty);
@@ -520,6 +622,12 @@ impl RequestDoc {
             scripts,
             post_variables: post_variables(runtime.seq("actions")),
             tags: info.seq("tags").iter().filter_map(Value::scalar).collect(),
+            ws_messages: if is_websocket { ws_messages(http) } else { Vec::new() },
+            keep_alive_ms: settings
+                .get("keepAliveInterval")
+                .and_then(Value::as_i64)
+                .filter(|ms| *ms > 0)
+                .and_then(|ms| u64::try_from(ms).ok()),
             docs: root.get("docs").and_then(Value::scalar),
             timeout_ms: settings.get("timeout").and_then(Value::as_i64).filter(|t| *t > 0).map(|t| t as u64),
             follow_redirects: flag(settings.get("followRedirects")),
@@ -540,7 +648,8 @@ impl RequestDoc {
             || self.headers != previous.headers
             || self.params != previous.params
             || self.body != previous.body
-            || self.auth != previous.auth;
+            || self.auth != previous.auth
+            || self.ws_messages != previous.ws_messages;
         if changed_http {
             let http = root.map_mut_or_insert(section(root, &previous.request_type), TOP_ORDER);
             if self.method != previous.method {
@@ -561,6 +670,9 @@ impl RequestDoc {
             if self.auth != previous.auth {
                 write_auth(http, &self.auth);
             }
+            if self.ws_messages != previous.ws_messages {
+                write_ws_messages(http, &previous.ws_messages, &self.ws_messages);
+            }
         }
         if self.assertions != previous.assertions || self.scripts != previous.scripts {
             let runtime = root.map_mut_or_insert("runtime", TOP_ORDER);
@@ -577,7 +689,7 @@ impl RequestDoc {
         }
         if self.settings() != previous.settings() {
             let settings = root.map_mut_or_insert("settings", TOP_ORDER);
-            let (timeout, follow, max, forward) = self.settings();
+            let (timeout, follow, max, forward, keep_alive) = self.settings();
             if timeout != previous.timeout_ms {
                 settings.set(
                     "timeout",
@@ -594,6 +706,13 @@ impl RequestDoc {
             if forward != previous.forward_authorization_header {
                 set_or_remove(settings, "forwardAuthorizationHeader", forward.map(Value::Bool));
             }
+            if keep_alive != previous.keep_alive_ms {
+                set_or_remove(
+                    settings,
+                    "keepAliveInterval",
+                    keep_alive.map(|ms| Value::Int(i64::try_from(ms).unwrap_or(i64::MAX))),
+                );
+            }
         }
         if self.docs != previous.docs {
             match self.docs.as_deref().filter(|d| !d.is_empty()) {
@@ -607,7 +726,7 @@ impl RequestDoc {
 }
 
 const SETTINGS_ORDER: &[&str] =
-    &["encodeUrl", "timeout", "followRedirects", "maxRedirects", "forwardAuthorizationHeader"];
+    &["encodeUrl", "timeout", "followRedirects", "maxRedirects", "forwardAuthorizationHeader", "keepAliveInterval"];
 
 fn set_or_remove(settings: &mut Map, key: &str, value: Option<Value>) {
     match value {
@@ -618,9 +737,18 @@ fn set_or_remove(settings: &mut Map, key: &str, value: Option<Value>) {
     }
 }
 
+/// Délai, suivi des redirections, nombre de sauts, transmission de `Authorization`, intervalle de ping.
+type SettingsKeys = (Option<u64>, Option<bool>, Option<u64>, Option<bool>, Option<u64>);
+
 impl RequestDoc {
-    fn settings(&self) -> (Option<u64>, Option<bool>, Option<u64>, Option<bool>) {
-        (self.timeout_ms, self.follow_redirects, self.max_redirects, self.forward_authorization_header)
+    fn settings(&self) -> SettingsKeys {
+        (
+            self.timeout_ms,
+            self.follow_redirects,
+            self.max_redirects,
+            self.forward_authorization_header,
+            self.keep_alive_ms,
+        )
     }
 }
 

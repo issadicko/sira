@@ -17,6 +17,7 @@ use xc_sync::postman::Issue;
 use xc_sync::sync::{self, Decisions, OpStatus, Operation, Plan, Report, SyncError};
 
 mod run;
+mod ws;
 
 #[derive(Parser)]
 #[command(
@@ -33,6 +34,8 @@ struct Cli {
 enum Command {
     /// Exécute des requêtes, un dossier ou toute la collection, et écrit les rapports JSON, JUnit et HTML
     Run(Box<run::RunArgs>),
+    /// Ouvre une requête WebSocket de la collection, envoie ses messages cochés et affiche ce qui arrive
+    Ws(Box<ws::WsArgs>),
     /// Relit et réécrit chaque fichier en mémoire pour vérifier l'aller-retour sans diff
     Check {
         collection: PathBuf,
@@ -150,6 +153,10 @@ fn main() -> ExitCode {
         Command::Run(args) => {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(run::run(*args))
+        }
+        Command::Ws(args) => {
+            let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
+            runtime.block_on(ws::ws(*args))
         }
         Command::Check { collection, diff } => check(&collection, diff),
         Command::Import { source, location, group_by } => {

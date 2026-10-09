@@ -6,6 +6,7 @@ mod proxy;
 mod redirect;
 mod time;
 mod tls;
+mod ws;
 
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
@@ -26,6 +27,7 @@ use redirect::Hop;
 pub use cookies::{CookieDraft, CookieJar, CookieView, Cookies, ScriptCookie};
 pub use network::{ClientIdentity, Network, Proxy, ProxyScheme, Redirects, Tls};
 pub use time::{amz_date, iso_from_millis, millis};
+pub use ws::{connect_ws, WsConnection, WsEvent, WsOpened, WsOutgoing, WsRequest, WsSender};
 
 #[derive(Debug, Clone)]
 pub struct HttpRequest {
@@ -88,6 +90,8 @@ pub enum EngineError {
     Tls(String),
     #[error("échange HTTP échoué : {0}")]
     Http(String),
+    #[error("WebSocket : {0}")]
+    WebSocket(String),
     #[error("délai dépassé après {0} ms")]
     Timeout(u128),
     #[error("réponse trop volumineuse : plus de {0} octets")]
@@ -159,23 +163,32 @@ pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
     }
 }
 
-async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
-    let start = Instant::now();
-    let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
-    let secure = match url.scheme() {
-        "https" => true,
-        "http" => false,
-        other => return Err(EngineError::UnsupportedScheme(other.to_owned())),
-    };
-    let host = url
+/// Une connexion ouverte jusqu'à l'hôte : le flux (TLS compris), l'adresse atteinte, le proxy à qui parler en clair
+/// et les durées de la connexion.
+pub(crate) struct Dialed {
+    pub stream: Stream,
+    pub addr: SocketAddr,
+    /// Le proxy HTTP à qui l'adresse complète doit être donnée (requête en clair) ; `None` : tunnel ou pas de proxy.
+    pub forward: Option<Proxy>,
+    pub timings: Timings,
+}
+
+pub(crate) fn host_of(url: &Url) -> Result<String, EngineError> {
+    Ok(url
         .host_str()
         .ok_or_else(|| EngineError::InvalidUrl("hôte manquant".into()))?
         .trim_start_matches('[')
         .trim_end_matches(']')
-        .to_owned();
+        .to_owned())
+}
+
+/// Ouvre la connexion vers `url` : DNS, TCP, proxy (tunnel pour TLS, SOCKS et quand `tunnel` le demande, ce que fait une
+/// mise à niveau WebSocket), puis TLS quand `secure`.
+pub(crate) async fn dial(url: &Url, secure: bool, tunnel: bool, network: &Network) -> Result<Dialed, EngineError> {
+    let host = host_of(url)?;
     let port = url.port_or_known_default().unwrap_or(if secure { 443 } else { 80 });
 
-    let proxy = request.network.proxy.clone().filter(|proxy| proxy.applies_to(&url));
+    let proxy = network.proxy.clone().filter(|proxy| proxy.applies_to(url));
     let proxy = proxy.as_ref();
     let (dial_host, dial_port) = proxy.map_or((host.as_str(), port), |proxy| (proxy.host.as_str(), proxy.port));
     let (addrs, dns) = resolve(dial_host, dial_port).await?;
@@ -185,25 +198,35 @@ async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
     let mut stream: Stream = Box::new(tcp_stream);
     if let Some(proxy) = proxy {
         if proxy.scheme == ProxyScheme::Https {
-            let own = Tls { client: None, ..request.network.tls.clone() };
+            let own = Tls { client: None, ..network.tls.clone() };
             stream = Box::new(tls::handshake(stream, &proxy.host, &own).await?);
         }
-        if secure || proxy.is_socks() {
+        if secure || tunnel || proxy.is_socks() {
             proxy::tunnel(&mut stream, proxy, &host, port).await?;
         }
     }
     let tcp = t.elapsed();
 
-    let forward = proxy.filter(|proxy| !secure && !proxy.is_socks());
+    let forward = proxy.filter(|proxy| !secure && !tunnel && !proxy.is_socks()).cloned();
     let mut timings = Timings { dns_ms: ms(dns), tcp_ms: ms(tcp), ..Timings::default() };
-    let response = if secure {
+    if secure {
         let t = Instant::now();
-        let tls = tls::handshake(stream, &host, &request.network.tls).await?;
+        stream = Box::new(tls::handshake(stream, &host, &network.tls).await?);
         timings.tls_ms = ms(t.elapsed());
-        exchange(tls, &url, forward, request, &mut timings).await?
-    } else {
-        exchange(stream, &url, forward, request, &mut timings).await?
+    }
+    Ok(Dialed { stream, addr, forward, timings })
+}
+
+async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
+    let start = Instant::now();
+    let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
+    let secure = match url.scheme() {
+        "https" => true,
+        "http" => false,
+        other => return Err(EngineError::UnsupportedScheme(other.to_owned())),
     };
+    let Dialed { stream, addr, forward, mut timings } = dial(&url, secure, false, &request.network).await?;
+    let response = exchange(stream, &url, forward.as_ref(), request, &mut timings).await?;
     timings.total_ms = ms(start.elapsed());
     Ok(HttpResponse { remote_addr: addr.to_string(), timings, ..response })
 }

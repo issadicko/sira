@@ -20,9 +20,10 @@ pub use collection::{
     EnvVar, TreeItem,
 };
 pub use network::{ClientCertificate, NetworkPrefs, ProxyConfig, ProxyMode, ProxyPref};
-pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, SendAuth};
+pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, PreparedMessage, SendAuth};
 pub use request::{
     Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable, RequestDoc,
+    WsMessage,
 };
 
 #[derive(Debug, thiserror::Error)]

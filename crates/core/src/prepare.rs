@@ -21,8 +21,19 @@ use crate::CoreError;
 const NO_TIMEOUT: Duration = Duration::from_secs(600);
 const MAX_MULTIPART_BODY: u64 = 512 << 20;
 
+/// Un message WebSocket prêt à partir : variables résolues.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreparedMessage {
+    pub title: String,
+    pub selected: bool,
+    pub kind: String,
+    pub data: String,
+}
+
 pub struct Prepared {
     pub request: HttpRequest,
+    /// Les messages d'une requête WebSocket, dans l'ordre du fichier ; vide pour les autres requêtes.
+    pub messages: Vec<PreparedMessage>,
     pub unresolved: Vec<String>,
     /// Ce que l'auth fait à l'envoi même, une fois les variables résolues : elle dépend de la requête finale ou de la
     /// réponse du serveur (signature, défi Digest).
@@ -117,9 +128,10 @@ pub fn prepare_with(
     runtime: &HashMap<String, String>,
     overrides: Overrides,
 ) -> Result<Prepared, CoreError> {
-    if doc.request_type != "http" && doc.request_type != "graphql" {
+    if !matches!(doc.request_type.as_str(), "http" | "graphql" | "websocket") {
         return Err(CoreError::UnsupportedRequestType(doc.request_type.clone()));
     }
+    let websocket = doc.request_type == "websocket";
     let ctx = Context::load(root, request_path)?;
     let scope = Scope::build(root, &ctx, request_path, doc, env, runtime)?.with_overrides(overrides.vars);
     let mut unresolved = Vec::new();
@@ -127,7 +139,7 @@ pub fn prepare_with(
 
     let mut url = fill(&substitute_path_params(&doc.url, doc));
     if !url.contains("://") {
-        url = format!("http://{url}");
+        url = format!("{}://{url}", if websocket { "ws" } else { "http" });
     }
 
     let mut headers: Vec<(String, String)> = Vec::new();
@@ -216,7 +228,19 @@ pub fn prepare_with(
         });
     }
 
+    let messages = doc
+        .ws_messages
+        .iter()
+        .map(|m| PreparedMessage {
+            title: fill(&m.title),
+            selected: m.selected,
+            kind: m.kind.clone(),
+            data: fill(&m.data),
+        })
+        .collect();
+
     Ok(Prepared {
+        messages,
         request: HttpRequest {
             method: doc.method.to_uppercase(),
             url,
@@ -249,7 +273,7 @@ pub fn snippet(
     if multipart.is_some() {
         plain.body = Body::None;
     }
-    let Prepared { request, mut unresolved, auth } =
+    let Prepared { request, mut unresolved, auth, .. } =
         prepare_with(root, request_path, &plain, env, runtime, overrides.clone())?;
 
     let mut headers = request.headers;
