@@ -28,6 +28,10 @@ import {
   RunDone,
   RunEvent,
   SendResult,
+  GrpcConnected,
+  GrpcMethods,
+  GrpcNotice,
+  GrpcSent,
   WsConnected,
   WsNotice,
   WsSent,
@@ -131,6 +135,15 @@ export interface Api {
   wsSend(id: string, root: string, path: string, doc: RequestDoc, env: string | null, data: string): Promise<WsSent>;
   wsClose(id: string): Promise<void>;
   onWsEvent(handler: (notice: WsNotice) => void): Promise<() => void>;
+  /** Ouvre l'appel gRPC `id` et envoie les messages du fichier ; réponses et statut arrivent par `onGrpcEvent`. */
+  grpcConnect(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<GrpcConnected>;
+  grpcSend(id: string, root: string, path: string, doc: RequestDoc, env: string | null, data: string): Promise<GrpcSent>;
+  /** Annonce qu'aucun autre message ne partira. */
+  grpcFinish(id: string): Promise<void>;
+  grpcCancel(id: string): Promise<void>;
+  /** Les méthodes que la requête peut appeler (fichiers `.proto`, sinon réflexion du serveur). */
+  grpcMethods(root: string, path: string, doc: RequestDoc, env: string | null): Promise<GrpcMethods>;
+  onGrpcEvent(handler: (notice: GrpcNotice) => void): Promise<() => void>;
   oauthStatus(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo | null>;
   /** Demande un jeton neuf ; les flux interactifs ouvrent une fenêtre de connexion. */
   oauthFetch(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo>;
@@ -230,6 +243,15 @@ const tauriApi: Api = {
   onWsEvent: async (handler) => {
     const { listen } = await import('@tauri-apps/api/event');
     return listen<WsNotice>('ws-event', (event) => handler(event.payload));
+  },
+  grpcConnect: (id, root, path, doc, env) => invoke('grpc_connect', { args: { id, root, path, doc, env } }),
+  grpcSend: (id, root, path, doc, env, data) => invoke('grpc_send', { args: { id, root, path, doc, env, data } }),
+  grpcFinish: (id) => invoke('grpc_finish', { id }),
+  grpcCancel: (id) => invoke('grpc_cancel', { id }),
+  grpcMethods: (root, path, doc, env) => invoke('grpc_methods', { args: { root, path, doc, env } }),
+  onGrpcEvent: async (handler) => {
+    const { listen } = await import('@tauri-apps/api/event');
+    return listen<GrpcNotice>('grpc-event', (event) => handler(event.payload));
   },
   oauthStatus: (root, path, doc, env) => invoke('oauth_status', { args: { root, path, doc, env } }),
   oauthFetch: (root, path, doc, env) => invoke('oauth_fetch', { args: { root, path, doc, env } }),

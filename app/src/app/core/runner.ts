@@ -120,8 +120,8 @@ export interface Scope {
 const RUNNABLE_TYPES: readonly string[] = ['http', 'graphql'];
 export const isRunnable = (requestType: string): boolean => RUNNABLE_TYPES.includes(requestType);
 
-/** Ce que l'application ouvre dans un onglet : ce qui s'envoie, et les connexions WebSocket (que le runner ne lance pas). */
-export const isOpenable = (requestType: string): boolean => isRunnable(requestType) || requestType === 'websocket';
+/** Ce que l'application ouvre dans un onglet : ce qui s'envoie, et les connexions WebSocket et appels gRPC (que le runner ne lance pas). */
+export const isOpenable = (requestType: string): boolean => isRunnable(requestType) || requestType === 'websocket' || requestType === 'grpc';
 
 const countRunnable = (items: TreeItem[]): number => items.reduce((n, i) => n + (i.kind === 'folder' ? countRunnable(i.children) : isRunnable(i.requestType) ? 1 : 0), 0);
 

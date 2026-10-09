@@ -106,7 +106,7 @@ export class Tree {
 
   protected badge(item: TreeItem) {
     if (item.kind !== 'request') return 'GET';
-    return item.requestType === 'graphql' ? 'GQL' : item.requestType === 'websocket' ? 'WS' : item.method;
+    return item.requestType === 'graphql' ? 'GQL' : item.requestType === 'websocket' ? 'WS' : item.requestType === 'grpc' ? 'gRPC' : item.method;
   }
 
   protected isOpen(path: string) {

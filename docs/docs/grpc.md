@@ -59,7 +59,17 @@ xc grpc <collection> <requête> [--env nom] [--env-var nom=valeur] [--send json]
 
 Ouvre la requête, envoie ses messages (ou ceux de `--send`, qui les remplacent), demi-ferme le flux d'envoi, affiche chaque message reçu en JSON (`→` envoyé, `←` reçu) puis le statut. Code de sortie : 0 pour un statut `OK`, 1 pour un autre statut, une erreur de transport ou une connexion impossible, 2 si la ligne de commande, la collection ou un message est invalide (par exemple deux messages sur un appel unaire). `--max-time` annule l'appel (statut `CANCELLED`).
 
+## Dans l'application
+
+Une requête gRPC s'ouvre avec la pastille « gRPC » dans l'arbre et les onglets. Le volet de requête a un onglet **Message** (méthode, fichier `.proto`, messages JSON), **Métadonnées**, **Auth** et **Docs** ; le volet de droite est le journal de l'appel.
+
+- **Méthode** : « Charger les méthodes » lit les `.proto` de la requête ou de la collection, ou à défaut interroge la réflexion du serveur, et propose les méthodes (saisie avec complétion). Choisir une méthode fixe son nom et son type d'appel, et, si la requête n'a pas encore de message, y met un message d'exemple (chaque champ à sa valeur par défaut).
+- **Appeler** envoie les messages du fichier : un seul puis la fin de l'envoi pour un appel unaire ou un flux serveur ; tous, dans l'ordre, pour un flux client ou bidirectionnel. Ces deux derniers laissent l'envoi ouvert : « Envoyer » sur un message, la ligne de saisie du journal, puis **Terminer l'envoi** pour obtenir la réponse et le statut.
+- **Journal** : l'ouverture (méthode, adresse, type d'appel, schéma), chaque message envoyé (→) et reçu (←) en JSON, les en-têtes de la réponse, puis le statut final (`Statut OK`, ou son nom, son code et son message en cas d'erreur). **Annuler** abandonne l'appel (statut `CANCELLED`).
+- Les messages envoyés depuis l'interface résolvent leurs `{{variables}}` comme ceux du fichier ; un message qui ne correspond pas au schéma n'est pas envoyé et le dit.
+
 ## Ce qui n'y est pas
 
 - Ni scripts, ni assertions, ni tests sur un appel gRPC : Bruno n'en exécute pas non plus. `xc run` rapporte une requête gRPC en erreur (« protocole non pris en charge »), comme `bru run`.
 - Pas de compression des messages, pas de métadonnées binaires (`-bin`) décodées, pas d'annulation en cours de route depuis la ligne de commande autre que `--max-time`.
+- Pas encore de création d'une requête gRPC depuis l'arbre ou la palette (on ouvre un fichier existant ou on en écrit un), ni de génération de code pour gRPC.

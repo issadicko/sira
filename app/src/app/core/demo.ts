@@ -3,6 +3,7 @@ import { DEMO_INTROSPECTION } from './demo-graphql';
 import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
+import { createDemoGrpc } from './demo-grpc';
 import { createDemoWebSocket } from './demo-ws';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { draftProblem, keyOf } from './cookies';
@@ -103,6 +104,26 @@ const files: Record<string, RequestDoc> = {
     ],
     keepAliveMs: 30000,
   }),
+  'temps-reel/echo-grpc.yml': doc('Écho gRPC', 'demo.Demo/Echo', 'localhost:50051', {
+    requestType: 'grpc',
+    assertions: [],
+    auth: { type: 'none' },
+    headers: [header('x-canal', '{{canal}}')],
+    grpcMethodType: 'unary',
+    protoFile: 'proto/demo.proto',
+    grpcMessages: [{ description: '', message: '{\n  "name": "{{canal}}",\n  "userId": 7\n}' }],
+  }),
+  'temps-reel/discussion-grpc.yml': doc('Discussion gRPC', 'demo.Demo/Chat', 'localhost:50051', {
+    requestType: 'grpc',
+    assertions: [],
+    auth: { type: 'none' },
+    grpcMethodType: 'bidi-streaming',
+    protoFile: 'proto/demo.proto',
+    grpcMessages: [
+      { description: 'Premier', message: '{\n  "name": "un"\n}' },
+      { description: 'Second', message: '{\n  "name": "deux"\n}' },
+    ],
+  }),
   [EXPORT]: doc('Export des transactions (10 Mo)', 'GET', '{{baseUrl}}/transactions/export'),
   'transactions/supprimer.yml': doc('Supprimer une transaction', 'DELETE', '{{baseUrl}}/transactions/:id', {
     params: [pathParam('id', '{{txId}}')],
@@ -126,7 +147,7 @@ const collection: CollectionInfo = {
   items: [
     { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: ['connexion', 'jeton'].map((f) => treeRequest(`auth/${f}.yml`)) },
     { kind: 'folder', path: 'graphql', name: 'GraphQL', seq: 3, children: [treeRequest('graphql/produit.yml')] },
-    { kind: 'folder', path: 'temps-reel', name: 'Temps réel', seq: 4, children: [treeRequest('temps-reel/notifications.yml')] },
+    { kind: 'folder', path: 'temps-reel', name: 'Temps réel', seq: 4, children: [treeRequest('temps-reel/notifications.yml'), treeRequest('temps-reel/echo-grpc.yml'), treeRequest('temps-reel/discussion-grpc.yml')] },
     {
       kind: 'folder',
       path: 'transactions',
@@ -379,6 +400,7 @@ export const demoApi: Api = {
   ...createDemoEnvironments(collections),
   ...createDemoRunner(collections),
   ...createDemoWebSocket(),
+  ...createDemoGrpc(),
   ...demoSync,
   syncStatus: async (root) =>
     root === ROOT ? demoSync.syncStatus(root) : { connected: false, source: null, groupBy: null, operationCount: 0, removedCount: 0 },
