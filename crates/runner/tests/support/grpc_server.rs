@@ -10,7 +10,11 @@ use tokio::net::TcpListener;
 use xc_proto::Schema;
 
 pub fn proto_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../proto/tests/fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .map(|dir| dir.join("crates/proto/tests/fixtures"))
+        .find(|dir| dir.is_dir())
+        .expect("fixtures de crates/proto")
 }
 
 pub fn schema() -> Schema {

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use xc_core::vars::Context;
-use xc_core::{prepare_with, protobuf_config, PreparedMessage, RequestDoc, SendAuth};
+use xc_core::{prepare_with, protobuf_config, Prepared, PreparedMessage, RequestDoc, SendAuth};
 use xc_engine::{connect_grpc, GrpcCall, GrpcEvent, GrpcRequest, Network};
 use xc_proto::{
     file_by_symbol_request, list_services_request, parse_reflection_response, MethodInfo, ReflectionAnswer, Schema,
@@ -133,15 +133,41 @@ async fn reflect_with(
     Schema::from_descriptors(&files).map_err(|e| e.to_string())
 }
 
-/// Prépare `doc` avec `session` (variables du fichier et de l'environnement `env`, réglages réseau) et ouvre l'appel. Une
-/// authentification qui demande un échange avec le serveur (Digest, AWS, OAuth 2.0) est refusée plutôt qu'ignorée.
-pub async fn open_grpc(
+/// Le schéma d'une requête : fichiers `.proto` qui décrivent `method` (sinon, sans `method`, ceux qui existent), sinon
+/// réflexion du serveur. Renvoie le schéma et sa provenance.
+async fn schema_for(
+    root: &Path,
+    path: &str,
+    doc: &RequestDoc,
+    prepared: &Prepared,
+    method: Option<&str>,
+) -> Result<(Schema, String), String> {
+    let ctx = Context::load(root, path).map_err(|e| e.to_string())?;
+    let local = local_schema(root, &ctx, doc)?;
+    match local {
+        Some((schema, source)) if method.is_none_or(|name| schema.method(name).is_ok()) => Ok((schema, source)),
+        Some(_) if !doc.proto_file.is_empty() => {
+            Err(format!("la méthode {} n'existe pas dans {}", method.unwrap_or_default(), doc.proto_file))
+        }
+        _ => {
+            let schema = reflect(&prepared.request.url, &prepared.request.headers, &prepared.request.network)
+                .await
+                .map_err(|e| match method {
+                    Some(name) => format!("aucun fichier .proto pour {name} et {e}"),
+                    None => format!("aucun fichier .proto et {e}"),
+                })?;
+            Ok((schema, "réflexion du serveur".to_owned()))
+        }
+    }
+}
+
+fn prepare_grpc(
     root: &Path,
     path: &str,
     doc: &RequestDoc,
     env: Option<&str>,
     session: &Session,
-) -> Result<GrpcStart, String> {
+) -> Result<Prepared, String> {
     if doc.request_type != "grpc" {
         return Err(format!("« {} » n'est pas une requête gRPC (type : {})", doc.name, doc.request_type));
     }
@@ -151,24 +177,36 @@ pub async fn open_grpc(
     if let Some(name) = auth_name(&prepared.auth) {
         return Err(format!("l'authentification {name} n'est pas prise en charge sur un appel gRPC"));
     }
+    Ok(prepared)
+}
+
+/// Les méthodes que `doc` peut appeler : celles des fichiers `.proto` ou, à défaut, celles que le serveur décrit.
+pub async fn describe_grpc(
+    root: &Path,
+    path: &str,
+    doc: &RequestDoc,
+    env: Option<&str>,
+    session: &Session,
+) -> Result<(Schema, String), String> {
+    let prepared = prepare_grpc(root, path, doc, env, session)?;
+    schema_for(root, path, doc, &prepared, None).await
+}
+
+/// Prépare `doc` avec `session` (variables du fichier et de l'environnement `env`, réglages réseau) et ouvre l'appel. Une
+/// authentification qui demande un échange avec le serveur (Digest, AWS, OAuth 2.0) est refusée plutôt qu'ignorée.
+pub async fn open_grpc(
+    root: &Path,
+    path: &str,
+    doc: &RequestDoc,
+    env: Option<&str>,
+    session: &Session,
+) -> Result<GrpcStart, String> {
+    let prepared = prepare_grpc(root, path, doc, env, session)?;
     let method_name = prepared.request.method.clone();
     if method_name.trim().is_empty() {
         return Err("aucune méthode : écrire « paquet.Service/Méthode »".into());
     }
-    let ctx = Context::load(root, path).map_err(|e| e.to_string())?;
-    let local = local_schema(root, &ctx, doc)?;
-    let (schema, schema_source) = match local {
-        Some((schema, source)) if schema.method(&method_name).is_ok() => (schema, source),
-        Some(_) if !doc.proto_file.is_empty() => {
-            return Err(format!("la méthode {method_name} n'existe pas dans {}", doc.proto_file));
-        }
-        _ => {
-            let schema = reflect(&prepared.request.url, &prepared.request.headers, &prepared.request.network)
-                .await
-                .map_err(|e| format!("aucun fichier .proto pour {method_name} et {e}"))?;
-            (schema, "réflexion du serveur".to_owned())
-        }
-    };
+    let (schema, schema_source) = schema_for(root, path, doc, &prepared, Some(&method_name)).await?;
     let method = schema.method(&method_name).map_err(|e| e.to_string())?;
     let request = GrpcRequest {
         url: prepared.request.url.clone(),

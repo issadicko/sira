@@ -6440,7 +6440,12 @@ dependencies = [
 name = "xc-app"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "futures-util",
+ "h2",
+ "http",
+ "prost",
+ "protox",
  "serde",
  "serde_json",
  "tauri",
@@ -6453,6 +6458,7 @@ dependencies = [
  "xc-codegen",
  "xc-core",
  "xc-engine",
+ "xc-proto",
  "xc-runner",
  "xc-secrets",
  "xc-sync",

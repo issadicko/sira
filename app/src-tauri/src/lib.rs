@@ -18,6 +18,7 @@ use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
 mod cookies;
+mod grpc;
 mod network;
 mod oauth;
 mod runs;
@@ -43,6 +44,7 @@ struct AppState {
     cookies: xc_engine::CookieJar,
     /// Les connexions WebSocket ouvertes.
     sockets: ws::Sockets,
+    calls: grpc::Calls,
 }
 
 /// Une requête en cours d'envoi : sa tâche et le drapeau qui interrompt ses scripts.
@@ -796,6 +798,11 @@ pub fn run() {
             ws::ws_connect,
             ws::ws_send,
             ws::ws_close,
+            grpc::grpc_connect,
+            grpc::grpc_send,
+            grpc::grpc_finish,
+            grpc::grpc_cancel,
+            grpc::grpc_methods,
             read_request,
             save_request,
             read_environment,
