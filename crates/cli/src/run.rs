@@ -85,24 +85,31 @@ pub struct RunArgs {
     /// Retire les corps des requêtes et des réponses des rapports
     #[arg(long)]
     reporter_skip_body: bool,
+    #[command(flatten)]
+    net: NetArgs,
+}
+
+/// Les réglages réseau de la ligne de commande, communs à `run` et à `ws`.
+#[derive(Args)]
+pub struct NetArgs {
     /// Ne vérifie ni la chaîne ni le nom d'hôte des certificats des serveurs
     #[arg(long)]
-    insecure: bool,
+    pub(crate) insecure: bool,
     /// Fichier PEM d'autorités de certification à ajouter à celles du système
     #[arg(long, value_name = "FICHIER")]
-    cacert: Option<PathBuf>,
+    pub(crate) cacert: Option<PathBuf>,
     /// Avec --cacert : seules les autorités de ce fichier font confiance
     #[arg(long)]
-    ignore_truststore: bool,
+    pub(crate) ignore_truststore: bool,
     /// N'utilise aucun proxy, ni celui de la collection ni celui de l'environnement
     #[arg(long)]
-    noproxy: bool,
+    pub(crate) noproxy: bool,
     /// N'envoie ni ne garde aucun cookie : le pot de cookies reste vide
     #[arg(long)]
-    disable_cookies: bool,
+    pub(crate) disable_cookies: bool,
     /// Fichier JSON {"enabled": true, "certs": [...]} de certificats client, après ceux de la collection
     #[arg(long, value_name = "FICHIER")]
-    client_cert_config: Option<PathBuf>,
+    pub(crate) client_cert_config: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -121,40 +128,48 @@ pub(crate) fn input_error(message: impl std::fmt::Display) -> ExitCode {
     ExitCode::from(2)
 }
 
-/// Les réglages réseau de la ligne de commande : pas de préférences, seulement les options et l'environnement.
-fn network_prefs(args: &RunArgs) -> Result<NetworkPrefs, String> {
-    let mut prefs = NetworkPrefs {
-        verify_tls: !args.insecure,
-        keep_default_roots: !args.ignore_truststore,
-        no_proxy: args.noproxy,
-        send_cookies: !args.disable_cookies,
-        store_cookies: !args.disable_cookies,
-        ..NetworkPrefs::default()
-    };
-    if let Some(cacert) = &args.cacert {
-        if args.insecure {
-            eprintln!("  ! --cacert est ignoré : --insecure désactive la vérification des certificats");
-        } else if !cacert.is_file() {
-            return Err(format!("le fichier --cacert {} n'existe pas", cacert.display()));
-        }
-        prefs.ca_file = Some(cacert.display().to_string());
-    }
-    if let Some(file) = &args.client_cert_config {
-        let text = fs::read_to_string(file).map_err(|e| format!("lecture de {} impossible : {e}", file.display()))?;
-        let config: serde_json::Value =
-            serde_json::from_str(&text).map_err(|e| format!("{} n'est pas du JSON valide : {e}", file.display()))?;
-        match (config.get("enabled").and_then(serde_json::Value::as_bool), config.get("certs")) {
-            (Some(true), Some(certs @ serde_json::Value::Array(_))) => {
-                prefs.client_certificates = serde_json::from_value::<Vec<ClientCertificate>>(certs.clone())
-                    .map_err(|e| format!("{} : certificat client invalide : {e}", file.display()))?;
+impl NetArgs {
+    /// Les réglages réseau de la ligne de commande : pas de préférences, seulement les options.
+    pub(crate) fn prefs(&self) -> Result<NetworkPrefs, String> {
+        let args = self;
+        let mut prefs = NetworkPrefs {
+            verify_tls: !args.insecure,
+            keep_default_roots: !args.ignore_truststore,
+            no_proxy: args.noproxy,
+            send_cookies: !args.disable_cookies,
+            store_cookies: !args.disable_cookies,
+            ..NetworkPrefs::default()
+        };
+        if let Some(cacert) = &args.cacert {
+            if args.insecure {
+                eprintln!("  ! --cacert est ignoré : --insecure désactive la vérification des certificats");
+            } else if !cacert.is_file() {
+                return Err(format!("le fichier --cacert {} n'existe pas", cacert.display()));
             }
-            _ => eprintln!(
+            prefs.ca_file = Some(cacert.display().to_string());
+        }
+        if let Some(file) = &args.client_cert_config {
+            let text =
+                fs::read_to_string(file).map_err(|e| format!("lecture de {} impossible : {e}", file.display()))?;
+            let config: serde_json::Value = serde_json::from_str(&text)
+                .map_err(|e| format!("{} n'est pas du JSON valide : {e}", file.display()))?;
+            match (config.get("enabled").and_then(serde_json::Value::as_bool), config.get("certs")) {
+                (Some(true), Some(certs @ serde_json::Value::Array(_))) => {
+                    prefs.client_certificates = serde_json::from_value::<Vec<ClientCertificate>>(certs.clone())
+                        .map_err(|e| format!("{} : certificat client invalide : {e}", file.display()))?;
+                }
+                _ => eprintln!(
                 "  ! {} : \"enabled\" n'est pas vrai ou \"certs\" n'est pas une liste, aucun certificat client ajouté",
                 file.display()
             ),
+            }
         }
+        Ok(prefs)
     }
-    Ok(prefs)
+}
+
+fn network_prefs(args: &RunArgs) -> Result<NetworkPrefs, String> {
+    args.net.prefs()
 }
 
 /// Les rapports demandés, chacun avec son fichier : `--output` selon `--format`, puis les `--reporter-*` qui le
@@ -190,7 +205,7 @@ pub async fn run(args: RunArgs) -> ExitCode {
 /// Les valeurs des secrets de l'environnement `env`, lues dans le trousseau (celles que l'application y a rangées), et ce
 /// qu'il faut dire à l'utilisateur : un trousseau indisponible ou un secret sans valeur ne bloque pas le run, la requête
 /// qui en dépend signale la variable non résolue. Le trousseau n'est jamais ouvert pour un environnement sans secret.
-fn secrets_of(store: &dyn SecretStore, root: &Path, env: &str) -> (Vec<(String, String)>, Vec<String>) {
+pub(crate) fn secrets_of(store: &dyn SecretStore, root: &Path, env: &str) -> (Vec<(String, String)>, Vec<String>) {
     let declared: Vec<String> = read_environment(root, env)
         .map(|vars| vars.into_iter().filter(|v| v.secret).map(|v| v.name).collect())
         .unwrap_or_default();
