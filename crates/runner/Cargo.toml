@@ -15,9 +15,15 @@ tokio.workspace = true
 url = "2"
 xc-core.workspace = true
 xc-engine.workspace = true
+xc-proto.workspace = true
 xc-script.workspace = true
 
 [dev-dependencies]
+bytes = "1"
+h2 = "0.4"
+http = "1"
+prost = "0.14"
+protox = "0.10"
 tempfile = "3"
 
 [lints]

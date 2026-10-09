@@ -167,6 +167,18 @@ impl Schema {
         decode(&output, bytes)
     }
 
+    /// Le message d'une requête lu depuis ses octets (côté serveur, ou pour relire ce qui a été envoyé).
+    pub fn decode_request(&self, path: &str, bytes: &[u8]) -> Result<String, ProtoError> {
+        let input = self.descriptor(path)?.input();
+        decode(&input, bytes)
+    }
+
+    /// Le message JSON d'une réponse, converti en octets protobuf (côté serveur).
+    pub fn encode_response(&self, path: &str, json: &str) -> Result<Vec<u8>, ProtoError> {
+        let output = self.descriptor(path)?.output();
+        encode(&output, json)
+    }
+
     /// Un message JSON vide mais complet (chaque champ à sa valeur par défaut) : le point de départ d'une requête.
     pub fn skeleton(&self, path: &str) -> Result<String, ProtoError> {
         let input = self.descriptor(path)?.input();
