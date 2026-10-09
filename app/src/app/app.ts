@@ -8,6 +8,7 @@ import { RunnerStore } from './core/runner-store';
 import { View, Workspace } from './core/store';
 import { SyncStore } from './core/sync-store';
 import { TreeStore } from './core/tree-store';
+import { WsStore } from './core/ws-store';
 import { CollectionDialog } from './ui/collection-dialog';
 import { CodeDialog } from './ui/code-dialog';
 import { CurlDialog } from './ui/curl-dialog';
@@ -78,6 +79,7 @@ export class App {
   protected readonly tree = inject(TreeStore);
   protected readonly envs = inject(EnvStore);
   protected readonly runner = inject(RunnerStore);
+  private readonly sockets = inject(WsStore);
   private readonly commands = inject(COMMANDS);
   protected readonly key = shortcutLabel;
   protected readonly nativeLights = isTauri && isMac;
@@ -104,11 +106,12 @@ export class App {
     const tree = this.tree;
     const envs = this.envs;
     const runner = this.runner;
+    const sockets = this.sockets;
     const hasTarget = () => opened() && !!tree.target();
     const inConflicts = () => ws.view() === 'sync' && this.sync.refs().length > 0;
     this.commands.register(
       { id: 'env.save', title: "Enregistrer l'environnement", group: 'Collection', icon: 'download', keys: 'mod+s', when: () => ws.view() === 'env', run: () => envs.save() },
-      { id: 'request.send', title: 'Envoyer la requête', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => ws.view() === 'collections' && !!ws.active(), run: () => ws.send() },
+      { id: 'request.send', title: 'Envoyer la requête (ou connecter une requête WebSocket)', group: 'Requête', icon: 'send', keys: 'mod+enter', when: () => ws.view() === 'collections' && !!ws.active(), run: () => (ws.active()?.doc.requestType === 'websocket' ? sockets.toggle() : ws.send()) },
       { id: 'request.cancel', title: "Annuler l'envoi", group: 'Requête', icon: 'x-circle', keys: 'esc', when: () => !!ws.active()?.sendingId, run: () => ws.cancel() },
       { id: 'item.new-request', title: 'Nouvelle requête', group: 'Requête', icon: 'file', when: opened, run: () => tree.beginCreate('request') },
       { id: 'item.new-graphql', title: 'Nouvelle requête GraphQL', group: 'Requête', icon: 'file', when: opened, run: () => tree.beginCreate('request', undefined, 'graphql') },

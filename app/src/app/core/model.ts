@@ -92,6 +92,42 @@ export interface Assertion {
   description?: string | null;
 }
 
+/** Un message qu'une requête WebSocket peut envoyer ; sans titre, seul et coché, il prend la forme courte du fichier. */
+export interface WsMessage {
+  title: string;
+  selected: boolean;
+  /** `text`, `json` ou `xml` : le contenu part tel quel, le type sert à l'éditeur. */
+  kind: string;
+  data: string;
+}
+
+/** Ce que l'interface sait d'une connexion WebSocket ouverte. */
+export interface WsConnected {
+  status: number;
+  protocol: string | null;
+  url: string;
+  remoteAddr: string;
+  headers: [string, string][];
+  connectMs: number;
+  unresolved: string[];
+}
+
+/** Ce que Rust relaie de la connexion `id` : un message reçu, une fermeture, une erreur. */
+export type WsNotice = { id: string; at: string } & (
+  | { kind: 'text'; data: string }
+  | { kind: 'binary'; size: number; hex: string }
+  | { kind: 'ping'; size: number }
+  | { kind: 'pong'; size: number }
+  | { kind: 'close'; code: number | null; reason: string }
+  | { kind: 'error'; message: string }
+);
+
+export interface WsSent {
+  /** Le texte parti, variables résolues. */
+  data: string;
+  unresolved: string[];
+}
+
 export interface RequestDoc {
   name: string;
   requestType: string;
@@ -109,6 +145,10 @@ export interface RequestDoc {
   postVariables?: { name: string; expression: string; enabled: boolean }[];
   /** `info.tags` du fichier, lus seulement : `xc run --tags` les filtre. */
   tags?: string[];
+  /** Messages d'une requête WebSocket ; vide pour les autres. */
+  wsMessages?: WsMessage[];
+  /** Intervalle entre deux pings d'une connexion WebSocket, en millisecondes ; `null` : aucun. */
+  keepAliveMs?: number | null;
   docs?: string | null;
   /** Délai en millisecondes ; `null` : aucun. */
   timeoutMs?: number | null;

@@ -3,6 +3,7 @@ import { DEMO_INTROSPECTION } from './demo-graphql';
 import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
+import { createDemoWebSocket } from './demo-ws';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { draftProblem, keyOf } from './cookies';
 import { DEFAULT_NETWORK } from './network';
@@ -91,6 +92,17 @@ const files: Record<string, RequestDoc> = {
       variables: '{\n  "sku": "DS4-B"\n}',
     },
   }),
+  'temps-reel/notifications.yml': doc('Notifications', 'GET', 'ws://{{wsHost}}/notifications', {
+    requestType: 'websocket',
+    assertions: [],
+    auth: { type: 'none' },
+    headers: [header('X-Canal', '{{canal}}')],
+    wsMessages: [
+      { title: "S'abonner", selected: true, kind: 'json', data: '{\n  "action": "subscribe",\n  "canal": "{{canal}}"\n}' },
+      { title: 'Ping applicatif', selected: false, kind: 'text', data: 'ping' },
+    ],
+    keepAliveMs: 30000,
+  }),
   [EXPORT]: doc('Export des transactions (10 Mo)', 'GET', '{{baseUrl}}/transactions/export'),
   'transactions/supprimer.yml': doc('Supprimer une transaction', 'DELETE', '{{baseUrl}}/transactions/:id', {
     params: [pathParam('id', '{{txId}}')],
@@ -110,10 +122,11 @@ const collection: CollectionInfo = {
   name: 'API Paiements (démo)',
   environments: ['dev', 'prod'],
   defaultEnvironment: 'dev',
-  requestCount: 9,
+  requestCount: 10,
   items: [
     { kind: 'folder', path: 'auth', name: 'Auth', seq: 1, children: ['connexion', 'jeton'].map((f) => treeRequest(`auth/${f}.yml`)) },
     { kind: 'folder', path: 'graphql', name: 'GraphQL', seq: 3, children: [treeRequest('graphql/produit.yml')] },
+    { kind: 'folder', path: 'temps-reel', name: 'Temps réel', seq: 4, children: [treeRequest('temps-reel/notifications.yml')] },
     {
       kind: 'folder',
       path: 'transactions',
@@ -128,8 +141,8 @@ const variable = (name: string, value: string): EnvVar => ({ name, value, secret
 const secret = (name: string): EnvVar => ({ name, value: null, secret: true, enabled: true, description: null, dataType: null });
 
 const environments: Record<string, EnvVar[]> = {
-  dev: [variable('baseUrl', 'https://api.dev.local/v1'), variable('txId', 'TX-2026-0042'), variable('canal', 'MOBILE'), secret('token')],
-  prod: [variable('baseUrl', 'https://api.paiements.example/v1'), variable('canal', 'MOBILE'), secret('token')],
+  dev: [variable('baseUrl', 'https://api.dev.local/v1'), variable('txId', 'TX-2026-0042'), variable('canal', 'MOBILE'), variable('wsHost', 'push.dev.local'), secret('token')],
+  prod: [variable('baseUrl', 'https://api.paiements.example/v1'), variable('canal', 'MOBILE'), variable('wsHost', 'push.paiements.example'), secret('token')],
 };
 
 const collections = new Map<string, DemoCollection>([[ROOT, { info: collection, files, environments }]]);
@@ -365,6 +378,7 @@ export const demoApi: Api = {
   ...createDemoTree(collections),
   ...createDemoEnvironments(collections),
   ...createDemoRunner(collections),
+  ...createDemoWebSocket(),
   ...demoSync,
   syncStatus: async (root) =>
     root === ROOT ? demoSync.syncStatus(root) : { connected: false, source: null, groupBy: null, operationCount: 0, removedCount: 0 },

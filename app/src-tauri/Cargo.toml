@@ -29,8 +29,10 @@ xc-sync.workspace = true
 xc-watch.workspace = true
 
 [dev-dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 tauri = { version = "2", features = ["test"] }
 tempfile = "3"
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
 
 [lints]
 workspace = true

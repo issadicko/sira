@@ -380,6 +380,7 @@ input, textarea { caret-color: var(--accent); }
 .m-get { color: var(--m-get); }
 .m-post { color: var(--m-post); }
 .m-gql { color: var(--m-patch); }
+.m-ws { color: var(--m-put); }
 .m-put { color: var(--m-put); }
 .m-patch { color: var(--m-patch); }
 .m-delete { color: var(--m-delete); }

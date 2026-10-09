@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
-import { SettingsPatch, effectiveSettings, wholeNumber, withSettings } from '../core/request-settings';
+import { SettingsPatch, effectiveSettings, wholeNumber, withSettings, wsSettings } from '../core/request-settings';
 import { Workspace } from '../core/store';
 
 /** Réglages d'envoi d'une requête : délai et redirections, écrits dans le bloc `settings` du fichier. */
@@ -18,7 +18,21 @@ import { Workspace } from '../core/store';
     .field.off { opacity: .55; }
   `,
   template: `
-    @if (settings(); as s) {
+    @if (socket(); as w) {
+      <section class="sec">
+        <div class="sec-head"><span class="sec-title">Connexion</span><span class="sec-meta">écrits dans le bloc settings du fichier</span></div>
+        <label class="field">
+          <span>Délai de connexion</span>
+          <span><input type="text" inputmode="numeric" spellcheck="false" aria-label="Délai de connexion en millisecondes" [value]="w.timeoutMs" (change)="timeout($any($event.target))" /><span class="unit">ms</span></span>
+        </label>
+        <p class="hint">0 : 30 secondes. Le délai couvre la résolution, la connexion, TLS et la mise à niveau.</p>
+        <label class="field">
+          <span>Ping toutes les</span>
+          <span><input type="text" inputmode="numeric" spellcheck="false" aria-label="Intervalle des pings en millisecondes" [value]="w.keepAliveMs" (change)="keepAlive($any($event.target))" /><span class="unit">ms</span></span>
+        </label>
+        <p class="hint">0 : aucun ping. Les pings gardent une connexion ouverte à travers les proxys qui coupent les connexions silencieuses.</p>
+      </section>
+    } @else if (settings(); as s) {
       <section class="sec">
         <div class="sec-head"><span class="sec-title">Envoi</span><span class="sec-meta">écrits dans le bloc settings du fichier</span></div>
         <label class="field">
@@ -51,13 +65,24 @@ export class RequestSettings {
     return doc ? effectiveSettings(doc) : null;
   });
 
+  protected readonly socket = computed(() => {
+    const doc = this.ws.active()?.doc;
+    return doc?.requestType === 'websocket' ? wsSettings(doc) : null;
+  });
+
+  protected keepAlive(input: HTMLInputElement) {
+    const value = wholeNumber(input.value);
+    if (value === null) input.value = String(this.socket()?.keepAliveMs ?? 0);
+    else this.set({ keepAliveMs: value });
+  }
+
   protected set(patch: SettingsPatch) {
     this.ws.edit((d) => withSettings(d, patch));
   }
 
   protected timeout(input: HTMLInputElement) {
     const value = wholeNumber(input.value);
-    if (value === null) input.value = String(this.settings()?.timeoutMs ?? 0);
+    if (value === null) input.value = String(this.settings()?.timeoutMs ?? this.socket()?.timeoutMs ?? 0);
     else this.set({ timeoutMs: value });
   }
 
