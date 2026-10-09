@@ -6551,7 +6551,12 @@ name = "xc-runner"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "bytes",
  "form_urlencoded",
+ "h2",
+ "http",
+ "prost",
+ "protox",
  "serde",
  "serde_json",
  "tempfile",
@@ -6560,6 +6565,7 @@ dependencies = [
  "url",
  "xc-core",
  "xc-engine",
+ "xc-proto",
  "xc-script",
 ]
 
