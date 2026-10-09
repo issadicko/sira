@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package demo.types;
+
+message Trace {
+  string request_id = 1;
+}
+
+enum Level {
+  LOW = 0;
+  HIGH = 1;
+}

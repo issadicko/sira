@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package demo;
+
+import "types/common.proto";
+
+service Demo {
+  rpc Echo (EchoRequest) returns (EchoReply);
+  rpc Watch (EchoRequest) returns (stream EchoReply);
+  rpc Upload (stream EchoRequest) returns (EchoReply);
+  rpc Chat (stream EchoRequest) returns (stream EchoReply);
+}
+
+message EchoRequest {
+  string name = 1;
+  int32 user_id = 2;
+  demo.types.Trace trace = 3;
+  repeated string tags = 4;
+  int64 big = 5;
+  demo.types.Level level = 6;
+}
+
+message EchoReply {
+  string message = 1;
+  int32 user_id = 2;
+}
