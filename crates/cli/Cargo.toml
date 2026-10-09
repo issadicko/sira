@@ -27,7 +27,13 @@ keychain = ["xc-secrets/keychain"]
 
 [dev-dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+bytes = "1"
+h2 = "0.4"
+http = "1"
+prost = "0.14"
+protox = "0.10"
 tempfile = "3"
+xc-proto.workspace = true
 tokio-tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
 
 [lints]

@@ -16,6 +16,7 @@ use xc_sync::openapi::GroupBy;
 use xc_sync::postman::Issue;
 use xc_sync::sync::{self, Decisions, OpStatus, Operation, Plan, Report, SyncError};
 
+mod grpc;
 mod run;
 mod ws;
 
@@ -36,6 +37,8 @@ enum Command {
     Run(Box<run::RunArgs>),
     /// Ouvre une requête WebSocket de la collection, envoie ses messages cochés et affiche ce qui arrive
     Ws(Box<ws::WsArgs>),
+    /// Ouvre une requête gRPC de la collection, envoie ses messages et affiche les réponses puis le statut
+    Grpc(Box<grpc::GrpcArgs>),
     /// Relit et réécrit chaque fichier en mémoire pour vérifier l'aller-retour sans diff
     Check {
         collection: PathBuf,
@@ -157,6 +160,10 @@ fn main() -> ExitCode {
         Command::Ws(args) => {
             let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
             runtime.block_on(ws::ws(*args))
+        }
+        Command::Grpc(args) => {
+            let runtime = tokio::runtime::Runtime::new().expect("runtime tokio");
+            runtime.block_on(grpc::grpc(*args))
         }
         Command::Check { collection, diff } => check(&collection, diff),
         Command::Import { source, location, group_by } => {

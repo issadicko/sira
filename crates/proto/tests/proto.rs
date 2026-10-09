@@ -86,8 +86,11 @@ fn ef_grpc_01_an_unknown_method_and_a_broken_proto_are_errors() {
     std::fs::create_dir_all(&dir).unwrap();
     let broken = dir.join("broken.proto");
     std::fs::write(&broken, "syntax = \"proto3\"; message {").unwrap();
-    assert!(matches!(Schema::from_files(&[broken], &[dir.clone()]), Err(ProtoError::Compile(_))));
-    assert!(matches!(Schema::from_files(&[dir.join("absent.proto")], &[dir.clone()]), Err(ProtoError::Compile(_))));
+    assert!(matches!(Schema::from_files(&[broken], std::slice::from_ref(&dir)), Err(ProtoError::Compile(_))));
+    assert!(matches!(
+        Schema::from_files(&[dir.join("absent.proto")], std::slice::from_ref(&dir)),
+        Err(ProtoError::Compile(_))
+    ));
     std::fs::remove_dir_all(dir).ok();
 }
 

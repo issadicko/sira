@@ -6463,8 +6463,13 @@ dependencies = [
 name = "xc-cli"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "clap",
  "futures-util",
+ "h2",
+ "http",
+ "prost",
+ "protox",
  "serde_json",
  "tempfile",
  "tokio",
@@ -6472,6 +6477,7 @@ dependencies = [
  "xc-codegen",
  "xc-core",
  "xc-engine",
+ "xc-proto",
  "xc-runner",
  "xc-secrets",
  "xc-sync",
