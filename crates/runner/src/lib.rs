@@ -39,5 +39,5 @@ pub use schema::{fetch_schema, schema_url, SchemaSource};
 pub use scripts::{flow_of, merged_script, Flow};
 pub use sequence::{next_step, Step, MAX_JUMPS};
 pub use session::{EnvWrites, Session};
-pub use websocket::{describe_opened, open_websocket, WsStart};
+pub use websocket::{describe_opened, open_websocket, resolve_message, WsStart};
 pub use xc_engine::iso_from_millis;

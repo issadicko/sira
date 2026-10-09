@@ -55,6 +55,10 @@ xc ws <collection> <requête> [--env nom] [--env-var nom=valeur] [--send texte].
 
 Ouvre la requête, envoie ses messages cochés puis ceux de `--send`, affiche ce qui arrive (`→` envoyé, `←` reçu : texte, binaire en hexadécimal, ping, pong, fermeture), et ferme (code 1000) après `--idle` secondes (2 par défaut) sans rien recevoir. `--max-time` borne la durée totale. Code de sortie : 0, 1 si la connexion échoue ou casse, 2 si la ligne de commande ou la collection est invalide. Les secrets du trousseau sont lus comme pour `xc run`.
 
+## Dans l'application
+
+Ouvrir une requête WebSocket de l'arbre affiche l'adresse, la liste des messages (cochés = envoyés par « Envoyer ») et le journal de la session : connexion, messages envoyés (→) et reçus (←), pings, fermeture avec code, erreurs. « Connecter » ouvre la session, « Déconnecter » envoie une fermeture normale ; un message libre peut être composé et envoyé sans toucher au fichier. Les variables et secrets sont résolus comme pour `xc ws`.
+
 ## Ce qui n'y est pas
 
 - Ni scripts, ni assertions, ni tests sur une connexion WebSocket : Bruno n'en exécute pas non plus. `xc run` rapporte une requête WebSocket en erreur (« protocole non pris en charge »), comme `bru run`.

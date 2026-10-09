@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signa
 import { COMMANDS } from '../core/commands';
 import { isCurlCommand } from '../core/curl';
 import { Workspace } from '../core/store';
+import { WsStore } from '../core/ws-store';
 import { segments } from '../core/url';
 import { Icon } from './icon';
 import { METHODS } from './method';
@@ -15,6 +16,9 @@ import { METHODS } from './method';
   template: `
     @if (ws.active(); as tab) {
       <div class="url">
+        @if (tab.doc.requestType === 'websocket') {
+          <span class="method-wrap m-ws" title="Connexion WebSocket"><span class="ws-badge">WS</span></span>
+        } @else {
         <span class="method-wrap" [class]="'method-wrap m-' + tab.doc.method.toLowerCase()">
           <select class="method-select" [value]="tab.doc.method" (change)="setMethod($event)" aria-label="Méthode HTTP">
             @for (m of methods; track m) {
@@ -23,6 +27,7 @@ import { METHODS } from './method';
           </select>
           <app-ic name="chev-down" [size]="12" />
         </span>
+        }
         <div class="url-field">
           <div class="url-mirror" aria-hidden="true" [style.transform]="'translateX(' + -scroll() + 'px)'">
             @for (seg of parts(); track $index) {
@@ -48,7 +53,7 @@ import { METHODS } from './method';
             spellcheck="false"
             autocomplete="off"
             aria-label="URL de la requête"
-            placeholder="https://api.exemple.test/ressource ou {{ '{{' }}baseUrl{{ '}}' }}/ressource"
+            [placeholder]="tab.doc.requestType === 'websocket' ? 'wss://api.exemple.test/socket ou {{wsBase}}/socket' : 'https://api.exemple.test/ressource ou {{baseUrl}}/ressource'"
             [value]="tab.doc.url"
             (input)="ws.setUrl($any($event.target).value)"
             (paste)="paste($event)"
@@ -58,6 +63,15 @@ import { METHODS } from './method';
           />
         </div>
       </div>
+      @if (tab.doc.requestType === 'websocket') {
+        <button class="btn-primary lg" [class.is-sending]="socket.live()" (click)="socket.toggle()" [attr.aria-label]="socket.live() ? 'Fermer la connexion' : 'Ouvrir la connexion'">
+          @if (socket.live()) {
+            <span class="spinner"></span>Déconnecter <kbd class="kbd">{{ label('request.send') }}</kbd>
+          } @else {
+            <app-ic name="send" [size]="15" />Connecter <kbd class="kbd">{{ label('request.send') }}</kbd>
+          }
+        </button>
+      } @else {
       <button class="btn-primary lg" [class.is-sending]="!!tab.sendingId" (click)="ws.send()" [attr.aria-label]="tab.sendingId ? 'Annuler la requête' : 'Envoyer la requête'">
         @if (tab.sendingId) {
           <span class="spinner"></span>Annuler <kbd class="kbd">{{ label('request.cancel') }}</kbd>
@@ -65,6 +79,7 @@ import { METHODS } from './method';
           <app-ic name="send" [size]="15" />Envoyer <kbd class="kbd">{{ label('request.send') }}</kbd>
         }
       </button>
+      }
     }
   `,
   host: { class: 'urlbar' },
@@ -77,6 +92,7 @@ import { METHODS } from './method';
     .url-mirror { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; white-space: pre; pointer-events: none; color: var(--ink); }
     .url-mirror .var { pointer-events: auto; height: auto; padding: 0; margin: 0; border-radius: 4px; box-shadow: 0 0 0 2px var(--accent-soft); }
     .url-mirror .var.bad { box-shadow: 0 0 0 2px var(--bad-soft); }
+    .ws-badge { padding: 0 14px; font: 600 calc(12 * var(--px)) var(--font-mono); color: var(--m-put); }
     .method-wrap { position: relative; height: 100%; display: flex; align-items: center; border-right: 1px solid var(--line); }
     .method-wrap app-ic, .method-wrap svg { position: absolute; right: 9px; pointer-events: none; opacity: .7; }
     select.method-select { appearance: none; -webkit-appearance: none; height: 100%; min-width: 92px; background: transparent; border: 0; border-radius: 8px 0 0 8px; color: inherit; font: 600 calc(12 * var(--px)) var(--font-mono); padding: 0 28px 0 12px; outline-offset: -2px; }
@@ -86,6 +102,7 @@ import { METHODS } from './method';
 })
 export class UrlBar {
   protected readonly ws = inject(Workspace);
+  protected readonly socket = inject(WsStore);
   private readonly commands = inject(COMMANDS);
   protected readonly methods = METHODS;
   protected readonly scroll = signal(0);

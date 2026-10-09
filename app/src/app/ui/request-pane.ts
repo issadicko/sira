@@ -11,11 +11,12 @@ import { AuthEditor } from './auth-editor';
 import { CodeEditor } from './code-editor';
 import { GraphqlEditor } from './graphql-editor';
 import { RequestSettings } from './request-settings';
+import { WsMessages } from './ws-messages';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
 import { MultipartTable } from './multipart-table';
 
-type Section = 'params' | 'body' | 'headers' | 'auth' | 'tests' | 'scripts' | 'settings' | 'docs';
+type Section = 'messages' | 'params' | 'body' | 'headers' | 'auth' | 'tests' | 'scripts' | 'settings' | 'docs';
 const OPERATORS = [
   'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn', 'contains', 'notContains', 'length', 'matches', 'notMatches', 'startsWith',
   'endsWith', 'between', 'isEmpty', 'isNotEmpty', 'isNull', 'isUndefined', 'isDefined', 'isTruthy', 'isFalsy', 'isJson', 'isNumber',
@@ -39,13 +40,13 @@ const OUTSIDE_COLLECTION =
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, RequestSettings],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, RequestSettings, WsMessages],
   host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
       <div class="subtabs" role="tablist" aria-label="Sections de la requête">
         @for (s of sections(); track s.id) {
-          <button class="subtab" role="tab" [attr.aria-selected]="section() === s.id" (click)="section.set(s.id)">
+          <button class="subtab" role="tab" [attr.aria-selected]="view() === s.id" (click)="section.set(s.id)">
             {{ s.label }}
             @if (s.count) {
               <span class="n">{{ s.count }}</span>
@@ -53,7 +54,10 @@ const OUTSIDE_COLLECTION =
           </button>
         }
       </div>
-      @switch (section()) {
+      @switch (view()) {
+        @case ('messages') {
+          <app-ws-messages />
+        }
         @case ('params') {
           <div class="pane-body">
             <section class="sec">
@@ -305,6 +309,15 @@ export class RequestPane {
   protected readonly sections = computed(() => {
     const d = this.ws.active()?.doc;
     if (!d) return [];
+    if (d.requestType === 'websocket') {
+      return [
+        { id: 'messages' as const, label: 'Messages', count: (d.wsMessages ?? []).filter((m) => m.selected).length || '' },
+        { id: 'headers' as const, label: 'En-têtes', count: d.headers.filter((h) => h.enabled).length || '' },
+        { id: 'auth' as const, label: 'Auth', count: d.auth.type === 'inherit' ? 'hérité' : d.auth.type === 'none' ? '' : d.auth.type },
+        { id: 'settings' as const, label: 'Réglages', count: '' },
+        { id: 'docs' as const, label: 'Docs', count: '' },
+      ];
+    }
     return [
       { id: 'params' as const, label: 'Paramètres', count: d.params.filter((p) => p.enabled).length || '' },
       { id: 'body' as const, label: 'Corps', count: d.body.type === 'none' ? '' : BODY_BADGES[d.body.type] ?? ('data' in d.body ? d.body.type.toUpperCase() : 'autre') },
@@ -315,6 +328,12 @@ export class RequestPane {
       { id: 'settings' as const, label: 'Réglages', count: '' },
       { id: 'docs' as const, label: 'Docs', count: '' },
     ];
+  });
+
+  /** La section affichée : celle choisie si cette requête l'a, sinon la première (une requête WebSocket n'a pas de corps). */
+  protected readonly view = computed(() => {
+    const ids = this.sections().map((s) => s.id);
+    return ids.includes(this.section()) ? this.section() : (ids[0] ?? this.section());
   });
 
   protected setQuery(rows: Param[]) {

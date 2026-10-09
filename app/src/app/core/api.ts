@@ -28,6 +28,9 @@ import {
   RunDone,
   RunEvent,
   SendResult,
+  WsConnected,
+  WsNotice,
+  WsSent,
   StoredSchema,
   SyncDecisions,
   SyncPlan,
@@ -122,6 +125,12 @@ export interface Api {
   onRunEvent(handler: (event: RunEvent) => void): Promise<() => void>;
   exportRun(args: ExportArgs): Promise<void>;
   /** Le jeton OAuth 2 gardé pour la requête (sans sa valeur) ; `null` s'il n'y en a pas. */
+  /** Ouvre la connexion WebSocket `id` de la requête ; ce qui arrive ensuite vient par `onWsEvent`. */
+  wsConnect(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<WsConnected>;
+  /** Envoie `data` (variables résolues) sur la connexion `id` ; rend le texte parti. */
+  wsSend(id: string, root: string, path: string, doc: RequestDoc, env: string | null, data: string): Promise<WsSent>;
+  wsClose(id: string): Promise<void>;
+  onWsEvent(handler: (notice: WsNotice) => void): Promise<() => void>;
   oauthStatus(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo | null>;
   /** Demande un jeton neuf ; les flux interactifs ouvrent une fenêtre de connexion. */
   oauthFetch(root: string, path: string, doc: RequestDoc, env: string | null): Promise<TokenInfo>;
@@ -215,6 +224,13 @@ const tauriApi: Api = {
     return listen<RunEvent>('run-event', (event) => handler(event.payload));
   },
   exportRun: (args) => invoke('export_run', { args }),
+  wsConnect: (id, root, path, doc, env) => invoke('ws_connect', { args: { id, root, path, doc, env } }),
+  wsSend: (id, root, path, doc, env, data) => invoke('ws_send', { args: { id, root, path, doc, env, data } }),
+  wsClose: (id) => invoke('ws_close', { id }),
+  onWsEvent: async (handler) => {
+    const { listen } = await import('@tauri-apps/api/event');
+    return listen<WsNotice>('ws-event', (event) => handler(event.payload));
+  },
   oauthStatus: (root, path, doc, env) => invoke('oauth_status', { args: { root, path, doc, env } }),
   oauthFetch: (root, path, doc, env) => invoke('oauth_fetch', { args: { root, path, doc, env } }),
   oauthClear: (root, path, doc, env) => invoke('oauth_clear', { args: { root, path, doc, env } }),

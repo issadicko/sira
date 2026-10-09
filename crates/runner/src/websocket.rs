@@ -4,6 +4,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use xc_core::vars::{Context, Scope};
 use xc_core::{prepare_with, PreparedMessage, RequestDoc, SendAuth};
 use xc_engine::{connect_ws, WsConnection, WsOpened, WsRequest};
 
@@ -74,4 +75,25 @@ pub fn describe_opened(opened: &WsOpened) -> String {
         Some(protocol) => format!("{}, sous-protocole {protocol}", opened.status),
         None => opened.status.to_string(),
     }
+}
+
+/// `text` avec les variables de la requête résolues (celles du fichier, des dossiers, de l'environnement `env` et de la
+/// session), et les noms des variables sans valeur. C'est ce que reçoit le serveur quand on envoie un message écrit ou
+/// modifié depuis l'interface, après la connexion.
+pub fn resolve_message(
+    root: &Path,
+    path: &str,
+    doc: &RequestDoc,
+    env: Option<&str>,
+    session: &Session,
+    text: &str,
+) -> Result<(String, Vec<String>), String> {
+    let ctx = Context::load(root, path).map_err(|e| e.to_string())?;
+    let scope = Scope::build(root, &ctx, path, doc, env, &session.runtime_strings())
+        .map_err(|e| e.to_string())?
+        .with_overrides(session.overrides(env));
+    let mut unresolved = Vec::new();
+    let resolved = scope.interpolate(text, &mut unresolved);
+    unresolved.dedup();
+    Ok((resolved, unresolved))
 }

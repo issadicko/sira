@@ -116,9 +116,12 @@ export interface Scope {
   requests: number;
 }
 
-/** Types de requête que l'application sait envoyer ; les autres (gRPC, WebSocket) s'affichent mais ne s'ouvrent pas. */
+/** Types de requête que l'application sait envoyer et que le runner lance ; gRPC s'affiche sans s'ouvrir. */
 const RUNNABLE_TYPES: readonly string[] = ['http', 'graphql'];
 export const isRunnable = (requestType: string): boolean => RUNNABLE_TYPES.includes(requestType);
+
+/** Ce que l'application ouvre dans un onglet : ce qui s'envoie, et les connexions WebSocket (que le runner ne lance pas). */
+export const isOpenable = (requestType: string): boolean => isRunnable(requestType) || requestType === 'websocket';
 
 const countRunnable = (items: TreeItem[]): number => items.reduce((n, i) => n + (i.kind === 'folder' ? countRunnable(i.children) : isRunnable(i.requestType) ? 1 : 0), 0);
 

@@ -2,7 +2,7 @@ import { Injectable, Injector, afterNextRender, computed, effect, inject, signal
 
 import { api } from './api';
 import { DropPosition, TreeItem } from './model';
-import { isRunnable } from './runner';
+import { isOpenable } from './runner';
 import { dirname } from './paths';
 import { Workspace } from './store';
 import { SyncStore } from './sync-store';
@@ -149,7 +149,7 @@ export class TreeStore {
   activate(item: TreeItem, pin: boolean) {
     this.select(item.path);
     if (item.kind === 'folder') this.ws.toggleFolder(item.path);
-    else if (isRunnable(item.requestType) || item.error) void this.ws.openRequest(item.path, pin);
+    else if (isOpenable(item.requestType) || item.error) void this.ws.openRequest(item.path, pin);
   }
 
   /** Touche de déplacement depuis la ligne `path` : le focus et la sélection suivent, un dossier s'ouvre ou se ferme, Entrée active. */

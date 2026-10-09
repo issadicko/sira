@@ -6252,6 +6252,7 @@ dependencies = [
 name = "xc-app"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "serde",
  "serde_json",
  "tauri",
@@ -6259,6 +6260,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tempfile",
  "tokio",
+ "tokio-tungstenite",
  "trash",
  "xc-codegen",
  "xc-core",

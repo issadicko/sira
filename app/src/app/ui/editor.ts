@@ -4,15 +4,16 @@ import { COMMANDS } from '../core/commands';
 import { Workspace } from '../core/store';
 import { TreeStore } from '../core/tree-store';
 import { Icon } from './icon';
-import { methodClass, shortMethod } from './method';
+import { badgeOf, methodClass, shortMethod } from './method';
 import { RequestPane } from './request-pane';
 import { ResponsePane } from './response-pane';
 import { UrlBar } from './url-bar';
+import { WsLog } from './ws-log';
 
 @Component({
   selector: 'app-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, UrlBar, RequestPane, ResponsePane],
+  imports: [Icon, UrlBar, RequestPane, ResponsePane, WsLog],
   host: { style: 'display: contents' },
   template: `
     @if (ws.active(); as tab) {
@@ -34,7 +35,7 @@ import { UrlBar } from './url-bar';
             (keydown.enter)="ws.activate(t.path)"
             (auxclick)="$event.button === 1 && ws.closeTab(t.path)"
           >
-            <span [class]="methodClass(t.doc.method)" style="width: auto">{{ shortMethod(t.doc.method) }}</span>
+            <span [class]="methodClass(badge(t.doc))" style="width: auto">{{ shortMethod(badge(t.doc)) }}</span>
             <span class="tab-name">{{ t.doc.name || t.path }}</span>
             <button class="tab-x" (click)="close($event, t.path)" [attr.aria-label]="'Fermer ' + t.doc.name"><span class="dirty"></span><span class="x"><app-ic name="x" [size]="13" /></span></button>
           </div>
@@ -68,7 +69,11 @@ import { UrlBar } from './url-bar';
       <div #split class="split" [class.vertical]="ws.stacked()" [style.--req.%]="reqPct()" [style.--reqh.%]="reqPct()">
         <app-request-pane />
         <div class="split-handle" role="separator" aria-label="Redimensionner requête et réponse" (pointerdown)="drag($event)"></div>
-        <app-response-pane />
+        @if (tab.doc.requestType === 'websocket') {
+          <app-ws-log />
+        } @else {
+          <app-response-pane />
+        }
       </div>
     } @else {
       <div class="island fill">
@@ -102,6 +107,7 @@ export class Editor {
   private readonly commands = inject(COMMANDS);
   protected readonly methodClass = methodClass;
   protected readonly shortMethod = shortMethod;
+  protected readonly badge = (doc: { requestType: string; method: string }) => badgeOf(doc.requestType, doc.method);
   protected readonly reqPct = signal(46);
   private readonly split = viewChild<ElementRef<HTMLElement>>('split');
 

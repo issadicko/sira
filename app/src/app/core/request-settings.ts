@@ -23,10 +23,17 @@ export function wholeNumber(text: string): number | null {
   return /^\d{1,9}$/.test(trimmed) ? Number(trimmed) : null;
 }
 
-export type SettingsPatch = Partial<Pick<RequestDoc, 'timeoutMs' | 'followRedirects' | 'maxRedirects' | 'forwardAuthorizationHeader'>>;
+export type SettingsPatch = Partial<Pick<RequestDoc, 'timeoutMs' | 'followRedirects' | 'maxRedirects' | 'forwardAuthorizationHeader' | 'keepAliveMs'>>;
 
 /** Le document avec ces réglages ; un délai de 0 (illimité) est écrit comme une absence de délai. */
 export function withSettings(doc: RequestDoc, patch: SettingsPatch): RequestDoc {
   const next = { ...doc, ...patch };
-  return patch.timeoutMs === 0 ? { ...next, timeoutMs: null } : next;
+  const timeout = patch.timeoutMs === 0 ? { ...next, timeoutMs: null } : next;
+  return patch.keepAliveMs === 0 ? { ...timeout, keepAliveMs: null } : timeout;
 }
+
+/** Les réglages d'une connexion WebSocket : le délai pour la joindre (0 : 30 s) et l'intervalle des pings (0 : aucun). */
+export const wsSettings = (doc: RequestDoc): { timeoutMs: number; keepAliveMs: number } => ({
+  timeoutMs: doc.timeoutMs ?? 0,
+  keepAliveMs: doc.keepAliveMs ?? 0,
+});

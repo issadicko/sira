@@ -22,6 +22,7 @@ mod network;
 mod oauth;
 mod runs;
 mod secrets;
+mod ws;
 
 #[derive(Default)]
 struct AppState {
@@ -40,6 +41,8 @@ struct AppState {
     network: Mutex<NetworkPrefs>,
     /// Le pot de cookies, partagé par toutes les collections et gardé en mémoire seulement, comme celui de Bruno.
     cookies: xc_engine::CookieJar,
+    /// Les connexions WebSocket ouvertes.
+    sockets: ws::Sockets,
 }
 
 /// Une requête en cours d'envoi : sa tâche et le drapeau qui interrompt ses scripts.
@@ -790,6 +793,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_collection,
             watch_collection,
+            ws::ws_connect,
+            ws::ws_send,
+            ws::ws_close,
             read_request,
             save_request,
             read_environment,

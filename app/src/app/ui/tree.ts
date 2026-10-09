@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
 import { TreeItem } from '../core/model';
-import { isRunnable } from '../core/runner';
+import { isOpenable } from '../core/runner';
 import { Workspace } from '../core/store';
 import { SyncStore } from '../core/sync-store';
 import { cloneName, matchesQuery } from '../core/tree-ops';
@@ -100,12 +100,13 @@ export class Tree {
     return copied ? { kind: copied.kind, initial: cloneName(copied.name), method: copied.kind === 'request' ? this.badge(copied) : 'GET' } : null;
   });
   protected readonly count = count;
-  protected readonly runnable = isRunnable;
+  protected readonly runnable = isOpenable;
   protected readonly methodClass = methodClass;
   protected readonly shortMethod = shortMethod;
 
   protected badge(item: TreeItem) {
-    return item.kind === 'request' ? (item.requestType === 'graphql' ? 'GQL' : item.method) : 'GET';
+    if (item.kind !== 'request') return 'GET';
+    return item.requestType === 'graphql' ? 'GQL' : item.requestType === 'websocket' ? 'WS' : item.method;
   }
 
   protected isOpen(path: string) {
