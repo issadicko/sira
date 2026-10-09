@@ -1,6 +1,7 @@
 pub mod aws;
 mod cookies;
 pub mod digest;
+mod grpc;
 mod network;
 mod proxy;
 mod redirect;
@@ -25,6 +26,7 @@ use proxy::Stream;
 use redirect::Hop;
 
 pub use cookies::{CookieDraft, CookieJar, CookieView, Cookies, ScriptCookie};
+pub use grpc::{connect_grpc, GrpcCall, GrpcEvent, GrpcOpened, GrpcRequest, GrpcSender};
 pub use network::{ClientIdentity, Network, Proxy, ProxyScheme, Redirects, Tls};
 pub use time::{amz_date, iso_from_millis, millis};
 pub use ws::{connect_ws, WsConnection, WsEvent, WsOpened, WsOutgoing, WsRequest, WsSender};
@@ -92,6 +94,8 @@ pub enum EngineError {
     Http(String),
     #[error("WebSocket : {0}")]
     WebSocket(String),
+    #[error("gRPC : {0}")]
+    Grpc(String),
     #[error("délai dépassé après {0} ms")]
     Timeout(u128),
     #[error("réponse trop volumineuse : plus de {0} octets")]
@@ -185,6 +189,16 @@ pub(crate) fn host_of(url: &Url) -> Result<String, EngineError> {
 /// Ouvre la connexion vers `url` : DNS, TCP, proxy (tunnel pour TLS, SOCKS et quand `tunnel` le demande, ce que fait une
 /// mise à niveau WebSocket), puis TLS quand `secure`.
 pub(crate) async fn dial(url: &Url, secure: bool, tunnel: bool, network: &Network) -> Result<Dialed, EngineError> {
+    dial_alpn(url, secure, tunnel, network, &[]).await
+}
+
+pub(crate) async fn dial_alpn(
+    url: &Url,
+    secure: bool,
+    tunnel: bool,
+    network: &Network,
+    alpn: &[&[u8]],
+) -> Result<Dialed, EngineError> {
     let host = host_of(url)?;
     let port = url.port_or_known_default().unwrap_or(if secure { 443 } else { 80 });
 
@@ -211,7 +225,7 @@ pub(crate) async fn dial(url: &Url, secure: bool, tunnel: bool, network: &Networ
     let mut timings = Timings { dns_ms: ms(dns), tcp_ms: ms(tcp), ..Timings::default() };
     if secure {
         let t = Instant::now();
-        stream = Box::new(tls::handshake(stream, &host, &network.tls).await?);
+        stream = Box::new(tls::handshake_alpn(stream, &host, &network.tls, alpn).await?);
         timings.tls_ms = ms(t.elapsed());
     }
     Ok(Dialed { stream, addr, forward, timings })
