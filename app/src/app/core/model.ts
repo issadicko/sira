@@ -128,6 +128,63 @@ export interface WsSent {
   unresolved: string[];
 }
 
+/** Un message d'une requête gRPC : du JSON envoyé dans l'ordre ; sans description, seul, il prend la forme courte du fichier. */
+export interface GrpcMessage {
+  description: string;
+  message: string;
+}
+
+/** Une méthode gRPC telle que le schéma la décrit. */
+export interface GrpcMethod {
+  service: string;
+  name: string;
+  /** `paquet.Service/Méthode`. */
+  fullName: string;
+  input: string;
+  output: string;
+  clientStreaming: boolean;
+  serverStreaming: boolean;
+  /** Un message JSON à valeurs par défaut, point de départ d'une requête. */
+  skeleton?: string;
+}
+
+export interface GrpcMethods {
+  /** D'où vient le schéma : un fichier `.proto` ou « réflexion du serveur ». */
+  source: string;
+  methods: GrpcMethod[];
+}
+
+export interface GrpcSentMessage {
+  description: string;
+  data: string;
+}
+
+/** Ce que l'interface sait d'un appel gRPC ouvert. */
+export interface GrpcConnected {
+  url: string;
+  remoteAddr: string;
+  connectMs: number;
+  schemaSource: string;
+  method: GrpcMethod;
+  sent: GrpcSentMessage[];
+  /** Vrai quand l'envoi est terminé d'office (appel unaire ou flux serveur). */
+  finished: boolean;
+  unresolved: string[];
+}
+
+/** Ce que Rust relaie de l'appel `id` : les en-têtes, un message reçu, le statut final, une erreur de transport. */
+export type GrpcNotice = { id: string; at: string } & (
+  | { kind: 'headers'; headers: [string, string][] }
+  | { kind: 'message'; data: string; size: number }
+  | { kind: 'status'; code: number; name: string; message: string; metadata: [string, string][] }
+  | { kind: 'error'; message: string }
+);
+
+export interface GrpcSent {
+  data: string;
+  unresolved: string[];
+}
+
 export interface RequestDoc {
   name: string;
   requestType: string;
@@ -149,6 +206,12 @@ export interface RequestDoc {
   wsMessages?: WsMessage[];
   /** Intervalle entre deux pings d'une connexion WebSocket, en millisecondes ; `null` : aucun. */
   keepAliveMs?: number | null;
+  /** Messages d'une requête gRPC ; vide pour les autres. */
+  grpcMessages?: GrpcMessage[];
+  /** `unary`, `server-streaming`, `client-streaming` ou `bidi-streaming`. */
+  grpcMethodType?: string;
+  /** Chemin du `.proto` relatif à la collection ; vide : réflexion du serveur. */
+  protoFile?: string;
   docs?: string | null;
   /** Délai en millisecondes ; `null` : aucun. */
   timeoutMs?: number | null;

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signa
 import { COMMANDS } from '../core/commands';
 import { isCurlCommand } from '../core/curl';
 import { Workspace } from '../core/store';
+import { GrpcStore } from '../core/grpc-store';
 import { WsStore } from '../core/ws-store';
 import { segments } from '../core/url';
 import { Icon } from './icon';
@@ -18,6 +19,8 @@ import { METHODS } from './method';
       <div class="url">
         @if (tab.doc.requestType === 'websocket') {
           <span class="method-wrap m-ws" title="Connexion WebSocket"><span class="ws-badge">WS</span></span>
+        } @else if (tab.doc.requestType === 'grpc') {
+          <span class="method-wrap m-grpc" title="Appel gRPC"><span class="ws-badge">gRPC</span></span>
         } @else {
         <span class="method-wrap" [class]="'method-wrap m-' + tab.doc.method.toLowerCase()">
           <select class="method-select" [value]="tab.doc.method" (change)="setMethod($event)" aria-label="Méthode HTTP">
@@ -53,7 +56,7 @@ import { METHODS } from './method';
             spellcheck="false"
             autocomplete="off"
             aria-label="URL de la requête"
-            [placeholder]="tab.doc.requestType === 'websocket' ? 'wss://api.exemple.test/socket ou {{wsBase}}/socket' : 'https://api.exemple.test/ressource ou {{baseUrl}}/ressource'"
+            [placeholder]="tab.doc.requestType === 'websocket' ? 'wss://api.exemple.test/socket ou {{wsBase}}/socket' : tab.doc.requestType === 'grpc' ? 'localhost:50051 ou grpcs://api.exemple.test ou {{grpcBaseUrl}}' : 'https://api.exemple.test/ressource ou {{baseUrl}}/ressource'"
             [value]="tab.doc.url"
             (input)="ws.setUrl($any($event.target).value)"
             (paste)="paste($event)"
@@ -69,6 +72,14 @@ import { METHODS } from './method';
             <span class="spinner"></span>Déconnecter <kbd class="kbd">{{ label('request.send') }}</kbd>
           } @else {
             <app-ic name="send" [size]="15" />Connecter <kbd class="kbd">{{ label('request.send') }}</kbd>
+          }
+        </button>
+      } @else if (tab.doc.requestType === 'grpc') {
+        <button class="btn-primary lg" [class.is-sending]="grpc.live()" (click)="grpc.toggle()" [attr.aria-label]="grpc.live() ? 'Annuler la requête' : 'Appeler la méthode'">
+          @if (grpc.live()) {
+            <span class="spinner"></span>Annuler <kbd class="kbd">{{ label('request.send') }}</kbd>
+          } @else {
+            <app-ic name="send" [size]="15" />Appeler <kbd class="kbd">{{ label('request.send') }}</kbd>
           }
         </button>
       } @else {
@@ -103,6 +114,7 @@ import { METHODS } from './method';
 export class UrlBar {
   protected readonly ws = inject(Workspace);
   protected readonly socket = inject(WsStore);
+  protected readonly grpc = inject(GrpcStore);
   private readonly commands = inject(COMMANDS);
   protected readonly methods = METHODS;
   protected readonly scroll = signal(0);

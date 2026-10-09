@@ -11,6 +11,7 @@ import { AuthEditor } from './auth-editor';
 import { CodeEditor } from './code-editor';
 import { GraphqlEditor } from './graphql-editor';
 import { RequestSettings } from './request-settings';
+import { GrpcMessages } from './grpc-messages';
 import { WsMessages } from './ws-messages';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
@@ -40,7 +41,7 @@ const OUTSIDE_COLLECTION =
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, RequestSettings, WsMessages],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, GrpcMessages, RequestSettings, WsMessages],
   host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -56,7 +57,11 @@ const OUTSIDE_COLLECTION =
       </div>
       @switch (view()) {
         @case ('messages') {
-          <app-ws-messages />
+          @if (tab.doc.requestType === 'grpc') {
+            <app-grpc-messages />
+          } @else {
+            <app-ws-messages />
+          }
         }
         @case ('params') {
           <div class="pane-body">
@@ -133,8 +138,8 @@ const OUTSIDE_COLLECTION =
         @case ('headers') {
           <div class="pane-body">
             <section class="sec">
-              <div class="sec-head"><span class="sec-title">En-têtes</span><span class="sec-meta">ceux de la collection et des dossiers s'ajoutent à l'envoi</span></div>
-              <app-kv-table [rows]="tab.doc.headers" keyLabel="Nom" addLabel="Ajouter un en-tête" (rowsChange)="setHeaders($event)" />
+              <div class="sec-head"><span class="sec-title">{{ tab.doc.requestType === 'grpc' ? 'Métadonnées' : 'En-têtes' }}</span><span class="sec-meta">celles de la collection et des dossiers s'ajoutent à l'envoi</span></div>
+              <app-kv-table [rows]="tab.doc.headers" keyLabel="Nom" [addLabel]="tab.doc.requestType === 'grpc' ? 'Ajouter une métadonnée' : 'Ajouter un en-tête'" (rowsChange)="setHeaders($event)" />
             </section>
           </div>
         }
@@ -315,6 +320,14 @@ export class RequestPane {
         { id: 'headers' as const, label: 'En-têtes', count: d.headers.filter((h) => h.enabled).length || '' },
         { id: 'auth' as const, label: 'Auth', count: d.auth.type === 'inherit' ? 'hérité' : d.auth.type === 'none' ? '' : d.auth.type },
         { id: 'settings' as const, label: 'Réglages', count: '' },
+        { id: 'docs' as const, label: 'Docs', count: '' },
+      ];
+    }
+    if (d.requestType === 'grpc') {
+      return [
+        { id: 'messages' as const, label: 'Message', count: (d.grpcMessages ?? []).length > 1 ? (d.grpcMessages ?? []).length : '' },
+        { id: 'headers' as const, label: 'Métadonnées', count: d.headers.filter((h) => h.enabled).length || '' },
+        { id: 'auth' as const, label: 'Auth', count: d.auth.type === 'inherit' ? 'hérité' : d.auth.type === 'none' ? '' : d.auth.type },
         { id: 'docs' as const, label: 'Docs', count: '' },
       ];
     }

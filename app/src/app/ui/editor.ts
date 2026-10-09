@@ -8,12 +8,13 @@ import { badgeOf, methodClass, shortMethod } from './method';
 import { RequestPane } from './request-pane';
 import { ResponsePane } from './response-pane';
 import { UrlBar } from './url-bar';
+import { GrpcLog } from './grpc-log';
 import { WsLog } from './ws-log';
 
 @Component({
   selector: 'app-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, UrlBar, RequestPane, ResponsePane, WsLog],
+  imports: [Icon, UrlBar, RequestPane, ResponsePane, GrpcLog, WsLog],
   host: { style: 'display: contents' },
   template: `
     @if (ws.active(); as tab) {
@@ -71,6 +72,8 @@ import { WsLog } from './ws-log';
         <div class="split-handle" role="separator" aria-label="Redimensionner requête et réponse" (pointerdown)="drag($event)"></div>
         @if (tab.doc.requestType === 'websocket') {
           <app-ws-log />
+        } @else if (tab.doc.requestType === 'grpc') {
+          <app-grpc-log />
         } @else {
           <app-response-pane />
         }
