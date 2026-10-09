@@ -146,3 +146,22 @@ async fn ef_grpc_01_a_message_that_does_not_fit_the_proto_is_refused_before_send
 
     assert!(error.contains("demo.EchoRequest"), "{error}");
 }
+
+#[tokio::test]
+async fn ef_grpc_01_describing_a_request_lists_the_methods_of_its_proto_or_of_the_server() {
+    let (address, _) = grpc_server::serve(true).await;
+    let dir = collection(&address, &echo(true, "demo.Demo/Echo"));
+    let doc = read_request(dir.path(), "call.yml").unwrap();
+    let (schema, source) =
+        xc_runner::describe_grpc(dir.path(), "call.yml", &doc, None, &Session::default()).await.unwrap();
+    assert_eq!(source, "proto/demo.proto");
+    let names: Vec<String> = schema.methods().into_iter().map(|m| m.full_name).collect();
+    assert_eq!(names, ["demo.Demo/Echo", "demo.Demo/Watch", "demo.Demo/Upload", "demo.Demo/Chat"]);
+
+    fs::write(dir.path().join("call.yml"), echo(false, "")).unwrap();
+    let doc = read_request(dir.path(), "call.yml").unwrap();
+    let (schema, source) =
+        xc_runner::describe_grpc(dir.path(), "call.yml", &doc, None, &Session::default()).await.unwrap();
+    assert_eq!(source, "réflexion du serveur");
+    assert_eq!(schema.methods().len(), 4);
+}
