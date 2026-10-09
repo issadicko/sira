@@ -21,7 +21,7 @@ use crate::CoreError;
 const NO_TIMEOUT: Duration = Duration::from_secs(600);
 const MAX_MULTIPART_BODY: u64 = 512 << 20;
 
-/// Un message WebSocket prêt à partir : variables résolues.
+/// Un message WebSocket ou gRPC prêt à partir : variables résolues (pour gRPC, `title` est la description, `data` le JSON).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreparedMessage {
     pub title: String,
@@ -87,7 +87,7 @@ pub fn merged_headers(ctx: &Context, doc: &RequestDoc) -> Vec<(String, String)> 
     let parents = std::iter::once(&ctx.collection).chain(ctx.folders.iter().map(|(_, m)| m));
     let inherited = parents
         .filter_map(Context::request_section)
-        .flat_map(|section| key_values(section.seq("headers")))
+        .flat_map(|section| key_values(section.seq(if doc.request_type == "grpc" { "metadata" } else { "headers" })))
         .chain(doc.headers.iter().cloned());
     for h in inherited.filter(|h| h.enabled && !h.name.is_empty()) {
         let name = if h.name.eq_ignore_ascii_case("content-type") { "content-type".to_owned() } else { h.name };
@@ -128,10 +128,11 @@ pub fn prepare_with(
     runtime: &HashMap<String, String>,
     overrides: Overrides,
 ) -> Result<Prepared, CoreError> {
-    if !matches!(doc.request_type.as_str(), "http" | "graphql" | "websocket") {
+    if !matches!(doc.request_type.as_str(), "http" | "graphql" | "websocket" | "grpc") {
         return Err(CoreError::UnsupportedRequestType(doc.request_type.clone()));
     }
     let websocket = doc.request_type == "websocket";
+    let grpc = doc.request_type == "grpc";
     let ctx = Context::load(root, request_path)?;
     let scope = Scope::build(root, &ctx, request_path, doc, env, runtime)?.with_overrides(overrides.vars);
     let mut unresolved = Vec::new();
@@ -139,7 +140,16 @@ pub fn prepare_with(
 
     let mut url = fill(&substitute_path_params(&doc.url, doc));
     if !url.contains("://") {
-        url = format!("{}://{url}", if websocket { "ws" } else { "http" });
+        url = format!(
+            "{}://{url}",
+            if websocket {
+                "ws"
+            } else if grpc {
+                "grpc"
+            } else {
+                "http"
+            }
+        );
     }
 
     let mut headers: Vec<(String, String)> = Vec::new();
@@ -228,21 +238,33 @@ pub fn prepare_with(
         });
     }
 
-    let messages = doc
-        .ws_messages
-        .iter()
-        .map(|m| PreparedMessage {
-            title: fill(&m.title),
-            selected: m.selected,
-            kind: m.kind.clone(),
-            data: fill(&m.data),
-        })
-        .collect();
+    let messages = if grpc {
+        doc.grpc_messages
+            .iter()
+            .map(|m| PreparedMessage {
+                title: fill(&m.description),
+                selected: true,
+                kind: "json".into(),
+                data: fill(&m.message),
+            })
+            .collect()
+    } else {
+        doc.ws_messages
+            .iter()
+            .map(|m| PreparedMessage {
+                title: fill(&m.title),
+                selected: m.selected,
+                kind: m.kind.clone(),
+                data: fill(&m.data),
+            })
+            .collect()
+    };
+    let method = if grpc { fill(&doc.method) } else { doc.method.to_uppercase() };
 
     Ok(Prepared {
         messages,
         request: HttpRequest {
-            method: doc.method.to_uppercase(),
+            method,
             url,
             headers,
             body: body.map(|(bytes, _)| bytes),

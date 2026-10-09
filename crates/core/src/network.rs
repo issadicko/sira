@@ -763,3 +763,28 @@ mod tests {
         assert_eq!(serde_json::from_str::<NetworkPrefs>("{}").unwrap(), NetworkPrefs::default());
     }
 }
+
+/// Ce que la collection dit de protobuf (`config.protobuf`) : des fichiers `.proto` à charger et des dossiers où chercher
+/// leurs imports, tous relatifs à la racine de la collection.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ProtobufConfig {
+    pub proto_files: Vec<String>,
+    pub import_paths: Vec<String>,
+}
+
+pub fn protobuf_config(collection: &Map) -> ProtobufConfig {
+    let Some(protobuf) = config_of(collection).and_then(|config| config.map("protobuf")) else {
+        return ProtobufConfig::default();
+    };
+    let paths = |key: &str| -> Vec<String> {
+        protobuf
+            .seq(key)
+            .iter()
+            .filter_map(Value::as_map)
+            .filter(|entry| !entry.get("disabled").is_some_and(Value::is_true))
+            .filter_map(|entry| entry.str("path").map(str::to_owned))
+            .filter(|path| !path.is_empty())
+            .collect()
+    };
+    ProtobufConfig { proto_files: paths("protoFiles"), import_paths: paths("importPaths") }
+}

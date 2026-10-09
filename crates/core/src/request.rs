@@ -176,6 +176,16 @@ pub struct WsMessage {
     pub data: String,
 }
 
+/// Un message d'une requête gRPC : `grpc.message`, soit un texte JSON seul, soit une liste d'entrées
+/// `{ description, message }` envoyées dans l'ordre (flux client ou bidirectionnel).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrpcMessage {
+    /// Vide pour le message unique de la forme courte.
+    pub description: String,
+    pub message: String,
+}
+
 /// Variable posée après la réponse : `name` reçoit la valeur de l'expression (`res.body.id`), comme les « post-response
 /// vars » de Bruno, stockées dans `runtime.actions` (`set-variable`, phase `after-response`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -215,6 +225,15 @@ pub struct RequestDoc {
     /// aucun.
     #[serde(default)]
     pub keep_alive_ms: Option<u64>,
+    /// Messages d'une requête gRPC (`grpc.message`) ; vide pour les autres.
+    #[serde(default)]
+    pub grpc_messages: Vec<GrpcMessage>,
+    /// `unary`, `server-streaming`, `client-streaming` ou `bidi-streaming` (`grpc.methodType`).
+    #[serde(default)]
+    pub grpc_method_type: String,
+    /// Chemin du `.proto` relatif à la collection (`grpc.protoFilePath`) ; vide : réflexion du serveur.
+    #[serde(default)]
+    pub proto_file: String,
     pub docs: Option<String>,
     pub timeout_ms: Option<u64>,
     /// Réglages de redirection du bloc `settings` ; absents du fichier, l'exécution suit Bruno : suivre, 5 sauts au plus,
@@ -504,6 +523,8 @@ fn canonical(m: &Map) -> String {
     yaml::emit(&Value::Map(rest).sorted(), &[]).trim_end().to_owned()
 }
 
+const GRPC_ORDER: &[&str] = &["url", "method", "methodType", "protoFilePath", "metadata", "auth", "message"];
+const GRPC_ENTRY_ORDER: &[&str] = &["description", "message"];
 const WS_SECTION_ORDER: &[&str] = &["url", "headers", "auth", "message"];
 const WS_ENTRY_ORDER: &[&str] = &["title", "selected", "message"];
 const WS_MESSAGE_ORDER: &[&str] = &["type", "data"];
@@ -585,6 +606,55 @@ fn write_ws_messages(section: &mut Map, previous: &[WsMessage], next: &[WsMessag
     }
 }
 
+/// Les messages de `grpc.message`, quelle que soit sa forme.
+fn grpc_messages(section: &Map) -> Vec<GrpcMessage> {
+    match section.get("message") {
+        Some(Value::Seq(items)) => items
+            .iter()
+            .filter_map(Value::as_map)
+            .map(|m| GrpcMessage {
+                description: opt_text(m, "description").unwrap_or_default(),
+                message: text(m.get("message")),
+            })
+            .collect(),
+        Some(single) => vec![GrpcMessage { description: String::new(), message: text(Some(single)) }],
+        None => Vec::new(),
+    }
+}
+
+/// Écrit `next` dans `grpc.message` : un message sans description et seul reprend la forme courte (le texte), le reste la
+/// liste ; une entrée garde sa table (clés inconnues comprises) et seuls les champs modifiés sont réécrits.
+fn write_grpc_messages(section: &mut Map, previous: &[GrpcMessage], next: &[GrpcMessage]) {
+    match next {
+        [] => {
+            section.remove("message");
+        }
+        [only] if only.description.is_empty() => {
+            section.set("message", Value::str(&only.message), GRPC_ORDER);
+        }
+        many => {
+            let existing: Vec<Value> = match section.get("message") {
+                Some(Value::Seq(items)) => items.clone(),
+                _ => Vec::new(),
+            };
+            let entries = many.iter().enumerate().map(|(i, message)| {
+                let old = previous.get(i).filter(|_| existing.get(i).is_some());
+                let mut entry = existing.get(i).and_then(Value::as_map).cloned().unwrap_or_default();
+                if old.is_none_or(|old| old.description != message.description) && !message.description.is_empty() {
+                    entry.set("description", Value::str(&message.description), GRPC_ENTRY_ORDER);
+                } else if message.description.is_empty() {
+                    entry.remove("description");
+                }
+                if old.is_none_or(|old| old.message != message.message) {
+                    entry.set("message", Value::str(&message.message), GRPC_ENTRY_ORDER);
+                }
+                Value::Map(entry)
+            });
+            section.set("message", Value::Seq(entries.collect()), GRPC_ORDER);
+        }
+    }
+}
+
 /// Table qui porte méthode, URL, en-têtes et corps : `http`, ou la section propre au protocole (`graphql`, `grpc`,
 /// `websocket`) d'une requête qui n'a pas de table `http`.
 fn section<'a>(root: &Map, request_type: &'a str) -> &'a str {
@@ -601,6 +671,7 @@ impl RequestDoc {
         let info = root.map("info").unwrap_or(&empty);
         let request_type = info.str("type").unwrap_or("http").to_owned();
         let is_websocket = request_type == "websocket";
+        let is_grpc = request_type == "grpc";
         let http = root.map(section(root, &request_type)).unwrap_or(&empty);
         let runtime = root.map("runtime").unwrap_or(&empty);
         let settings = root.map("settings").unwrap_or(&empty);
@@ -611,18 +682,29 @@ impl RequestDoc {
             name: info.str("name").unwrap_or_default().to_owned(),
             request_type,
             seq: info.get("seq").and_then(Value::as_i64),
-            method: http.str("method").unwrap_or("GET").to_uppercase(),
+            method: if is_grpc {
+                http.str("method").unwrap_or_default().to_owned()
+            } else {
+                http.str("method").unwrap_or("GET").to_uppercase()
+            },
             url: text(http.get("url")),
             params: read_list(http.seq("params")),
-            headers: key_values(http.seq("headers")),
+            headers: key_values(http.seq(if is_grpc { "metadata" } else { "headers" })),
             body: http.map("body").map_or(Body::None, body_of),
-            auth: auth_from(http.get("auth")),
+            auth: auth_from(http.get("auth").or_else(|| is_grpc.then(|| runtime.get("auth")).flatten())),
             assertions: read_list(runtime.seq("assertions")),
             variables: key_values(runtime.seq("variables")),
             scripts,
             post_variables: post_variables(runtime.seq("actions")),
             tags: info.seq("tags").iter().filter_map(Value::scalar).collect(),
             ws_messages: if is_websocket { ws_messages(http) } else { Vec::new() },
+            grpc_messages: if is_grpc { grpc_messages(http) } else { Vec::new() },
+            grpc_method_type: if is_grpc {
+                http.str("methodType").unwrap_or_default().to_owned()
+            } else {
+                String::new()
+            },
+            proto_file: if is_grpc { http.str("protoFilePath").unwrap_or_default().to_owned() } else { String::new() },
             keep_alive_ms: settings
                 .get("keepAliveInterval")
                 .and_then(Value::as_i64)
@@ -649,17 +731,41 @@ impl RequestDoc {
             || self.params != previous.params
             || self.body != previous.body
             || self.auth != previous.auth
-            || self.ws_messages != previous.ws_messages;
+            || self.ws_messages != previous.ws_messages
+            || self.grpc_messages != previous.grpc_messages
+            || self.grpc_method_type != previous.grpc_method_type
+            || self.proto_file != previous.proto_file;
         if changed_http {
+            let grpc = previous.request_type == "grpc";
+            let order = if grpc { GRPC_ORDER } else { HTTP_ORDER };
+            let auth_in_runtime = grpc
+                && root.map("grpc").is_some_and(|g| g.get("auth").is_none())
+                && root.map("runtime").is_some_and(|r| r.get("auth").is_some());
+            if auth_in_runtime && self.auth != previous.auth {
+                write_auth(root.map_mut_or_insert("runtime", TOP_ORDER), &self.auth);
+            }
             let http = root.map_mut_or_insert(section(root, &previous.request_type), TOP_ORDER);
             if self.method != previous.method {
-                http.set("method", Value::str(&self.method), HTTP_ORDER);
+                http.set("method", Value::str(&self.method), order);
             }
             if self.url != previous.url {
-                http.set("url", Value::str(&self.url), HTTP_ORDER);
+                http.set("url", Value::str(&self.url), order);
             }
             if self.headers != previous.headers {
-                set_list(http, "headers", &self.headers, HTTP_ORDER);
+                set_list(http, if grpc { "metadata" } else { "headers" }, &self.headers, order);
+            }
+            if self.grpc_method_type != previous.grpc_method_type {
+                http.set("methodType", Value::str(&self.grpc_method_type), order);
+            }
+            if self.proto_file != previous.proto_file {
+                if self.proto_file.is_empty() {
+                    http.remove("protoFilePath");
+                } else {
+                    http.set("protoFilePath", Value::str(&self.proto_file), order);
+                }
+            }
+            if self.grpc_messages != previous.grpc_messages {
+                write_grpc_messages(http, &previous.grpc_messages, &self.grpc_messages);
             }
             if self.params != previous.params {
                 set_list(http, "params", &self.params, HTTP_ORDER);
@@ -667,7 +773,7 @@ impl RequestDoc {
             if self.body != previous.body {
                 write_body(http, &self.body);
             }
-            if self.auth != previous.auth {
+            if self.auth != previous.auth && !auth_in_runtime {
                 write_auth(http, &self.auth);
             }
             if self.ws_messages != previous.ws_messages {

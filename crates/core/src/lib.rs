@@ -19,11 +19,13 @@ pub use collection::{
     save_collection_variables, save_environment, save_request, set_default_environment, CollectionInfo, CollectionVar,
     EnvVar, TreeItem,
 };
-pub use network::{ClientCertificate, NetworkPrefs, ProxyConfig, ProxyMode, ProxyPref};
+pub use network::{
+    protobuf_config, ClientCertificate, NetworkPrefs, ProtobufConfig, ProxyConfig, ProxyMode, ProxyPref,
+};
 pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, PreparedMessage, SendAuth};
 pub use request::{
-    Assertion, Auth, Body, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable, RequestDoc,
-    WsMessage,
+    Assertion, Auth, Body, GrpcMessage, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable,
+    RequestDoc, WsMessage,
 };
 
 #[derive(Debug, thiserror::Error)]
