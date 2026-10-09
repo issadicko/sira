@@ -135,8 +135,22 @@ pub async fn handshake<S>(stream: S, host: &str, tls: &Tls) -> Result<TlsStream<
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    handshake_alpn(stream, host, tls, &[]).await
+}
+
+/// Comme `handshake`, en proposant ces protocoles ALPN (`h2` pour gRPC).
+pub async fn handshake_alpn<S>(stream: S, host: &str, tls: &Tls, alpn: &[&[u8]]) -> Result<TlsStream<S>, EngineError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let name = ServerName::try_from(host.to_owned()).map_err(tls_error)?;
-    TlsConnector::from(config(tls)?).connect(name, stream).await.map_err(tls_error)
+    let mut config = config(tls)?;
+    if !alpn.is_empty() {
+        let mut own = (*config).clone();
+        own.alpn_protocols = alpn.iter().map(|protocol| protocol.to_vec()).collect();
+        config = Arc::new(own);
+    }
+    TlsConnector::from(config).connect(name, stream).await.map_err(tls_error)
 }
 
 #[cfg(test)]

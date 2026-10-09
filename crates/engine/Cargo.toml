@@ -10,6 +10,8 @@ base64 = "0.22"
 bytes = "1"
 cookie_store = { version = "0.22", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+h2 = "0.4"
+http = "1"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
