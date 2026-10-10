@@ -23,6 +23,7 @@ trash = "5"
 xc-codegen.workspace = true
 xc-core.workspace = true
 xc-engine.workspace = true
+xc-git.workspace = true
 xc-proto.workspace = true
 xc-runner.workspace = true
 xc-secrets = { workspace = true, features = ["keychain"] }

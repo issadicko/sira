@@ -18,6 +18,7 @@ use xc_sync::openapi::GroupBy;
 use xc_sync::sync::{self, Decisions, OpView, Plan, Report, SyncStatus};
 
 mod cookies;
+mod git;
 mod grpc;
 mod network;
 mod oauth;
@@ -798,6 +799,12 @@ pub fn run() {
             ws::ws_connect,
             ws::ws_send,
             ws::ws_close,
+            git::git_status,
+            git::git_init,
+            git::git_diff,
+            git::git_commit,
+            git::git_pull,
+            git::git_push,
             grpc::grpc_connect,
             grpc::grpc_send,
             grpc::grpc_finish,
