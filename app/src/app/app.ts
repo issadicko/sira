@@ -8,6 +8,7 @@ import { RunnerStore } from './core/runner-store';
 import { View, Workspace } from './core/store';
 import { SyncStore } from './core/sync-store';
 import { TreeStore } from './core/tree-store';
+import { GitStore } from './core/git-store';
 import { WsStore } from './core/ws-store';
 import { CollectionDialog } from './ui/collection-dialog';
 import { CodeDialog } from './ui/code-dialog';
@@ -30,6 +31,8 @@ import { Palette } from './ui/palette';
 import { RunnerSidebar } from './ui/runner-sidebar';
 import { RunnerView } from './ui/runner-view';
 import { SettingsView } from './ui/settings-view';
+import { GitSidebar } from './ui/git-sidebar';
+import { GitView } from './ui/git-view';
 import { SyncSidebar } from './ui/sync-sidebar';
 import { SyncView } from './ui/sync-view';
 import { Tree } from './ui/tree';
@@ -52,6 +55,8 @@ import { Welcome } from './ui/welcome';
     EnvMenu,
     EnvNameDialog,
     EnvSidebar,
+    GitSidebar,
+    GitView,
     SyncSidebar,
     SyncView,
     RunnerSidebar,
@@ -79,6 +84,7 @@ export class App {
   protected readonly tree = inject(TreeStore);
   protected readonly envs = inject(EnvStore);
   protected readonly runner = inject(RunnerStore);
+  protected readonly git = inject(GitStore);
   private readonly sockets = inject(WsStore);
   private readonly commands = inject(COMMANDS);
   protected readonly key = shortcutLabel;
@@ -140,6 +146,9 @@ export class App {
       { id: 'env.default', title: "Ouvrir l'environnement actif par défaut", group: 'Collection', icon: 'check', when: () => opened() && !!ws.env() && ws.collection()?.defaultEnvironment !== ws.env(), run: () => envs.setDefault(ws.env()) },
       { id: 'view.env', title: 'Gérer les environnements', group: 'Collection', icon: 'variable', when: opened, run: () => this.show('env') },
       { id: 'runner.open', title: 'Ouvrir le runner', group: 'Runner', icon: 'play', when: opened, run: () => runner.openFor(runner.scope()) },
+      { id: 'git.open', title: 'Ouvrir Source Control', group: 'Git', icon: 'branch', keys: 'mod+shift+g', when: opened, run: () => this.show('git') },
+      { id: 'git.pull', title: 'Git : récupérer (pull)', group: 'Git', icon: 'arrow-down', when: opened, run: () => this.git.pull() },
+      { id: 'git.push', title: 'Git : pousser (push)', group: 'Git', icon: 'arrow-up', when: opened, run: () => this.git.push() },
       { id: 'runner.run', title: 'Lancer le runner', group: 'Runner', icon: 'play', keys: 'mod+enter', when: () => opened() && ws.view() === 'runner' && !runner.running(), run: () => runner.run() },
       { id: 'runner.cancel', title: 'Annuler le run', group: 'Runner', icon: 'x-circle', keys: 'esc', when: () => ws.view() === 'runner' && runner.running(), run: () => runner.cancel() },
       { id: 'sync.run', title: 'Lancer la synchro OpenAPI', group: 'Synchro', icon: 'merge', when: opened, run: () => this.runSync() },
@@ -231,6 +240,7 @@ export class App {
     this.ws.view.set(view);
     this.ws.sidebar.set(true);
     if (view === 'sync') void this.sync.enter(reopened);
+    if (view === 'git') void this.git.refresh();
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -253,6 +263,7 @@ export class App {
   @HostListener('window:focus')
   protected onFocus() {
     void this.ws.rescan();
+    this.git.refreshSoon();
   }
 
   /** Dans la fenêtre native, le menu contextuel de la webview n'apparaît que sur les champs de saisie. */

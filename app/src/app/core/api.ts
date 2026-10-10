@@ -28,6 +28,9 @@ import {
   RunDone,
   RunEvent,
   SendResult,
+  GitCommitted,
+  GitDiff,
+  GitState,
   GrpcConnected,
   GrpcMethods,
   GrpcNotice,
@@ -135,6 +138,13 @@ export interface Api {
   wsSend(id: string, root: string, path: string, doc: RequestDoc, env: string | null, data: string): Promise<WsSent>;
   wsClose(id: string): Promise<void>;
   onWsEvent(handler: (notice: WsNotice) => void): Promise<() => void>;
+  gitStatus(root: string): Promise<GitState>;
+  gitInit(root: string): Promise<GitState>;
+  gitDiff(root: string, path: string): Promise<GitDiff>;
+  /** Valide `paths` (tout ce qui a changé quand la liste est vide), puis pousse si `push`. */
+  gitCommit(root: string, message: string, paths: string[], push: boolean): Promise<GitCommitted>;
+  gitPull(root: string): Promise<string>;
+  gitPush(root: string): Promise<string>;
   /** Ouvre l'appel gRPC `id` et envoie les messages du fichier ; réponses et statut arrivent par `onGrpcEvent`. */
   grpcConnect(id: string, root: string, path: string, doc: RequestDoc, env: string | null): Promise<GrpcConnected>;
   grpcSend(id: string, root: string, path: string, doc: RequestDoc, env: string | null, data: string): Promise<GrpcSent>;
@@ -244,6 +254,12 @@ const tauriApi: Api = {
     const { listen } = await import('@tauri-apps/api/event');
     return listen<WsNotice>('ws-event', (event) => handler(event.payload));
   },
+  gitStatus: (root) => invoke('git_status', { root }),
+  gitInit: (root) => invoke('git_init', { root }),
+  gitDiff: (root, path) => invoke('git_diff', { root, path }),
+  gitCommit: (root, message, paths, push) => invoke('git_commit', { args: { root, message, paths, push } }),
+  gitPull: (root) => invoke('git_pull', { root }),
+  gitPush: (root) => invoke('git_push', { root }),
   grpcConnect: (id, root, path, doc, env) => invoke('grpc_connect', { args: { id, root, path, doc, env } }),
   grpcSend: (id, root, path, doc, env, data) => invoke('grpc_send', { args: { id, root, path, doc, env, data } }),
   grpcFinish: (id) => invoke('grpc_finish', { id }),

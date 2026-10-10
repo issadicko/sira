@@ -406,6 +406,8 @@ input, textarea { caret-color: var(--accent); }
 .git-M { color: var(--info); }
 .git-A { color: var(--good); }
 .git-D { color: var(--bad); }
+.git-R { color: var(--accent); }
+.git-U { color: var(--warn); }
 
 .sb-section { border-top: 1px solid var(--line); flex-shrink: 0; }
 .sb-section-head {

@@ -670,3 +670,41 @@ export interface GeneratedCode {
   code: string;
   unresolved: string[];
 }
+
+/** Un fichier modifié de la collection tel que Git le voit. */
+export interface GitFile {
+  /** Relatif à la collection. */
+  path: string;
+  /** `M` modifié, `A` ajouté ou nouveau, `D` supprimé, `R` renommé, `U` en conflit. */
+  state: 'M' | 'A' | 'D' | 'R' | 'U';
+  staged: boolean;
+  untracked: boolean;
+  from: string | null;
+}
+
+/** L'état de la collection vue de Git ; `repo` est faux quand son dossier n'est dans aucun dépôt. */
+export interface GitState {
+  repo: boolean;
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  unborn: boolean;
+  files: GitFile[];
+}
+
+/** Les deux versions d'un fichier : au dernier commit et sur le disque. */
+export interface GitDiff {
+  path: string;
+  head: string | null;
+  work: string | null;
+  /** Binaire ou trop gros : aucun contenu. */
+  unreadable: string | null;
+}
+
+export interface GitCommitted {
+  id: string;
+  pushed: boolean;
+  /** Pourquoi le push a échoué alors que la validation a réussi. */
+  pushError: string | null;
+}
