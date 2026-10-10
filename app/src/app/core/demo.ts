@@ -3,6 +3,7 @@ import { DEMO_INTROSPECTION } from './demo-graphql';
 import { createDemoSync } from './demo-sync';
 import { createDemoEnvironments, demoKeychain, secretSlot } from './demo-env';
 import { createDemoRunner } from './demo-runner';
+import { createDemoGit } from './demo-git';
 import { createDemoGrpc } from './demo-grpc';
 import { createDemoWebSocket } from './demo-ws';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
@@ -401,6 +402,7 @@ export const demoApi: Api = {
   ...createDemoRunner(collections),
   ...createDemoWebSocket(),
   ...createDemoGrpc(),
+  ...createDemoGit(),
   ...demoSync,
   syncStatus: async (root) =>
     root === ROOT ? demoSync.syncStatus(root) : { connected: false, source: null, groupBy: null, operationCount: 0, removedCount: 0 },

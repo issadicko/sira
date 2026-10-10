@@ -42,7 +42,7 @@ export interface Discard {
   resolve: (accepted: boolean) => void;
 }
 
-export type View = 'collections' | 'env' | 'sync' | 'runner' | 'settings';
+export type View = 'collections' | 'env' | 'sync' | 'git' | 'runner' | 'settings';
 export type Theme = 'dark' | 'light';
 export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'bruno' | 'export' | 'code' | 'collection' | 'delete' | 'move' | 'env';
 
@@ -95,6 +95,8 @@ export class Workspace {
   readonly historyView = computed(() => forExistingRequests(this.history(), this.collection()?.items ?? []));
   readonly openFolders = signal<Set<string>>(new Set());
   readonly view = signal<View>('collections');
+  /** Augmente à chaque changement de fichier de la collection (disque ou enregistrement) : de quoi relire l'état Git. */
+  readonly diskTick = signal(0);
   readonly sidebar = signal(true);
   readonly stacked = signal(false);
   readonly filter = signal('');
@@ -372,6 +374,7 @@ export class Workspace {
 
   /** Traite les changements du disque (pull Git, éditeur externe) : une seule relecture à la fois, les lots reçus entre-temps sont réunis. */
   async onDiskChange(change: DiskChange) {
+    this.diskTick.update((n) => n + 1);
     this.diskPending = mergeChanges(this.diskPending, change);
     if (this.diskRunning) return;
     this.diskRunning = true;
@@ -656,6 +659,7 @@ export class Workspace {
         const before: RequestDoc = JSON.parse(current.saved);
         const listed = before.name !== current.doc.name || before.method !== current.doc.method || before.url !== current.doc.url;
         await api.saveRequest(c.root, path, current.doc);
+        this.diskTick.update((n) => n + 1);
         const written = await api.readRequest(c.root, path).catch(() => null);
         const saved = JSON.stringify(current.doc);
         this.patchTab(path, { saved, base: written ? JSON.stringify(written) : saved, stale: false });

@@ -78,6 +78,12 @@
             <span class="act-badge warn">{{ sync.conflictsLeft() }}</span>
           }
         </button>
+        <button class="act" [attr.aria-current]="ws.view() === 'git'" (click)="toggleView('git')" [title]="'Source Control (' + key('mod+shift+g') + ')'" [attr.aria-label]="'Source Control' + (git.count() ? ' (' + git.count() + ' modifications)' : '')">
+          <app-ic name="branch" [size]="20" />
+          @if (git.count() > 0) {
+            <span class="act-badge">{{ git.count() }}</span>
+          }
+        </button>
         <button class="act" [attr.aria-current]="ws.view() === 'runner'" (click)="toggleView('runner')" title="Runner" aria-label="Runner">
           <app-ic name="play" [size]="20" />
           @if (runner.running()) {
@@ -87,7 +93,7 @@
         <span class="act-spacer"></span>
         <button class="act" id="act-settings" [attr.aria-current]="ws.view() === 'settings'" (click)="toggleSettings()" [title]="'Réglages (' + key('mod+,') + ')'" aria-label="Réglages"><app-ic name="settings" [size]="19" /></button>
       </nav>
-      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : ws.view() === 'runner' ? 'Runner' : 'Collection'">
+      <aside class="island sidebar" [attr.aria-label]="ws.view() === 'env' ? 'Environnements' : ws.view() === 'sync' ? 'Synchro OpenAPI' : ws.view() === 'git' ? 'Source Control' : ws.view() === 'runner' ? 'Runner' : 'Collection'">
         @if (ws.view() === 'collections') {
           <div class="pane-head">
             <span class="pane-title" [title]="c.root">{{ c.name }}</span>
@@ -130,6 +136,8 @@
           }
         } @else if (ws.view() === 'sync') {
           @defer (on immediate) { <app-sync-sidebar /> }
+        } @else if (ws.view() === 'git') {
+          @defer (on immediate) { <app-git-sidebar /> }
         } @else if (ws.view() === 'env') {
           @defer (on immediate) { <app-env-sidebar /> }
         } @else if (ws.view() === 'runner') {
@@ -142,6 +150,8 @@
           @defer (on immediate) { <app-env-view /> }
         } @else if (ws.view() === 'sync') {
           @defer (on immediate) { <app-sync-view /> }
+        } @else if (ws.view() === 'git') {
+          @defer (on immediate) { <app-git-view /> }
         } @else if (ws.view() === 'runner') {
           @defer (on immediate) { <app-runner-view /> }
         } @else if (ws.view() === 'settings') {
@@ -167,6 +177,11 @@
     @if (ws.collection(); as c) {
       <span class="sb-item" [title]="c.root"><app-ic name="disk" [size]="13" />{{ c.requestCount }} requête(s) sur le disque</span>
       <span class="sb-item">OpenCollection YAML</span>
+      @if (git.state(); as g) {
+        @if (g.repo) {
+          <button class="sb-item" (click)="toggleView('git')" title="Ouvrir Source Control"><app-ic name="branch" [size]="13" />{{ g.branch ?? 'tête détachée' }}@if (g.ahead) { <span class="faint">↑{{ g.ahead }}</span> }@if (g.behind) { <span class="faint">↓{{ g.behind }}</span> }@if (g.files.length) { · {{ g.files.length }} modification{{ g.files.length > 1 ? 's' : '' }} }</button>
+        }
+      }
       @if (sync.connected() || sync.plan() || sync.synced()) {
         @let spec = sync.specStatus();
         <button class="sb-item" [class.warn]="spec.tone === 'warn'" [class.good]="spec.tone === 'good'" (click)="openSync()" title="Ouvrir la synchro OpenAPI">
