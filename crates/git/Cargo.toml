@@ -1,0 +1,19 @@
+[package]
+name = "xc-git"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+gix = { version = "0.89", default-features = false, features = ["sha1"] }
+serde.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true
