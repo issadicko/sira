@@ -7213,6 +7213,7 @@ dependencies = [
  "xc-codegen",
  "xc-core",
  "xc-engine",
+ "xc-git",
  "xc-proto",
  "xc-runner",
  "xc-secrets",
