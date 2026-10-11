@@ -3,6 +3,7 @@ mod cookies;
 pub mod digest;
 mod grpc;
 mod network;
+pub mod ntlm;
 mod proxy;
 mod redirect;
 mod time;
@@ -119,6 +120,34 @@ impl Timings {
 
 /// Envoie la requête et suit les redirections que `request.network` demande. Le délai s'applique à chaque saut.
 pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
+    send_impl(request, None).await
+}
+
+/// Les identifiants d'une authentification NTLM ; `domain` et `workstation` peuvent être vides.
+#[derive(Clone, PartialEq, Eq)]
+pub struct NtlmCredentials {
+    pub username: String,
+    pub password: String,
+    pub domain: String,
+    pub workstation: String,
+}
+
+impl std::fmt::Debug for NtlmCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NtlmCredentials")
+            .field("username", &self.username)
+            .field("domain", &self.domain)
+            .finish_non_exhaustive()
+    }
+}
+
+/// [`send`] avec une authentification NTLM : l'échange (négociation, défi, authentification) se fait sur une seule
+/// connexion, à chaque saut, comme NTLM l'exige.
+pub async fn send_ntlm(request: HttpRequest, credentials: &NtlmCredentials) -> Result<HttpResponse, EngineError> {
+    send_impl(request, Some(credentials)).await
+}
+
+async fn send_impl(request: HttpRequest, ntlm: Option<&NtlmCredentials>) -> Result<HttpResponse, EngineError> {
     let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
     let mut hop =
         Hop { method: request.method.clone(), url, headers: request.headers.clone(), body: request.body.clone() };
@@ -139,7 +168,7 @@ pub async fn send(request: HttpRequest) -> Result<HttpResponse, EngineError> {
             ..request.clone()
         };
         let timeout = request.timeout;
-        let mut response = tokio::time::timeout(timeout, send_hop(sent))
+        let mut response = tokio::time::timeout(timeout, send_hop(sent, ntlm))
             .await
             .map_err(|_| EngineError::Timeout(timeout.as_millis()))??;
         timings.add(&response.timings);
@@ -231,7 +260,7 @@ pub(crate) async fn dial_alpn(
     Ok(Dialed { stream, addr, forward, timings })
 }
 
-async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
+async fn send_hop(request: HttpRequest, ntlm: Option<&NtlmCredentials>) -> Result<HttpResponse, EngineError> {
     let start = Instant::now();
     let url = Url::parse(&request.url).map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
     let secure = match url.scheme() {
@@ -240,7 +269,7 @@ async fn send_hop(request: HttpRequest) -> Result<HttpResponse, EngineError> {
         other => return Err(EngineError::UnsupportedScheme(other.to_owned())),
     };
     let Dialed { stream, addr, forward, mut timings } = dial(&url, secure, false, &request.network).await?;
-    let response = exchange(stream, &url, forward.as_ref(), request, &mut timings).await?;
+    let response = exchange(stream, &url, forward.as_ref(), request, &mut timings, ntlm).await?;
     timings.total_ms = ms(start.elapsed());
     Ok(HttpResponse { remote_addr: addr.to_string(), timings, ..response })
 }
@@ -280,6 +309,7 @@ async fn exchange<S>(
     forward: Option<&Proxy>,
     request: HttpRequest,
     timings: &mut Timings,
+    ntlm: Option<&NtlmCredentials>,
 ) -> Result<HttpResponse, EngineError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -288,7 +318,83 @@ where
     let (mut sender, connection) =
         hyper::client::conn::http1::handshake(TokioIo::new(stream)).await.map_err(http_err)?;
     tokio::spawn(connection);
+    match ntlm {
+        Some(credentials) => ntlm_exchange(&mut sender, url, forward, request, timings, credentials).await,
+        None => roundtrip(&mut sender, url, forward, request, timings).await,
+    }
+}
 
+fn now_millis() -> u64 {
+    let since = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    u64::try_from(since.as_millis()).unwrap_or(u64::MAX)
+}
+
+fn with_authorization(mut request: HttpRequest, value: String) -> HttpRequest {
+    request.headers.retain(|(k, _)| !k.eq_ignore_ascii_case("authorization"));
+    request.headers.push(("Authorization".into(), value));
+    request
+}
+
+/// L'échange NTLM sur la connexion `sender` : négociation sans corps, défi du serveur, puis la requête entière avec la
+/// réponse au défi. Un serveur qui ne demande pas NTLM (autre statut que 401, ou aucun défi NTLM) a sa réponse rendue telle
+/// quelle.
+async fn ntlm_exchange(
+    sender: &mut hyper::client::conn::http1::SendRequest<Full<Bytes>>,
+    url: &Url,
+    forward: Option<&Proxy>,
+    request: HttpRequest,
+    timings: &mut Timings,
+    credentials: &NtlmCredentials,
+) -> Result<HttpResponse, EngineError> {
+    use base64::Engine as _;
+    use ring::rand::SecureRandom;
+    let b64 = base64::engine::general_purpose::STANDARD;
+
+    let negotiate = HttpRequest {
+        body: None,
+        ..with_authorization(request.clone(), format!("NTLM {}", b64.encode(ntlm::negotiate())))
+    };
+    let first = roundtrip(sender, url, forward, negotiate, timings).await?;
+    let token = (first.status == 401)
+        .then(|| {
+            first
+                .headers
+                .iter()
+                .filter(|(k, _)| k.eq_ignore_ascii_case("www-authenticate"))
+                .find_map(|(_, v)| ntlm::token_of(v).filter(|t| !t.is_empty()).map(str::to_owned))
+        })
+        .flatten();
+    let Some(token) = token else { return Ok(first) };
+    let challenge = b64
+        .decode(token.as_bytes())
+        .ok()
+        .and_then(|bytes| ntlm::parse_challenge(&bytes))
+        .ok_or_else(|| EngineError::Http("défi NTLM illisible dans la réponse du serveur".into()))?;
+    let mut client_challenge = [0u8; 8];
+    ring::rand::SystemRandom::new()
+        .fill(&mut client_challenge)
+        .map_err(|_| EngineError::Http("aucun nombre aléatoire disponible pour NTLM".into()))?;
+    let message = ntlm::authenticate(
+        &challenge,
+        &credentials.username,
+        &credentials.password,
+        &credentials.domain,
+        &credentials.workstation,
+        client_challenge,
+        now_millis(),
+    );
+    let authenticated = with_authorization(request, format!("NTLM {}", b64.encode(message)));
+    roundtrip(sender, url, forward, authenticated, timings).await
+}
+
+async fn roundtrip(
+    sender: &mut hyper::client::conn::http1::SendRequest<Full<Bytes>>,
+    url: &Url,
+    forward: Option<&Proxy>,
+    request: HttpRequest,
+    timings: &mut Timings,
+) -> Result<HttpResponse, EngineError> {
+    let http_err = |e: hyper::Error| EngineError::Http(e.to_string());
     let method = hyper::Method::from_bytes(request.method.as_bytes())
         .map_err(|_| EngineError::InvalidMethod(request.method.clone()))?;
     let target = match (forward, url.query()) {
