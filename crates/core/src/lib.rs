@@ -24,8 +24,8 @@ pub use network::{
 };
 pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, PreparedMessage, SendAuth};
 pub use request::{
-    Assertion, Auth, Body, GrpcMessage, KeyValue, MultipartField, MultipartValue, Param, ParamKind, PostVariable,
-    RequestDoc, WsMessage,
+    Assertion, Auth, Body, GrpcMessage, KeyValue, MultipartField, MultipartValue, OAuth1, Param, ParamKind,
+    PostVariable, PrivateKey, RequestDoc, WsMessage,
 };
 
 #[derive(Debug, thiserror::Error)]

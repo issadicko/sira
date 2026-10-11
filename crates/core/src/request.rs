@@ -127,6 +127,12 @@ pub enum Auth {
         password: String,
     },
     Oauth2(Box<crate::oauth2::OAuth2>),
+    Ntlm {
+        username: String,
+        password: String,
+        domain: String,
+    },
+    Oauth1(Box<OAuth1>),
     /// AWS Signature V4 ; un champ vide est absent du fichier.
     Awsv4 {
         access_key_id: String,
@@ -142,6 +148,37 @@ pub enum Auth {
         #[serde(default)]
         config: String,
     },
+}
+
+/// La clé privée d'une signature OAuth 1.0 `RSA-*` : un fichier PEM (chemin relatif à la collection) ou le PEM lui-même.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrivateKey {
+    /// `file` ou `text` ; vide : aucune clé.
+    pub kind: String,
+    pub value: String,
+}
+
+/// OAuth 1.0 (RFC 5849) tel que le fichier le décrit : `auth` de type `oauth1`. Un champ vide est absent du fichier.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OAuth1 {
+    pub consumer_key: String,
+    pub consumer_secret: String,
+    pub access_token: String,
+    pub access_token_secret: String,
+    pub callback_url: String,
+    pub verifier: String,
+    /// `HMAC-SHA1` quand vide.
+    pub signature_method: String,
+    pub private_key: PrivateKey,
+    pub timestamp: String,
+    pub nonce: String,
+    pub version: String,
+    pub realm: String,
+    /// `header` (quand vide), `query` ou `body`.
+    pub placement: String,
+    pub include_body_hash: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -487,6 +524,8 @@ fn auth_of(m: &Map) -> Auth {
         },
         "oauth2" => Auth::Oauth2(Box::new(crate::oauth2::read(m))),
         "digest" => Auth::Digest { username: field("username"), password: field("password") },
+        "ntlm" => Auth::Ntlm { username: field("username"), password: field("password"), domain: field("domain") },
+        "oauth1" => Auth::Oauth1(Box::new(oauth1_of(m))),
         "awsv4" => Auth::Awsv4 {
             access_key_id: field("accessKeyId"),
             secret_access_key: field("secretAccessKey"),
@@ -498,6 +537,69 @@ fn auth_of(m: &Map) -> Auth {
         "inherit" => Auth::Inherit,
         other => Auth::Other { label: other.into(), config: canonical(m) },
     }
+}
+
+fn oauth1_of(m: &Map) -> OAuth1 {
+    let field = |k: &str| text(m.get(k));
+    let key = m.map("privateKey");
+    OAuth1 {
+        consumer_key: field("consumerKey"),
+        consumer_secret: field("consumerSecret"),
+        access_token: field("accessToken"),
+        access_token_secret: field("accessTokenSecret"),
+        callback_url: field("callbackUrl"),
+        verifier: field("verifier"),
+        signature_method: field("signatureMethod"),
+        private_key: PrivateKey {
+            kind: key.and_then(|k| k.str("type")).unwrap_or_default().to_owned(),
+            value: key.map(|k| text(k.get("value"))).unwrap_or_default(),
+        },
+        timestamp: field("timestamp"),
+        nonce: field("nonce"),
+        version: field("version"),
+        realm: field("realm"),
+        placement: field("placement"),
+        include_body_hash: m.get("includeBodyHash").is_some_and(Value::is_true),
+    }
+}
+
+fn oauth1_table(config: &OAuth1) -> Map {
+    let mut fields = vec![("type", Value::str("oauth1"))];
+    for (key, value) in [
+        ("consumerKey", &config.consumer_key),
+        ("consumerSecret", &config.consumer_secret),
+        ("accessToken", &config.access_token),
+        ("accessTokenSecret", &config.access_token_secret),
+        ("callbackUrl", &config.callback_url),
+        ("verifier", &config.verifier),
+        ("signatureMethod", &config.signature_method),
+    ] {
+        if !value.is_empty() {
+            fields.push((key, Value::str(value)));
+        }
+    }
+    if !config.private_key.value.is_empty() {
+        let kind = if config.private_key.kind == "file" { "file" } else { "text" };
+        fields.push((
+            "privateKey",
+            Value::Map(table(vec![("type", Value::str(kind)), ("value", Value::str(&config.private_key.value))])),
+        ));
+    }
+    for (key, value) in [
+        ("timestamp", &config.timestamp),
+        ("nonce", &config.nonce),
+        ("version", &config.version),
+        ("realm", &config.realm),
+        ("placement", &config.placement),
+    ] {
+        if !value.is_empty() {
+            fields.push((key, Value::str(value)));
+        }
+    }
+    if config.include_body_hash {
+        fields.push(("includeBodyHash", Value::Bool(true)));
+    }
+    table(fields)
 }
 
 fn body_of(b: &Map) -> Body {
@@ -905,6 +1007,19 @@ const AUTH_ORDER: &[&str] = &[
     "token",
     "username",
     "password",
+    "domain",
+    "consumerKey",
+    "consumerSecret",
+    "accessToken",
+    "accessTokenSecret",
+    "verifier",
+    "signatureMethod",
+    "privateKey",
+    "timestamp",
+    "nonce",
+    "version",
+    "realm",
+    "includeBodyHash",
     "key",
     "value",
     "placement",
@@ -1008,6 +1123,13 @@ fn auth_table(auth: &Auth) -> Option<Map> {
             ("username", Value::str(username)),
             ("password", Value::str(password)),
         ]),
+        Auth::Ntlm { username, password, domain } => table(vec![
+            ("type", Value::str("ntlm")),
+            ("username", Value::str(username)),
+            ("password", Value::str(password)),
+            ("domain", Value::str(domain)),
+        ]),
+        Auth::Oauth1(config) => oauth1_table(config),
         Auth::Awsv4 { access_key_id, secret_access_key, session_token, service, region, profile_name } => table(vec![
             ("type", Value::str("awsv4")),
             ("accessKeyId", Value::str(access_key_id)),

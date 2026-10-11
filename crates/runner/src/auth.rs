@@ -1,4 +1,4 @@
-//! L'auth au moment de l'envoi : signature AWS, défi Digest. Ce que `prepare` ne peut pas faire seul, parce que cela
+//! L'auth au moment de l'envoi : signature AWS, signature OAuth 1.0, défi Digest, échange NTLM. Ce que `prepare` ne peut pas faire seul, parce que cela
 //! dépend de la requête finale ou de la réponse du serveur.
 
 use std::path::PathBuf;
@@ -8,6 +8,8 @@ use url::Url;
 use xc_core::{AwsSettings, SendAuth};
 use xc_engine::aws::{self, AwsCredentials};
 use xc_engine::digest;
+use xc_engine::oauth1;
+use xc_engine::NtlmCredentials;
 use xc_engine::{HttpRequest, HttpResponse};
 
 use crate::oauth2;
@@ -24,6 +26,20 @@ pub(crate) async fn send(mut request: HttpRequest, auth: &SendAuth, session: &mu
         SendAuth::None => {}
         SendAuth::Aws(settings) => sign(&mut request, settings)?,
         SendAuth::Digest { username, password } => return digest_send(request, username, password).await,
+        SendAuth::Ntlm { username, password, domain } => {
+            let credentials = NtlmCredentials {
+                username: username.clone(),
+                password: password.clone(),
+                domain: domain.clone(),
+                workstation: workstation(),
+            };
+            let headers = request.headers.clone();
+            let response = xc_engine::send_ntlm(request, &credentials).await.map_err(|e| e.to_string())?;
+            return Ok(Sent { response, headers });
+        }
+        SendAuth::Oauth1(config) => {
+            oauth1::sign(&mut request, config, now_millis() / 1000, &oauth1::nonce()).map_err(|e| e.to_string())?;
+        }
         SendAuth::Oauth2(config) => {
             let token =
                 oauth2::token_for(config, &mut session.tokens, session.authorizer.as_ref(), &request.network).await?;
@@ -35,6 +51,11 @@ pub(crate) async fn send(mut request: HttpRequest, auth: &SendAuth, session: &mu
     let headers = request.headers.clone();
     let response = xc_engine::send(request).await.map_err(|e| e.to_string())?;
     Ok(Sent { response, headers })
+}
+
+/// Le nom du poste que NTLM annonce : celui de la machine quand le système le donne, sinon rien.
+fn workstation() -> String {
+    ["COMPUTERNAME", "HOSTNAME"].iter().find_map(|name| std::env::var(name).ok()).unwrap_or_default().to_uppercase()
 }
 
 fn now_millis() -> u64 {
