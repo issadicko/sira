@@ -131,7 +131,7 @@ fn ef_req_01_lowercase_method_is_read_uppercase_and_left_untouched_on_save() {
     assert!(written.contains("method: get\n"), "{written}");
 }
 
-const NTLM: &str = "info:\n  name: Token\n  type: http\n\nhttp:\n  method: GET\n  url: https://x.test\n  auth:\n    type: ntlm\n    username: u\n    password: p\n    domain: corp\n";
+const WSSE: &str = "info:\n  name: Token\n  type: http\n\nhttp:\n  method: GET\n  url: https://x.test\n  auth:\n    type: wsse\n    username: u\n    password: p\n    domain: corp\n";
 
 fn auth_of(text: &str) -> Auth {
     RequestDoc::from_tree(&tree(text)).auth
@@ -139,18 +139,18 @@ fn auth_of(text: &str) -> Auth {
 
 #[test]
 fn ef_req_01_an_auth_of_an_untyped_kind_carries_its_whole_configuration() {
-    let reordered = "info:\n  name: Token\n  type: http\n\nhttp:\n  method: GET\n  url: https://x.test\n  auth:\n    domain: corp\n    password: p\n    type: ntlm\n    username: u\n";
-    assert_eq!(auth_of(NTLM), auth_of(reordered), "l'ordre des clés ne compte pas");
-    let Auth::Other { label, config } = auth_of(NTLM) else { panic!("ntlm n'est pas détaillé") };
-    assert_eq!(label, "ntlm");
+    let reordered = "info:\n  name: Token\n  type: http\n\nhttp:\n  method: GET\n  url: https://x.test\n  auth:\n    domain: corp\n    password: p\n    type: wsse\n    username: u\n";
+    assert_eq!(auth_of(WSSE), auth_of(reordered), "l'ordre des clés ne compte pas");
+    let Auth::Other { label, config } = auth_of(WSSE) else { panic!("wsse n'est pas détaillé") };
+    assert_eq!(label, "wsse");
     assert_eq!(config, "domain: corp\npassword: p\nusername: u", "clés triées, sans le type");
     for (from, to) in [("username: u", "username: other"), ("domain: corp", "domain: home"), ("    domain: corp\n", "")]
     {
-        assert_ne!(auth_of(NTLM), auth_of(&NTLM.replace(from, to)), "{from} -> {to}");
+        assert_ne!(auth_of(WSSE), auth_of(&WSSE.replace(from, to)), "{from} -> {to}");
     }
-    assert_ne!(auth_of(NTLM), auth_of(&NTLM.replace("ntlm", "wsse")));
-    let bare = NTLM.replace("    username: u\n    password: p\n    domain: corp\n", "");
-    assert_eq!(auth_of(&bare), Auth::Other { label: "ntlm".into(), config: String::new() });
+    assert_ne!(auth_of(WSSE), auth_of(&WSSE.replace("wsse", "ntlm")));
+    let bare = WSSE.replace("    username: u\n    password: p\n    domain: corp\n", "");
+    assert_eq!(auth_of(&bare), Auth::Other { label: "wsse".into(), config: String::new() });
 }
 
 #[test]
@@ -167,19 +167,19 @@ fn ef_req_01_a_body_of_an_untyped_kind_carries_its_whole_configuration() {
 
 #[test]
 fn ef_req_01_the_json_of_an_untyped_auth_keeps_the_interface_contract() {
-    let doc = RequestDoc::from_tree(&tree(NTLM));
+    let doc = RequestDoc::from_tree(&tree(WSSE));
     let json = serde_json::to_value(&doc.auth).unwrap();
-    assert_eq!((json["type"].as_str(), json["label"].as_str()), (Some("other"), Some("ntlm")));
+    assert_eq!((json["type"].as_str(), json["label"].as_str()), (Some("other"), Some("wsse")));
     assert!(json["config"].as_str().is_some_and(|config| config.contains("username: u")), "{json}");
-    let without_config: Auth = serde_json::from_value(serde_json::json!({"type": "other", "label": "ntlm"})).unwrap();
-    assert_eq!(without_config, Auth::Other { label: "ntlm".into(), config: String::new() });
+    let without_config: Auth = serde_json::from_value(serde_json::json!({"type": "other", "label": "wsse"})).unwrap();
+    assert_eq!(without_config, Auth::Other { label: "wsse".into(), config: String::new() });
     let roundtrip: RequestDoc = serde_json::from_value(serde_json::to_value(&doc).unwrap()).unwrap();
     assert_eq!(roundtrip, doc);
 }
 
 #[test]
 fn ef_req_02_saving_an_untyped_auth_or_body_changes_nothing_in_the_file() {
-    let mut root = tree(NTLM);
+    let mut root = tree(WSSE);
     let before = RequestDoc::from_tree(&root);
     let mut edited = before.clone();
     edited.url = "https://x.test/other".into();
@@ -188,10 +188,10 @@ fn ef_req_02_saving_an_untyped_auth_or_body_changes_nothing_in_the_file() {
     assert!(written.contains("url: https://x.test/other") && written.contains("password: p"), "{written}");
 
     let mut stripped = before.clone();
-    stripped.auth = Auth::Other { label: "ntlm".into(), config: String::new() };
-    let mut root = tree(NTLM);
+    stripped.auth = Auth::Other { label: "wsse".into(), config: String::new() };
+    let mut root = tree(WSSE);
     stripped.apply(&mut root, &before);
-    assert_eq!(yaml::emit(&Value::Map(root), BLANK_BEFORE), NTLM, "une auth sans config ne réécrit pas l'existante");
+    assert_eq!(yaml::emit(&Value::Map(root), BLANK_BEFORE), WSSE, "une auth sans config ne réécrit pas l'existante");
 }
 
 const RICH: &str = "info:

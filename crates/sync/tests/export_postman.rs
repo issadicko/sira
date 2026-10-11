@@ -202,7 +202,13 @@ fn ef_imp_03_authentications_use_the_postman_key_lists() {
         write(root, "a.yml", &http("Aws", 3, "GET", "https://x.test", "  auth:\n    type: awsv4\n    accessKeyId: AK\n    secretAccessKey: SK\n    service: s3\n    region: eu-west-1\n"));
         write(root, "n.yml", &http("None", 4, "GET", "https://x.test", "  auth: none\n"));
         write(root, "o.yml", &http("OAuth", 5, "GET", "https://x.test", "  auth:\n    type: oauth2\n    flow: authorization_code\n    pkce: {}\n    authorizationUrl: https://a.test/auth\n    accessTokenUrl: https://a.test/token\n    clientId: id\n    scope: read\n    tokenConfig:\n      id: cred\n"));
-        write(root, "w.yml", &http("Ntlm", 6, "GET", "https://x.test", "  auth:\n    type: ntlm\n    username: u\n"));
+        write(root, "w.yml", &http("Wsse", 6, "GET", "https://x.test", "  auth:\n    type: wsse\n    username: u\n"));
+        write(root, "x.yml", &http("Ntlm", 7, "GET", "https://x.test", "  auth:\n    type: ntlm\n    username: u\n"));
+        write(
+            root,
+            "y.yml",
+            &http("Oauth1", 8, "GET", "https://x.test", "  auth:\n    type: oauth1\n    consumerKey: ck\n"),
+        );
     });
 
     let auth = |i: usize| json["item"][i]["request"]["auth"].clone();
@@ -221,7 +227,10 @@ fn ef_imp_03_authentications_use_the_postman_key_lists() {
     assert_eq!(value("addTokenTo"), Some(json!("header")));
     assert_eq!(value("refreshTokenUrl"), None, "un champ vide n'est pas exporté");
     assert_eq!(auth(5), json!({ "type": "noauth" }));
-    assert!(issues.iter().any(|i| i.contains("Ntlm") && i.contains("ntlm")), "{issues:?}");
+    assert!(issues.iter().any(|i| i.contains("Wsse") && i.contains("wsse")), "{issues:?}");
+    assert_eq!((auth(6), auth(7)), (json!({ "type": "noauth" }), json!({ "type": "noauth" })));
+    assert!(issues.iter().any(|i| i.contains("Ntlm") && i.contains("NTLM")), "{issues:?}");
+    assert!(issues.iter().any(|i| i.contains("Oauth1") && i.contains("OAuth 1.0")), "{issues:?}");
 }
 
 #[test]
