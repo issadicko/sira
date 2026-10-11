@@ -135,7 +135,7 @@ fn ef_aut_03_the_oauth1_private_key_is_read_from_text_or_from_a_file_and_a_missi
     assert_eq!(key_of(prepare(oauth("      type: file\n      value: cles/oauth.pem\n")).unwrap()), "PEM-DU-FICHIER\n");
     let absolute = dir.path().join("cles/oauth.pem").display().to_string();
     assert_eq!(
-        key_of(prepare(oauth(&format!("      type: file\n      value: \"{absolute}\"\n"))).unwrap()),
+        key_of(prepare(oauth(&format!("      type: file\n      value: '{absolute}'\n"))).unwrap()),
         "PEM-DU-FICHIER\n"
     );
 
