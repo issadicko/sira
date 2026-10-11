@@ -258,6 +258,18 @@ fn show_auth(auth: &Auth) -> Option<String> {
         Auth::Digest { username, .. } => format!("digest : {username}"),
         Auth::Awsv4 { access_key_id, region, service, .. } => format!("awsv4 : {access_key_id} ({service} {region})"),
         Auth::Oauth2(config) => show_other("oauth2", &xc_core::oauth2::canonical(config)),
+        Auth::Ntlm { username, domain, .. } => {
+            format!("ntlm : {}", if domain.is_empty() { username.clone() } else { format!("{domain}\\{username}") })
+        }
+        Auth::Oauth1(config) => {
+            let method =
+                if config.signature_method.is_empty() { "HMAC-SHA1" } else { config.signature_method.as_str() };
+            format!(
+                "oauth1 : {} ({method}, {})",
+                config.consumer_key,
+                if config.placement.is_empty() { "header" } else { &config.placement }
+            )
+        }
         Auth::Other { label, config } => show_other(label, config),
     })
 }

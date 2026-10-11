@@ -411,6 +411,11 @@ impl<'a> Export<'a> {
                 let base = format!("oauth2{}{}", key[..1].to_uppercase(), &key[1..]);
                 (base, json!({ "type": "oauth2", "flows": { key: flow } }), scopes)
             }
+            Auth::Ntlm { .. } | Auth::Oauth1(_) => {
+                let label = if matches!(auth, Auth::Ntlm { .. }) { "NTLM" } else { "OAuth 1.0" };
+                self.issues.push(format!("{at} : authentification {label} non exportée (OpenAPI ne la décrit pas)"));
+                return None;
+            }
             Auth::Other { label, .. } => {
                 self.issues.push(format!("{at} : authentification {label} non exportée"));
                 return None;

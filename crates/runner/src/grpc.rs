@@ -37,6 +37,8 @@ fn auth_name(auth: &SendAuth) -> Option<&'static str> {
         SendAuth::Digest { .. } => Some("Digest"),
         SendAuth::Aws(_) => Some("AWS Signature V4"),
         SendAuth::Oauth2(_) => Some("OAuth 2.0"),
+        SendAuth::Ntlm { .. } => Some("NTLM"),
+        SendAuth::Oauth1(_) => Some("OAuth 1.0"),
     }
 }
 

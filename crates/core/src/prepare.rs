@@ -50,6 +50,14 @@ pub enum SendAuth {
         password: String,
     },
     Aws(AwsSettings),
+    /// NTLM : la négociation se fait sur une seule connexion, à l'envoi.
+    Ntlm {
+        username: String,
+        password: String,
+        domain: String,
+    },
+    /// OAuth 1.0, champs résolus (clé privée lue) : la signature dépend de la requête finale.
+    Oauth1(Box<xc_engine::oauth1::Oauth1>),
     /// OAuth 2.0, champs résolus : le jeton s'obtient (ou se rafraîchit) avant l'envoi.
     Oauth2(Box<OAuth2>),
 }
@@ -175,6 +183,10 @@ pub fn prepare_with(
             send_auth = SendAuth::Digest { username: fill(&username), password: fill(&password) };
         }
         Auth::Oauth2(config) => send_auth = SendAuth::Oauth2(Box::new(config.resolved(&mut fill))),
+        Auth::Ntlm { username, password, domain } => {
+            send_auth = SendAuth::Ntlm { username: fill(&username), password: fill(&password), domain: fill(&domain) };
+        }
+        Auth::Oauth1(config) => send_auth = SendAuth::Oauth1(Box::new(oauth1_settings(root, &config, &mut fill)?)),
         Auth::Awsv4 { access_key_id, secret_access_key, session_token, service, region, profile_name } => {
             send_auth = SendAuth::Aws(AwsSettings {
                 access_key_id: fill(&access_key_id),
@@ -350,9 +362,54 @@ pub fn snippet(
             );
             SnippetAuth::None
         }
+        SendAuth::Ntlm { .. } => {
+            notes.push("NTLM : l'échange (négociation, défi, authentification) se fait sur une seule connexion ; utilise un client qui le gère (par exemple `curl --ntlm -u domaine\\utilisateur:mot-de-passe`).".to_owned());
+            SnippetAuth::None
+        }
+        SendAuth::Oauth1(_) => {
+            notes.push("OAuth 1.0 : l'en-tête Authorization est signé à l'envoi (horodatage et nonce changent à chaque requête) ; signe la requête avec une bibliothèque OAuth 1.0.".to_owned());
+            SnippetAuth::None
+        }
     };
     unresolved.dedup();
     Ok((Snippet { method: request.method, url: request.url, headers, body, auth, notes }, unresolved))
+}
+
+/// La clé privée d'une signature OAuth 1.0 : le PEM écrit dans le fichier, ou le contenu du fichier désigné (chemin absolu, ou
+/// relatif à la collection).
+fn oauth1_settings(
+    root: &Path,
+    config: &crate::request::OAuth1,
+    fill: &mut dyn FnMut(&str) -> String,
+) -> Result<xc_engine::oauth1::Oauth1, CoreError> {
+    let value = fill(&config.private_key.value);
+    let private_key = match (config.private_key.kind.as_str(), value.trim()) {
+        (_, "") => String::new(),
+        ("file", path) => {
+            let path = if Path::new(path).is_absolute() { Path::new(path).to_path_buf() } else { root.join(path) };
+            fs::read_to_string(&path).map_err(|e| CoreError::Io {
+                path: path.display().to_string(),
+                message: format!("clé privée OAuth 1.0 illisible : {}", crate::io_message(&e)),
+            })?
+        }
+        _ => value,
+    };
+    Ok(xc_engine::oauth1::Oauth1 {
+        consumer_key: fill(&config.consumer_key),
+        consumer_secret: fill(&config.consumer_secret),
+        access_token: fill(&config.access_token),
+        access_token_secret: fill(&config.access_token_secret),
+        callback_url: fill(&config.callback_url),
+        verifier: fill(&config.verifier),
+        signature_method: fill(&config.signature_method),
+        private_key,
+        timestamp: fill(&config.timestamp),
+        nonce: fill(&config.nonce),
+        version: fill(&config.version),
+        realm: fill(&config.realm),
+        placement: fill(&config.placement),
+        include_body_hash: config.include_body_hash,
+    })
 }
 
 fn effective_auth(doc: &RequestDoc, ctx: &Context) -> Auth {

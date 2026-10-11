@@ -12,6 +12,8 @@ fn auth_mode(auth: &Auth) -> &'static str {
         Auth::Digest { .. } => "digest",
         Auth::Awsv4 { .. } => "awsv4",
         Auth::Oauth2(_) => "oauth2",
+        Auth::Ntlm { .. } => "ntlm",
+        Auth::Oauth1(_) => "oauth1",
         Auth::Inherit | Auth::None | Auth::Other { .. } => "none",
     }
 }

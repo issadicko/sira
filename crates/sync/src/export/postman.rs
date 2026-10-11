@@ -345,6 +345,11 @@ fn authentication(auth: &Auth, collection: bool, issues: &mut Vec<String>, at: &
         })),
         Auth::Oauth2(config) => Some(oauth2(config)),
         Auth::None => (!collection).then(|| json!({ "type": "noauth" })),
+        Auth::Ntlm { .. } | Auth::Oauth1(_) => {
+            let label = if matches!(auth, Auth::Ntlm { .. }) { "NTLM" } else { "OAuth 1.0" };
+            issues.push(format!("{at} : authentification {label} non exportée"));
+            (!collection).then(|| json!({ "type": "noauth" }))
+        }
         Auth::Other { label, .. } => {
             issues.push(format!("{at} : authentification {label} non exportée"));
             (!collection).then(|| json!({ "type": "noauth" }))
