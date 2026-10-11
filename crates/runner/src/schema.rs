@@ -22,20 +22,44 @@ pub fn schema_url(source: &SchemaSource<'_>, session: &Session) -> Result<String
     Ok(prepare(source, session)?.request.url)
 }
 
-fn prepare(source: &SchemaSource<'_>, session: &Session) -> Result<xc_core::Prepared, String> {
+fn introspection_doc(source: &SchemaSource<'_>) -> xc_core::RequestDoc {
     let mut doc = source.doc.clone();
     doc.request_type = "graphql".into();
     doc.method = "POST".into();
     doc.body = graphql::introspection();
     doc.timeout_ms = doc.timeout_ms.or(Some(INTROSPECTION_TIMEOUT_MS));
+    doc
+}
+
+fn prepare(source: &SchemaSource<'_>, session: &Session) -> Result<xc_core::Prepared, String> {
     let overrides = session.request_overrides(None, source.env);
-    prepare_with(source.root, source.path, &doc, source.env, &session.runtime_strings(), overrides)
-        .map_err(|e| e.to_string())
+    prepare_with(
+        source.root,
+        source.path,
+        &introspection_doc(source),
+        source.env,
+        &session.runtime_strings(),
+        overrides,
+    )
+    .map_err(|e| e.to_string())
+}
+
+async fn prepare_vault(source: &SchemaSource<'_>, session: &Session) -> Result<xc_core::Prepared, String> {
+    let overrides = session.request_overrides(None, source.env);
+    crate::vault::prepare_with_vault(
+        source.root,
+        source.path,
+        &introspection_doc(source),
+        source.env,
+        session,
+        overrides,
+    )
+    .await
 }
 
 /// Demande le schéma au serveur, le garde dans `.oc-sync/graphql/` et le rend.
 pub async fn fetch_schema(source: SchemaSource<'_>, session: &mut Session) -> Result<StoredSchema, String> {
-    let prepared = prepare(&source, session)?;
+    let prepared = prepare_vault(&source, session).await?;
     let url = prepared.request.url.clone();
     let sent = crate::auth::send(prepared.request, &prepared.auth, session).await?;
     let status = sent.response.status;

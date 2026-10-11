@@ -17,6 +17,7 @@ mod schema;
 mod scripts;
 mod sequence;
 mod session;
+mod vault;
 mod websocket;
 
 pub use data::{parse_csv, parse_json, read_rows, DataError, Row};
@@ -41,5 +42,6 @@ pub use schema::{fetch_schema, schema_url, SchemaSource};
 pub use scripts::{flow_of, merged_script, Flow};
 pub use sequence::{next_step, Step, MAX_JUMPS};
 pub use session::{EnvWrites, Session};
+pub use vault::{config_of as vault_config_of, prepare_with_vault, VaultCredentials, VaultSlot};
 pub use websocket::{describe_opened, open_websocket, resolve_message, WsStart};
 pub use xc_engine::iso_from_millis;

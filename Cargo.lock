@@ -7346,6 +7346,7 @@ dependencies = [
  "xc-engine",
  "xc-proto",
  "xc-script",
+ "xc-vault",
 ]
 
 [[package]]

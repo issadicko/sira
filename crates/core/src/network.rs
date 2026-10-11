@@ -67,6 +67,36 @@ pub struct ClientCertificate {
     pub disabled: bool,
 }
 
+/// Où et comment joindre HashiCorp Vault pour les variables `{{$vault.montage/chemin#champ}}`. Le jeton et le `secret_id`
+/// d'un AppRole ne sont jamais ici : ils vivent dans le trousseau (application) ou dans `VAULT_TOKEN` et
+/// `VAULT_SECRET_ID` (ligne de commande).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct VaultPrefs {
+    /// Adresse du serveur ; vide : `VAULT_ADDR`.
+    pub addr: String,
+    /// Espace de noms (Vault Enterprise) ; vide : `VAULT_NAMESPACE`.
+    pub namespace: String,
+    /// `token` ou `approle`.
+    pub auth: String,
+    /// L'identifiant de rôle d'un AppRole ; vide : `VAULT_ROLE_ID`.
+    pub role_id: String,
+    /// Le montage de la méthode AppRole (`approle` quand vide).
+    pub approle_mount: String,
+}
+
+impl Default for VaultPrefs {
+    fn default() -> Self {
+        Self {
+            addr: String::new(),
+            namespace: String::new(),
+            auth: "token".into(),
+            role_id: String::new(),
+            approle_mount: String::new(),
+        }
+    }
+}
+
 /// Les réglages que l'hôte donne à tous ses envois.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -80,6 +110,7 @@ pub struct NetworkPrefs {
     /// Après ceux de la collection. Passés par `--client-cert-config` en ligne de commande.
     pub client_certificates: Vec<ClientCertificate>,
     pub proxy: ProxyPref,
+    pub vault: VaultPrefs,
     /// Envoyer les cookies du pot avec chaque requête.
     pub send_cookies: bool,
     /// Garder dans le pot les cookies que les serveurs posent.
@@ -97,6 +128,7 @@ impl Default for NetworkPrefs {
             keep_default_roots: true,
             client_certificates: Vec::new(),
             proxy: ProxyPref::default(),
+            vault: VaultPrefs::default(),
             send_cookies: true,
             store_cookies: true,
             no_proxy: false,
