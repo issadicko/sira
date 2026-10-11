@@ -46,6 +46,15 @@ fn explain(args: &[&str], stderr: &str) -> String {
     }
 }
 
+/// Sous Windows, `git add` avertit à chaque fichier que la fin de ligne sera convertie : ce bruit ne dit rien de l'échec.
+fn significant(stderr: &str) -> String {
+    stderr
+        .lines()
+        .filter(|line| !(line.starts_with("warning: in the working copy of") && line.contains("will be replaced by")))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 pub async fn git(dir: &Path, args: &[&str], timeout: Duration) -> Result<String> {
     let mut command = Command::new("git");
     command
@@ -77,8 +86,9 @@ pub async fn git(dir: &Path, args: &[&str], timeout: Duration) -> Result<String>
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let detail = if stderr.trim().is_empty() { String::from_utf8_lossy(&output.stdout) } else { stderr };
+        let stderr = significant(&String::from_utf8_lossy(&output.stderr));
+        let detail =
+            if stderr.trim().is_empty() { String::from_utf8_lossy(&output.stdout).into_owned() } else { stderr };
         Err(GitError::Failed(explain(args, &detail)))
     }
 }
@@ -97,5 +107,18 @@ mod tests {
         let unknown = explain(&["pull"], "fatal: boom");
         assert_eq!(unknown, "fatal: boom");
         assert_eq!(explain(&["status"], "  "), "git status a échoué");
+    }
+
+    #[test]
+    fn ef_git_01_the_line_ending_warnings_of_windows_are_not_taken_for_the_failure() {
+        let noisy = "warning: in the working copy of 'a.yml', LF will be replaced by CRLF the next time Git touches it\nfatal: boom";
+        assert_eq!(super::significant(noisy), "fatal: boom");
+        assert_eq!(
+            super::significant(
+                "warning: in the working copy of 'a.yml', LF will be replaced by CRLF the next time Git touches it"
+            )
+            .trim(),
+            ""
+        );
     }
 }
