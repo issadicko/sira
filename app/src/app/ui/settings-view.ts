@@ -4,14 +4,16 @@ import { Workspace } from '../core/store';
 import { AppearanceSettings } from './appearance-settings';
 import { CookiesSettings } from './cookies-settings';
 import { NetworkSettings } from './network-settings';
+import { VaultSettings } from './vault-settings';
 import { restoreFocus } from './focus';
 import { Icon } from './icon';
 
-type SectionId = 'appearance' | 'network' | 'cookies';
+type SectionId = 'appearance' | 'network' | 'vault' | 'cookies';
 
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: 'appearance', label: 'Apparence', icon: 'eye' },
   { id: 'network', label: 'Réseau', icon: 'globe' },
+  { id: 'vault', label: 'Vault', icon: 'key' },
   { id: 'cookies', label: 'Cookies', icon: 'disk' },
 ];
 
@@ -19,7 +21,7 @@ const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
 @Component({
   selector: 'app-settings-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, AppearanceSettings, CookiesSettings, NetworkSettings],
+  imports: [Icon, AppearanceSettings, CookiesSettings, NetworkSettings, VaultSettings],
   host: { style: 'display: contents' },
   template: `
     <div class="tabs" role="tablist" aria-label="Réglages ouverts">
@@ -43,6 +45,9 @@ const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
           }
           @case ('network') {
             <app-network-settings />
+          }
+          @case ('vault') {
+            <app-vault-settings />
           }
           @case ('cookies') {
             <app-cookies-settings />

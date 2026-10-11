@@ -1,8 +1,10 @@
-import type { NetworkPrefs, ProxyConfig, ProxyMode } from './model';
+import type { NetworkPrefs, ProxyConfig, ProxyMode, VaultPrefs } from './model';
 
 export const PROXY_PROTOCOLS = ['http', 'https', 'socks4', 'socks5'] as const;
 
 export const DEFAULT_PROXY: ProxyConfig = { protocol: 'http', hostname: '', port: '', username: '', authDisabled: false, bypassProxy: '' };
+
+export const DEFAULT_VAULT: VaultPrefs = { addr: '', namespace: '', auth: 'token', roleId: '', approleMount: '' };
 
 export const DEFAULT_NETWORK: NetworkPrefs = {
   verifyTls: true,
@@ -12,6 +14,7 @@ export const DEFAULT_NETWORK: NetworkPrefs = {
   keepDefaultRoots: true,
   clientCertificates: [],
   proxy: { mode: 'system', config: DEFAULT_PROXY },
+  vault: DEFAULT_VAULT,
 };
 
 export const PROXY_MODES: { id: ProxyMode; label: string }[] = [
