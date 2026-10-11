@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/engine", "crates/proto", "crates/git", "crates/sync", "crates/watch", "crates/script", "crates/runner", "crates/secrets", "crates/codegen", "crates/cli", "app/src-tauri"]
+members = ["crates/core", "crates/engine", "crates/proto", "crates/git", "crates/vault", "crates/sync", "crates/watch", "crates/script", "crates/runner", "crates/secrets", "crates/codegen", "crates/cli", "app/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,6 +14,7 @@ xc-core = { path = "crates/core" }
 xc-engine = { path = "crates/engine" }
 xc-proto = { path = "crates/proto" }
 xc-git = { path = "crates/git" }
+xc-vault = { path = "crates/vault" }
 xc-sync = { path = "crates/sync" }
 xc-watch = { path = "crates/watch" }
 xc-script = { path = "crates/script" }
