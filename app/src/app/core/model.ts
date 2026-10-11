@@ -240,6 +240,30 @@ export interface ProxyConfig {
   bypassProxy: string;
 }
 
+/** Où et comment joindre HashiCorp Vault ; le jeton et le `secret_id` n'en font pas partie (trousseau du système). */
+export interface VaultPrefs {
+  addr: string;
+  namespace: string;
+  /** `token` ou `approle`. */
+  auth: 'token' | 'approle';
+  roleId: string;
+  /** Le montage de la méthode AppRole ; vide : `approle`. */
+  approleMount: string;
+}
+
+export interface VaultView {
+  prefs: VaultPrefs;
+  tokenSet: boolean;
+  secretIdSet: boolean;
+}
+
+export interface VaultCheck {
+  displayName: string;
+  policies: string[];
+  /** Durée de vie restante du jeton en secondes ; `null` sans expiration. */
+  ttl: number | null;
+}
+
 /** Les réglages réseau de l'application ; le mot de passe du proxy n'en fait pas partie (trousseau du système). */
 export interface NetworkPrefs {
   verifyTls: boolean;
@@ -250,6 +274,8 @@ export interface NetworkPrefs {
   /** Gardés tels quels : ils ne se modifient pas depuis l'interface. */
   clientCertificates: unknown[];
   proxy: { mode: ProxyMode; config: ProxyConfig };
+  /** Lus avec les réglages réseau, mais enregistrés par leur propre section. */
+  vault: VaultPrefs;
 }
 
 export interface CookieView {

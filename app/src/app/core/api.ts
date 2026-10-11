@@ -19,6 +19,9 @@ import {
   ExportFormat,
   ImportedCollection,
   NetworkPrefs,
+  VaultCheck,
+  VaultPrefs,
+  VaultView,
   NetworkView,
   OpenApiPreview,
   OpView,
@@ -100,6 +103,11 @@ export interface Api {
   networkGet(): Promise<NetworkView>;
   /** `proxyPassword` : `null` garde le mot de passe en place, une chaîne vide l'oublie, un texte le range dans le trousseau. */
   networkSave(prefs: NetworkPrefs, proxyPassword: string | null): Promise<NetworkView>;
+  vaultGet(): Promise<VaultView>;
+  /** `token` et `secretId` : `null` garde la valeur du trousseau, une chaîne vide l'oublie, un texte la remplace. */
+  vaultSave(prefs: VaultPrefs, token: string | null, secretId: string | null): Promise<VaultView>;
+  /** Vérifie la connexion avec les réglages enregistrés ; `root` donne le réseau de la collection ouverte. */
+  vaultCheck(root: string | null): Promise<VaultCheck>;
   parseCurl(command: string): Promise<RequestDoc | null>;
   createRequestFromCurl(root: string, folder: string, name: string, command: string): Promise<string>;
   previewOpenApi(source: string): Promise<OpenApiPreview>;
@@ -221,6 +229,9 @@ const tauriApi: Api = {
   cookiesClear: () => invoke('cookies_clear'),
   networkGet: () => invoke('network_get'),
   networkSave: (prefs, proxyPassword) => invoke('network_save', { prefs, proxyPassword }),
+  vaultGet: () => invoke('vault_get'),
+  vaultSave: (prefs, token, secretId) => invoke('vault_save', { prefs, token, secretId }),
+  vaultCheck: (root) => invoke('vault_check', { root }),
   parseCurl: (command) => invoke('parse_curl', { command }),
   createRequestFromCurl: (root, folder, name, command) => invoke('create_request_from_curl', { root, folder, name, command }),
   previewOpenApi: (source) => invoke('preview_openapi', { source }),

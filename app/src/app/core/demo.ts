@@ -8,9 +8,10 @@ import { createDemoGrpc } from './demo-grpc';
 import { createDemoWebSocket } from './demo-ws';
 import { DEMO_FOLDERS, DemoCollection, collectionAt, createDemoTree, refreshItem } from './demo-tree';
 import { draftProblem, keyOf } from './cookies';
-import { DEFAULT_NETWORK } from './network';
+import { DEFAULT_NETWORK, DEFAULT_VAULT } from './network';
 import { emptyReport } from './scripts';
-import { CollectionInfo, CookieKey, CookieView, EnvVar, HistoryEntry, KeyValue, NetworkView, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
+import { CollectionInfo, CookieKey, CookieView, EnvVar, HistoryEntry, KeyValue, NetworkView,
+  VaultView, OpenApiPreview, Param, RequestDoc, Rung, SendResult, StoredSchema, TokenInfo, TreeItem, VariableInfo } from './model';
 
 const ROOT = '~/démo/api-paiements';
 const EXPORT = 'transactions/export.yml';
@@ -251,6 +252,7 @@ let demoCookies: CookieView[] = [
 ];
 const sameCookie = (a: CookieKey, b: CookieKey) => a.domain === b.domain && a.path === b.path && a.key === b.key;
 let demoNetwork: NetworkView = { prefs: DEFAULT_NETWORK, proxyPasswordSet: false };
+let demoVault: VaultView = { prefs: DEFAULT_VAULT, tokenSet: false, secretIdSet: false };
 /** Les schémas GraphQL chargés pendant la session, par URL : le mode démo n'écrit rien sur disque. */
 const schemas = new Map<string, StoredSchema>();
 /** Les jetons OAuth 2 de la démo, par requête : rien n'est demandé à un serveur. */
@@ -332,6 +334,19 @@ export const demoApi: Api = {
     return [];
   },
   networkGet: async () => structuredClone(demoNetwork),
+  vaultGet: async () => structuredClone(demoVault),
+  vaultSave: async (prefs, token, secretId) => {
+    demoVault = {
+      prefs: structuredClone({ ...prefs, addr: prefs.addr.trim().replace(/\/+$/, ''), namespace: prefs.namespace.trim() }),
+      tokenSet: token === null ? demoVault.tokenSet : token !== '',
+      secretIdSet: secretId === null ? demoVault.secretIdSet : secretId !== '',
+    };
+    return structuredClone(demoVault);
+  },
+  vaultCheck: async () => {
+    if (!demoVault.prefs.addr) throw "Vault n'est pas configuré : donne son adresse (réglages ou VAULT_ADDR)";
+    return { displayName: 'token', policies: ['default', 'paiements'], ttl: 3600 };
+  },
   networkSave: async (prefs, proxyPassword) => {
     demoNetwork = {
       prefs: structuredClone({ ...prefs, caFile: prefs.caFile?.trim() || null }),
