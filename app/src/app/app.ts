@@ -17,6 +17,7 @@ import { DeleteDialog } from './ui/delete-dialog';
 import { DiscardDialog } from './ui/discard-dialog';
 import { Editor } from './ui/editor';
 import { EnvMenu } from './ui/env-menu';
+import { DocsDialog } from './ui/docs-dialog';
 import { EnvNameDialog } from './ui/env-name-dialog';
 import { EnvSidebar } from './ui/env-sidebar';
 import { EnvView } from './ui/env-view';
@@ -53,6 +54,7 @@ import { Welcome } from './ui/welcome';
     Editor,
     EnvView,
     EnvMenu,
+    DocsDialog,
     EnvNameDialog,
     EnvSidebar,
     GitSidebar,
@@ -137,6 +139,7 @@ export class App {
       { id: 'collection.insomnia', title: 'Importer depuis Insomnia…', group: 'Collection', icon: 'import', run: () => ws.dialog.set('insomnia') },
       { id: 'collection.bruno', title: 'Convertir une collection .bru…', group: 'Collection', icon: 'import', run: () => { ws.importSource.set(null); ws.dialog.set('bruno'); } },
       { id: 'collection.export', title: 'Exporter la collection…', group: 'Collection', icon: 'export', when: opened, run: () => ws.dialog.set('export') },
+      { id: 'collection.docs', title: 'Documentation de la collection…', group: 'Collection', icon: 'file', when: opened, run: () => ws.openDocs('') },
       { id: 'collection.reload', title: 'Relire la collection sur le disque', group: 'Collection', icon: 'sync', when: opened, run: () => ws.reload() },
       { id: 'tree.filter', title: 'Filtrer les requêtes', group: 'Collection', icon: 'filter', keys: 'mod+shift+f', when: opened, run: () => this.focusFilter() },
       { id: 'env.new', title: 'Nouvel environnement…', group: 'Collection', icon: 'plus', when: opened, run: () => envs.beginNaming({ mode: 'create' }) },

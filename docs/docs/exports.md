@@ -1,11 +1,12 @@
 # Exports (V1, EF-IMP-03)
 
-Une collection s'exporte en **Postman v2.1** ou en **OpenAPI 3.0.3**, toujours en JSON. L'export ne modifie jamais la collection : il la lit, construit le document en mémoire, puis l'écrit dans un fichier. Ce que le format ne sait pas porter n'est pas inventé : c'est écarté et listé (un message par élément).
+Une collection s'exporte en **Postman v2.1** ou en **OpenAPI 3.0.3**, en JSON, ou sa documentation en **Markdown**. L'export ne modifie jamais la collection : il la lit, construit le document en mémoire, puis l'écrit dans un fichier. Ce que le format ne sait pas porter n'est pas inventé : c'est écarté et listé (un message par élément).
 
 | Format | État | Entrée |
 | --- | --- | --- |
 | Postman v2.1 | Fait | `xc export --format postman`, commande « Exporter la collection… » |
 | OpenAPI 3.0.3 | Fait | `xc export --format openapi`, même commande |
+| Documentation Markdown | Fait | `xc export --format markdown`, même commande ; voir `documentation.md` |
 | cURL | Fait | `xc code --lang curl` et « Générer du code » (voir `generation-de-code.md`) |
 
 ```bash

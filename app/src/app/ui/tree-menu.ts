@@ -45,10 +45,12 @@ export class TreeMenu {
     ];
     if (!item || item.kind === 'folder') create.push({ label: 'Nouveau dossier', icon: 'folder', run: () => this.tree.beginCreate('folder', parent) });
     const run: MenuEntry[] = item?.kind === 'request' ? [] : [{ label: item ? 'Exécuter le dossier…' : 'Exécuter la collection…', icon: 'play', run: () => this.runner.openFor(item?.path ?? '') }];
-    if (!item) return [...create, 'sep', ...run];
+    const docs: MenuEntry = { label: 'Documentation…', icon: 'file', run: () => this.ws.openDocs(item?.path ?? '') };
+    if (!item) return [...create, 'sep', ...run, docs];
     return [
       ...create,
       ...(run.length ? (['sep', ...run] as MenuEntry[]) : []),
+      ...(item.kind === 'folder' ? [docs] : []),
       'sep',
       { label: 'Renommer', icon: 'pencil', shortcut: shortcutLabel('f2'), run: () => this.tree.beginRename(item.path) },
       { label: 'Dupliquer', icon: 'copy', shortcut: shortcutLabel('mod+d'), run: () => this.tree.beginClone(item.path) },

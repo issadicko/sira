@@ -698,7 +698,7 @@ export interface ImportedCollection {
 }
 
 /** Les formats d'export d'une collection : Postman v2.1 et OpenAPI 3.0.3, tous deux en JSON. */
-export type ExportFormat = 'postman' | 'openapi';
+export type ExportFormat = 'postman' | 'openapi' | 'markdown';
 
 export type CodeLanguage = 'curl' | 'javascript' | 'python' | 'go' | 'java' | 'kotlin' | 'dart' | 'php' | 'csharp';
 

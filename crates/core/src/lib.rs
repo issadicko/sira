@@ -14,10 +14,10 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 pub use collection::{
-    collection_name, list_environments, mark_deprecated, normalize, open_collection, read_collection_file,
-    read_collection_variables, read_environment, read_environment_file, read_folder_file, read_request, restyle,
-    save_collection_variables, save_environment, save_request, set_default_environment, CollectionInfo, CollectionVar,
-    EnvVar, TreeItem,
+    collection_name, docs_text, list_environments, mark_deprecated, normalize, open_collection, read_collection_file,
+    read_collection_variables, read_docs, read_environment, read_environment_file, read_folder_file, read_request,
+    restyle, save_collection_variables, save_docs, save_environment, save_request, set_default_environment,
+    CollectionInfo, CollectionVar, EnvVar, TreeItem,
 };
 pub use network::{
     protobuf_config, ClientCertificate, NetworkPrefs, ProtobufConfig, ProxyConfig, ProxyMode, ProxyPref, VaultPrefs,

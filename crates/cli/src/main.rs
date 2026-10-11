@@ -101,7 +101,7 @@ enum Command {
         #[arg(long = "env-var", value_parser = run::parse_pair)]
         env_vars: Vec<(String, String)>,
     },
-    /// Exporte la collection en JSON, au format Postman v2.1 ou OpenAPI 3.0.3 ; ce qui n'a pas pu l'être est listé sur
+    /// Exporte la collection : JSON au format Postman v2.1 ou OpenAPI 3.0.3, ou sa documentation en Markdown ; ce qui n'a pas pu l'être est listé sur
     /// la sortie d'erreur. Sans --output, l'export est écrit sur la sortie standard
     Export {
         /// Dossier de la collection (contient opencollection.yml)
@@ -149,6 +149,8 @@ enum Command {
 enum ExportFormat {
     Postman,
     Openapi,
+    /// Documentation de la collection, des dossiers et des requêtes en un fichier Markdown
+    Markdown,
 }
 
 fn main() -> ExitCode {
@@ -367,6 +369,7 @@ fn export(collection: &Path, format: ExportFormat, output: Option<&Path>, force:
     let exported = match format {
         ExportFormat::Postman => export::postman::collection(collection),
         ExportFormat::Openapi => export::openapi(collection),
+        ExportFormat::Markdown => export::markdown(collection),
     };
     let Exported { text, issues } = match exported {
         Ok(exported) => exported,

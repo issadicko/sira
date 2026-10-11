@@ -57,6 +57,7 @@ const files: Record<string, RequestDoc> = {
     },
   }),
   'transactions/liste.yml': doc('Liste des transactions', 'GET', '{{baseUrl}}/transactions?page=1&statut=CONFIRMEE', {
+    docs: '## Liste\n\nRenvoie les transactions **paginées**.\n\n```json\n{ "page": 1, "total": 42 }\n```\n',
     params: [
       { name: 'page', value: '1', kind: 'query', enabled: true },
       { name: 'statut', value: 'CONFIRMEE', kind: 'query', enabled: true },
@@ -168,7 +169,11 @@ const environments: Record<string, EnvVar[]> = {
   prod: [variable('baseUrl', 'https://api.paiements.example/v1'), variable('canal', 'MOBILE'), variable('wsHost', 'push.paiements.example'), secret('token')],
 };
 
-const collections = new Map<string, DemoCollection>([[ROOT, { info: collection, files, environments }]]);
+const docs: Record<string, string> = {
+  '': "# API Paiements\n\nAPI de la caisse : **authentification**, transactions et notifications.\n\n- `baseUrl` vient de l'environnement actif\n- les secrets restent dans le trousseau\n\nVoir [la documentation du prestataire](https://psp.example.com/docs).",
+  transactions: "Les transactions d'une caisse.\n\n| Statut | Sens |\n|---|---|\n| `CONFIRMEE` | payée |\n| `ANNULEE` | remboursée |\n\n> Une transaction annulée ne peut plus être modifiée.",
+};
+const collections = new Map<string, DemoCollection>([[ROOT, { info: collection, files, docs, environments }]]);
 const PARENT = '~/démo';
 const picks = [ROOT, ...Object.keys(DEMO_FOLDERS)];
 let picked = 0;
@@ -282,6 +287,15 @@ export const demoApi: Api = {
     const c = collectionAt(collections, root);
     c.files[path] = structuredClone(d);
     refreshItem(c, path, d);
+    return true;
+  },
+  readDocs: async (root, folder) => collectionAt(collections, root).docs?.[folder] ?? '',
+  saveDocs: async (root, folder, text) => {
+    const c = collectionAt(collections, root);
+    const docs = (c.docs ??= {});
+    if ((docs[folder] ?? '') === text) return false;
+    if (text) docs[folder] = text;
+    else delete docs[folder];
     return true;
   },
   variables: async (_root, path, _doc, env) => variables(path, env),

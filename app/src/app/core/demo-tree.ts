@@ -6,6 +6,8 @@ import { canDrop, endSeq, findItem, sanitizeName, validateName } from './tree-op
 export interface DemoCollection {
   info: CollectionInfo;
   files: Record<string, RequestDoc>;
+  /** Documentation Markdown par dossier ; la clé vide est la collection. */
+  docs?: Record<string, string>;
   environments: Record<string, EnvVar[]>;
 }
 

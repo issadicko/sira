@@ -44,7 +44,7 @@ export interface Discard {
 
 export type View = 'collections' | 'env' | 'sync' | 'git' | 'runner' | 'settings';
 export type Theme = 'dark' | 'light';
-export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'bruno' | 'export' | 'code' | 'collection' | 'delete' | 'move' | 'env';
+export type DialogKind = 'curl' | 'openapi' | 'postman' | 'insomnia' | 'bruno' | 'export' | 'code' | 'collection' | 'delete' | 'move' | 'env' | 'docs';
 
 /** Dossier existant, vide ou non, où l'on propose de créer une collection. */
 export interface FolderTarget {
@@ -105,6 +105,8 @@ export class Workspace {
   readonly toast = signal<string | null>(null);
   readonly toastError = signal(false);
   readonly dialog = signal<DialogKind | null>(null);
+  /** Dossier dont on édite la documentation (`''` : la collection) ; `null` quand le dialogue est fermé. */
+  readonly docsFolder = signal<string | null>(null);
   /** Dossier du dialogue « Créer une collection ici » ; `null` pour « Nouvelle collection », où l'on choisit le dossier parent. */
   readonly folderTarget = signal<FolderTarget | null>(null);
   /** Dossier `.bru` à convertir, proposé d'office par le dialogue d'import quand on a tenté de l'ouvrir. */
@@ -191,6 +193,17 @@ export class Workspace {
     } catch (e) {
       this.notify(`L'historique n'a pas pu être effacé : ${String(e)}`, true);
     }
+  }
+
+  openDocs(folder: string) {
+    if (!this.collection() || this.dialog()) return;
+    this.docsFolder.set(folder);
+    this.dialog.set('docs');
+  }
+
+  closeDocs() {
+    this.docsFolder.set(null);
+    this.dialog.set(null);
   }
 
   notify(message: string, error = false) {

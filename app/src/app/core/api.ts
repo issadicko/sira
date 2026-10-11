@@ -73,6 +73,10 @@ export interface Api {
   moveItem(root: string, path: string, target: string, position: DropPosition): Promise<string>;
   readRequest(root: string, path: string): Promise<RequestDoc>;
   saveRequest(root: string, path: string, doc: RequestDoc): Promise<boolean>;
+  /** Documentation Markdown de la collection (`folder` vide) ou d'un dossier ; vide quand il n'y en a pas. */
+  readDocs(root: string, folder: string): Promise<string>;
+  /** Enregistre cette documentation ; `false` : rien n'a changé. */
+  saveDocs(root: string, folder: string, text: string): Promise<boolean>;
   readEnvironment(root: string, name: string): Promise<EnvVar[]>;
   /** Enregistre les variables de l'environnement ; un fichier absent est refusé sauf avec `create`. `false` : rien n'a changé. */
   saveEnvironment(root: string, name: string, vars: EnvVar[], create: boolean): Promise<boolean>;
@@ -123,7 +127,7 @@ export interface Api {
   /** Importe un export Insomnia (v4 JSON ou v5 YAML), environnements compris, dans un nouveau dossier de `location`. */
   importInsomnia(source: string, location: string): Promise<ImportedCollection>;
   /** Où enregistrer l'export d'une collection ; `null` si l'utilisateur renonce. */
-  pickExportPath(defaultName: string): Promise<string | null>;
+  pickExportPath(defaultName: string, format: ExportFormat): Promise<string | null>;
   /** Exporte la collection `root` dans le fichier `path` ; renvoie ce qui n'a pas pu l'être, un message par élément. */
   exportCollection(root: string, format: ExportFormat, path: string): Promise<string[]>;
   syncStatus(root: string): Promise<SyncStatus>;
@@ -207,6 +211,8 @@ const tauriApi: Api = {
   moveItem: (root, path, target, position) => invoke('move_item', { root, path, target, position }),
   readRequest: (root, path) => invoke('read_request', { root, path }),
   saveRequest: (root, path, doc) => invoke('save_request', { root, path, doc }),
+  readDocs: (root, folder) => invoke('read_docs', { root, folder }),
+  saveDocs: (root, folder, text) => invoke('save_docs', { root, folder, text }),
   readEnvironment: (root, name) => invoke('read_environment', { root, name }),
   saveEnvironment: (root, name, vars, create) => invoke('save_environment', { root, name, vars, create }),
   createEnvironment: (root, name) => invoke('create_environment', { root, name }),
@@ -242,7 +248,8 @@ const tauriApi: Api = {
   pickInsomniaFile: () => pick({ title: 'Choisir un export Insomnia', filters: [{ name: 'Export Insomnia (JSON ou YAML)', extensions: ['json', 'yaml', 'yml'] }] }),
   importInsomnia: (source, location) => invoke('import_insomnia', { source, location }),
   importBru: (source, location) => invoke('import_bru', { source, location }),
-  pickExportPath: (defaultName) => save({ title: 'Exporter la collection', defaultPath: defaultName, filters: [{ name: 'JSON', extensions: ['json'] }] }),
+  pickExportPath: (defaultName, format) =>
+    save({ title: 'Exporter la collection', defaultPath: defaultName, filters: [format === 'markdown' ? { name: 'Markdown', extensions: ['md'] } : { name: 'JSON', extensions: ['json'] }] }),
   exportCollection: (root, format, path) => invoke('export_collection', { root, format, path }),
   syncStatus: (root) => invoke('sync_status', { root }),
   syncPlan: (root, source, pairings) => invoke('sync_plan', { root, source, pairings }),

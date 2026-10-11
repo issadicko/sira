@@ -34,6 +34,8 @@ import { Icon } from './icon';
 
         @if (format() === 'postman') {
           <p class="hint"><app-ic name="shield" [size]="13" /><span>Les scripts <span class="mono">bru.*</span> sont traduits en <span class="mono">pm.*</span> pour les appels courants. Les valeurs écrites en clair dans les requêtes (jeton, mot de passe) sont exportées <b>telles quelles</b> ; les environnements et leurs secrets ne le sont pas.</span></p>
+        } @else if (format() === 'markdown') {
+          <p class="hint"><app-ic name="file" [size]="13" /><span>Un seul fichier Markdown : la documentation de la collection, puis de chaque dossier et de chaque requête (méthode, adresse, texte), dans l'ordre de l'arbre. Seuls les textes de documentation et les adresses sont écrits : <b>ni en-têtes, ni corps, ni authentification</b>.</span></p>
         } @else {
           <p class="hint"><app-ic name="shield" [size]="13" /><span>Les adresses deviennent des serveurs (<span class="mono" ngNonBindable>{{baseUrl}}</span> et ses valeurs par environnement), les dossiers des étiquettes, l'authentification des schémas de sécurité <b>sans aucune valeur</b>. Les scripts et les tests ne sont pas décrits : OpenAPI n'en a pas.</span></p>
         }
@@ -107,7 +109,7 @@ export class ExportDialog {
     this.exporting.set(true);
     this.failure.set(null);
     try {
-      const path = await api.pickExportPath(exportFileName(collection.name, this.format()));
+      const path = await api.pickExportPath(exportFileName(collection.name, this.format()), this.format());
       if (!path) return;
       const issues = await api.exportCollection(collection.root, this.format(), path);
       if (!issues.length) {

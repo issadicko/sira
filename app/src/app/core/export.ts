@@ -3,6 +3,7 @@ import type { ExportFormat } from './model';
 export const EXPORT_FORMATS: { id: ExportFormat; label: string; version: string; suffix: string }[] = [
   { id: 'postman', label: 'Postman', version: 'v2.1', suffix: '.postman_collection.json' },
   { id: 'openapi', label: 'OpenAPI', version: '3.0.3', suffix: '.openapi.json' },
+  { id: 'markdown', label: 'Documentation', version: 'Markdown', suffix: '.md' },
 ];
 
 /** Le nom proposé pour le fichier d'export : le nom de la collection, réduit à ses lettres et chiffres, puis le suffixe du format. */

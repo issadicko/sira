@@ -217,6 +217,16 @@ async fn save_request(state: State<'_, AppState>, root: String, path: String, do
 }
 
 #[tauri::command]
+fn read_docs(root: String, folder: String) -> Reply<String> {
+    xc_core::read_docs(Path::new(&root), &folder).map_err(err)
+}
+
+#[tauri::command]
+async fn save_docs(state: State<'_, AppState>, root: String, folder: String, text: String) -> Reply<bool> {
+    writing(&state, move || xc_core::save_docs(Path::new(&root), &folder, &text)).await
+}
+
+#[tauri::command]
 fn read_environment(root: String, name: String) -> Reply<Vec<EnvVar>> {
     xc_core::read_environment(Path::new(&root), &name).map_err(err)
 }
@@ -609,7 +619,7 @@ async fn import_insomnia(state: State<'_, AppState>, source: String, location: S
     Ok(ImportedCollection { root: root.display().to_string(), issues })
 }
 
-/// Exporte la collection `root` au format `postman` (v2.1) ou `openapi` (3.0.3) dans le fichier `path`, que
+/// Exporte la collection `root` au format `postman` (v2.1), `openapi` (3.0.3) ou `markdown` (documentation) dans le fichier `path`, que
 /// l'utilisateur vient de choisir ; renvoie ce qui n'a pas pu l'être. Un lien symbolique n'est jamais suivi.
 #[tauri::command]
 async fn export_collection(root: String, format: String, path: String) -> Reply<Vec<String>> {
@@ -617,6 +627,7 @@ async fn export_collection(root: String, format: String, path: String) -> Reply<
         let exported = match format.as_str() {
             "postman" => xc_sync::export::postman::collection(Path::new(&root)),
             "openapi" => xc_sync::export::openapi(Path::new(&root)),
+            "markdown" => xc_sync::export::markdown(Path::new(&root)),
             other => return Err(format!("format d'export inconnu : {other}")),
         }
         .map_err(err)?;
@@ -814,6 +825,8 @@ pub fn run() {
             grpc::grpc_methods,
             read_request,
             save_request,
+            read_docs,
+            save_docs,
             read_environment,
             save_environment,
             create_environment,
@@ -1133,12 +1146,38 @@ paths:
         let written: serde_json::Value = serde_json::from_str(&fs::read_to_string(&postman).unwrap()).unwrap();
         assert_eq!(written["info"]["name"], "Shop");
 
+        let notes = dir.path().join("shop.md").display().to_string();
+        export_collection(root.clone(), "markdown".into(), notes.clone()).await.unwrap();
+        let written = fs::read_to_string(&notes).unwrap();
+        assert!(written.starts_with("# Shop\n"), "{written}");
+        assert!(written.contains("## List\n\n`GET https://shop.test/items`"), "{written}");
+
         let unknown = export_collection(root.clone(), "yaml".into(), spec.clone()).await.unwrap_err();
         assert!(unknown.contains("format d'export inconnu"), "{unknown}");
         let missing = export_collection(dir.path().join("rien").display().to_string(), "postman".into(), spec.clone())
             .await
             .unwrap_err();
         assert!(!missing.is_empty());
+    }
+
+    #[tokio::test]
+    async fn ef_doc_01_commands_read_and_save_the_docs_of_the_collection_and_of_a_folder() {
+        let app = app();
+        let state = || app.state::<AppState>();
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("shop");
+        fs::create_dir_all(root.join("clients")).unwrap();
+        fs::write(root.join("opencollection.yml"), "opencollection: 1.0.0\n\ninfo:\n  name: Shop\n").unwrap();
+        let root = root.display().to_string();
+
+        assert_eq!(read_docs(root.clone(), String::new()).unwrap(), "");
+        assert!(save_docs(state(), root.clone(), String::new(), "# Shop".into()).await.unwrap());
+        assert!(!save_docs(state(), root.clone(), String::new(), "# Shop".into()).await.unwrap());
+        assert_eq!(read_docs(root.clone(), String::new()).unwrap(), "# Shop");
+
+        assert!(save_docs(state(), root.clone(), "clients".into(), "Les clients".into()).await.unwrap());
+        assert_eq!(read_docs(root.clone(), "clients".into()).unwrap(), "Les clients");
+        assert!(read_docs(root.clone(), "../dehors".into()).is_err());
     }
 
     #[cfg(unix)]

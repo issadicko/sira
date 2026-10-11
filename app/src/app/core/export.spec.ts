@@ -8,6 +8,10 @@ test('ef_imp_03_le_fichier_propose_porte_le_nom_de_la_collection_et_le_suffixe_d
   assert.equal(exportFileName('Paiements', 'openapi'), 'Paiements.openapi.json');
 });
 
+test('ef_doc_01_la_documentation_s_exporte_en_fichier_markdown', () => {
+  assert.equal(exportFileName('Paiements', 'markdown'), 'Paiements.md');
+});
+
 test('ef_imp_03_le_nom_propose_garde_les_accents_et_remplace_le_reste_par_des_tirets', () => {
   assert.equal(exportFileName("  Boutique d'été / v2  ", 'openapi'), 'Boutique-d-été-v2.openapi.json');
   assert.equal(exportFileName('../../etc', 'postman'), 'etc.postman_collection.json');

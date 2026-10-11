@@ -10,8 +10,11 @@ use crate::request::{RequestDoc, BLANK_BEFORE, INFO_ORDER, TOP_ORDER};
 use crate::yaml::{self, Map, Value};
 use crate::CoreError;
 
+mod docs;
 mod environment;
 
+pub(crate) use docs::set_docs;
+pub use docs::{docs_text, read_docs, save_docs};
 pub use environment::{
     default_environment, environment_file, list_environments, read_collection_variables, read_environment,
     read_environment_file, save_collection_variables, save_environment, set_default_environment, with_environment_name,

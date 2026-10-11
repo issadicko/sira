@@ -13,6 +13,7 @@ import { GraphqlEditor } from './graphql-editor';
 import { RequestSettings } from './request-settings';
 import { GrpcMessages } from './grpc-messages';
 import { WsMessages } from './ws-messages';
+import { MarkdownView } from './markdown-view';
 import { Icon } from './icon';
 import { KvTable } from './kv-table';
 import { MultipartTable } from './multipart-table';
@@ -41,7 +42,7 @@ const OUTSIDE_COLLECTION =
 @Component({
   selector: 'app-request-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, GrpcMessages, RequestSettings, WsMessages],
+  imports: [Icon, KvTable, MultipartTable, CodeEditor, AuthEditor, GraphqlEditor, GrpcMessages, RequestSettings, WsMessages, MarkdownView],
   host: { class: 'pane island', 'aria-label': 'Requête' },
   template: `
     @if (ws.active(); as tab) {
@@ -210,7 +211,24 @@ const OUTSIDE_COLLECTION =
         }
         @case ('docs') {
           <div class="pane-body fill">
-            <textarea class="docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
+            <div class="sec-head">
+              <span class="sec-title">Documentation</span>
+              <div class="seg" role="group" aria-label="Mode de la documentation">
+                <button [attr.aria-pressed]="!docsPreview()" (click)="docsPreview.set(false)">Édition</button>
+                <button [attr.aria-pressed]="docsPreview()" (click)="docsPreview.set(true)">Aperçu</button>
+              </div>
+            </div>
+            @if (docsPreview()) {
+              <div class="docs-preview" tabindex="0" aria-label="Aperçu de la documentation">
+                @if (tab.doc.docs?.trim()) {
+                  <app-markdown [source]="tab.doc.docs ?? ''" />
+                } @else {
+                  <p class="faint">Rien à montrer : la documentation est vide.</p>
+                }
+              </div>
+            } @else {
+              <textarea class="docs" [value]="tab.doc.docs ?? ''" (input)="setDocs($any($event.target).value)" placeholder="Documentation Markdown de la requête" aria-label="Documentation"></textarea>
+            }
           </div>
         }
       }
@@ -218,6 +236,7 @@ const OUTSIDE_COLLECTION =
   `,
   styles: `
     .docs { display: block; width: 100%; flex: 1; min-height: 260px; resize: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); font: 1rem/calc(20 * var(--px)) var(--font-ui); font-variant-ligatures: none; tab-size: 2; outline: 0; }
+    .docs-preview { flex: 1; min-height: 260px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--sunken); overflow: auto; }
     .docs:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
     .pane-body.fill { display: flex; flex-direction: column; }
     .pane-body.fill > .empty { flex: 1; height: auto; }
@@ -236,6 +255,7 @@ const OUTSIDE_COLLECTION =
 export class RequestPane {
   protected readonly ws = inject(Workspace);
   protected readonly section = signal<Section>('params');
+  protected readonly docsPreview = signal(false);
   protected readonly bodyTypes = BODY_TYPES;
   protected readonly operators = OPERATORS;
   protected readonly scriptKinds = SCRIPT_KINDS;

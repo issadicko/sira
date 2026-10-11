@@ -812,7 +812,7 @@ impl RequestDoc {
                 .and_then(Value::as_i64)
                 .filter(|ms| *ms > 0)
                 .and_then(|ms| u64::try_from(ms).ok()),
-            docs: root.get("docs").and_then(Value::scalar),
+            docs: root.get("docs").and_then(crate::collection::docs_text),
             timeout_ms: settings.get("timeout").and_then(Value::as_i64).filter(|t| *t > 0).map(|t| t as u64),
             follow_redirects: flag(settings.get("followRedirects")),
             max_redirects: settings.get("maxRedirects").and_then(Value::as_i64).and_then(|n| u64::try_from(n).ok()),
@@ -923,12 +923,7 @@ impl RequestDoc {
             }
         }
         if self.docs != previous.docs {
-            match self.docs.as_deref().filter(|d| !d.is_empty()) {
-                Some(d) => root.set("docs", Value::str(d), TOP_ORDER),
-                None => {
-                    root.remove("docs");
-                }
-            }
+            crate::collection::set_docs(root, self.docs.as_deref().unwrap_or_default(), TOP_ORDER, false);
         }
     }
 }

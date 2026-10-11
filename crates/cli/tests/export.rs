@@ -113,3 +113,43 @@ fn ef_imp_03_cli_export_rejects_an_unknown_format_and_a_folder_that_is_not_a_col
     assert_eq!(code, 2, "{stderr}");
     assert!(stderr.contains("erreur"), "{stderr}");
 }
+
+#[test]
+fn ef_doc_01_11_export_markdown_writes_the_collection_folder_and_request_docs() {
+    let dir = collection();
+    let root = dir.path();
+    fs::write(
+        root.join("opencollection.yml"),
+        "opencollection: 1.0.0\n\ninfo:\n  name: Boutique\n\ndocs:\n  content: L'API de la boutique.\n  type: text/markdown\n",
+    )
+    .unwrap();
+    fs::create_dir(root.join("clients")).unwrap();
+    fs::write(
+        root.join("clients/folder.yml"),
+        "info:\n  name: Clients\n  type: folder\n\ndocs:\n  content: Tout sur les clients.\n  type: text/markdown\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("clients/liste.yml"),
+        "info:\n  name: Liste\n  type: http\n  seq: 1\n\nhttp:\n  method: get\n  url: \"{{baseUrl}}/clients\"\n\ndocs: Renvoie les clients.\n",
+    )
+    .unwrap();
+    let (code, out, err) = xc(&["export", root.to_str().unwrap(), "--format", "markdown"]);
+    assert_eq!(code, 0, "{err}");
+    let expected = "# Boutique\n\nL'API de la boutique.\n\n## Clients\n\nTout sur les clients.\n\n### Liste\n\n`GET {{baseUrl}}/clients`\n\nRenvoie les clients.\n";
+    assert!(out.starts_with(expected), "{out}");
+    assert!(out.contains("## Ping\n\n`GET {{baseUrl}}/ping`"), "{out}");
+    assert!(out.contains("## Grpc\n\n`GRPC localhost:50051`"), "{out}");
+}
+
+#[test]
+fn ef_doc_01_12_export_markdown_refuses_to_overwrite_without_force() {
+    let dir = collection();
+    let target = path(dir.path(), "doc.md");
+    let root = dir.path().to_str().unwrap();
+    assert_eq!(xc(&["export", root, "--format", "markdown", "--output", &target]).0, 0);
+    let text = fs::read_to_string(&target).unwrap();
+    assert!(text.starts_with("# Boutique\n"));
+    assert_ne!(xc(&["export", root, "--format", "markdown", "--output", &target]).0, 0);
+    assert_eq!(xc(&["export", root, "--format", "markdown", "--output", &target, "--force"]).0, 0);
+}
