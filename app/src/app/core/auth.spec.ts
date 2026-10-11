@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { AUTH_TYPES, OAUTH_FLOWS, addOAuthParam, authLabel, defaultAuth, defaultOAuth2, describeToken, formatSpan, oauthFields, patchOAuthParam, removeOAuthParam, withAuthField } from './auth.ts';
+import { AUTH_TYPES, OAUTH1_METHODS, OAUTH_FLOWS, addOAuthParam, authLabel, defaultAuth, defaultOAuth2, describeToken, formatSpan, needsPrivateKey, oauthFields, patchOAuthParam, removeOAuthParam, withAuthField, withPrivateKey } from './auth.ts';
 
 test('ef_aut_01 chaque type proposé a une auth neuve du bon type', () => {
   for (const { type } of AUTH_TYPES) assert.equal(defaultAuth(type).type, type);
@@ -79,4 +79,34 @@ test('ef_aut_02 l\'éditeur dit où en est le jeton sans jamais en montrer la va
   assert.equal(describeToken({ ...info, expiresAt: null, scope: null }, now).text, 'Jeton valide, sans durée annoncée par le serveur');
   assert.deepEqual(describeToken({ ...info, expired: true }, now), { tone: 'expired', text: 'Jeton expiré, un jeton de rafraîchissement est gardé.' });
   assert.equal(describeToken({ ...info, expiresAt: now - 1, hasRefreshToken: false }, now).text, 'Jeton expiré.', "l'heure compte même si l'état date de plus tôt");
+});
+
+test('ef_aut_03_ntlm_et_oauth1_se_choisissent_avec_leurs_champs_par_defaut', () => {
+  assert.deepEqual(defaultAuth('ntlm'), { type: 'ntlm', username: '', password: '', domain: '' });
+  const oauth = defaultAuth('oauth1');
+  if (oauth.type !== 'oauth1') throw new Error('type attendu : oauth1');
+  assert.equal(oauth.signatureMethod, 'HMAC-SHA1');
+  assert.equal(oauth.placement, 'header');
+  assert.equal(oauth.includeBodyHash, false);
+  assert.deepEqual(oauth.privateKey, { kind: 'text', value: '' });
+  assert.equal(authLabel(defaultAuth('ntlm')), 'NTLM');
+  assert.equal(authLabel(oauth), 'OAuth 1.0');
+});
+
+test('ef_aut_03_seules_les_signatures_rsa_demandent_une_cle_privee', () => {
+  for (const method of ['RSA-SHA1', 'RSA-SHA256', 'RSA-SHA512']) assert.equal(needsPrivateKey(method), true, method);
+  for (const method of ['HMAC-SHA1', 'HMAC-SHA256', 'HMAC-SHA512', 'PLAINTEXT', '']) assert.equal(needsPrivateKey(method), false, method);
+  assert.deepEqual(OAUTH1_METHODS.filter(needsPrivateKey), ['RSA-SHA1', 'RSA-SHA256', 'RSA-SHA512']);
+});
+
+test('ef_aut_03_la_cle_privee_et_le_hachage_du_corps_se_modifient_sans_toucher_au_reste', () => {
+  const oauth = withAuthField(defaultAuth('oauth1'), 'consumerKey', 'ck');
+  const withKey = withPrivateKey(withPrivateKey(oauth, { kind: 'file' }), { value: '/cles/oauth.pem' });
+  if (withKey.type !== 'oauth1') throw new Error('type attendu : oauth1');
+  assert.deepEqual(withKey.privateKey, { kind: 'file', value: '/cles/oauth.pem' });
+  assert.equal(withKey.consumerKey, 'ck');
+  const hashed = withAuthField(withKey, 'includeBodyHash', true);
+  if (hashed.type !== 'oauth1') throw new Error('type attendu : oauth1');
+  assert.equal(hashed.includeBodyHash, true);
+  assert.deepEqual(withPrivateKey(defaultAuth('basic'), { value: 'x' }), defaultAuth('basic'));
 });

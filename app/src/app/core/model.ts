@@ -82,7 +82,31 @@ export type Auth =
   | { type: 'digest'; username: string; password: string }
   | { type: 'awsv4'; accessKeyId: string; secretAccessKey: string; sessionToken: string; service: string; region: string; profileName: string }
   | OAuth2Auth
+  | { type: 'ntlm'; username: string; password: string; domain: string }
+  | OAuth1Auth
   | { type: 'other'; label: string; config?: string };
+
+/** OAuth 1.0 (RFC 5849) : les jetons s'obtiennent hors de l'application, elle signe avec ceux-ci. Un champ vide est absent du fichier. */
+export interface OAuth1Auth {
+  type: 'oauth1';
+  consumerKey: string;
+  consumerSecret: string;
+  accessToken: string;
+  accessTokenSecret: string;
+  callbackUrl: string;
+  verifier: string;
+  /** `HMAC-SHA1` quand vide. */
+  signatureMethod: string;
+  /** La clé des méthodes `RSA-*` : `file` (chemin absolu ou relatif à la collection) ou `text` (le PEM). */
+  privateKey: { kind: string; value: string };
+  timestamp: string;
+  nonce: string;
+  version: string;
+  realm: string;
+  /** `header` quand vide, `query` ou `body`. */
+  placement: string;
+  includeBodyHash: boolean;
+}
 
 export interface Assertion {
   expression: string;

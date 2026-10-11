@@ -1,4 +1,4 @@
-import type { Auth, OAuth2Auth, OAuthParam, TokenInfo } from './model';
+import type { Auth, OAuth1Auth, OAuth2Auth, OAuthParam, TokenInfo } from './model';
 
 export interface AuthChoice {
   type: Auth['type'];
@@ -13,6 +13,8 @@ export const AUTH_TYPES: AuthChoice[] = [
   { type: 'basic', label: 'Basic' },
   { type: 'apikey', label: 'API Key' },
   { type: 'digest', label: 'Digest' },
+  { type: 'ntlm', label: 'NTLM' },
+  { type: 'oauth1', label: 'OAuth 1.0' },
   { type: 'oauth2', label: 'OAuth 2.0' },
   { type: 'awsv4', label: 'AWS Signature V4' },
 ];
@@ -32,6 +34,10 @@ export function defaultAuth(type: Auth['type']): Auth {
     case 'basic':
     case 'digest':
       return { type, username: '', password: '' };
+    case 'ntlm':
+      return { type, username: '', password: '', domain: '' };
+    case 'oauth1':
+      return defaultOAuth1();
     case 'apikey':
       return { type, key: 'X-API-Key', value: '', placement: 'header' };
     case 'awsv4':
@@ -43,6 +49,42 @@ export function defaultAuth(type: Auth['type']): Auth {
     default:
       return { type: 'inherit' };
   }
+}
+
+export const OAUTH1_METHODS = ['HMAC-SHA1', 'HMAC-SHA256', 'HMAC-SHA512', 'RSA-SHA1', 'RSA-SHA256', 'RSA-SHA512', 'PLAINTEXT'];
+
+export const OAUTH1_PLACEMENTS = [
+  { value: 'header', label: "En-tête Authorization" },
+  { value: 'query', label: "Paramètres de l'adresse" },
+  { value: 'body', label: 'Corps du formulaire' },
+];
+
+export function defaultOAuth1(): OAuth1Auth {
+  return {
+    type: 'oauth1',
+    consumerKey: '',
+    consumerSecret: '',
+    accessToken: '',
+    accessTokenSecret: '',
+    callbackUrl: '',
+    verifier: '',
+    signatureMethod: 'HMAC-SHA1',
+    privateKey: { kind: 'text', value: '' },
+    timestamp: '',
+    nonce: '',
+    version: '',
+    realm: '',
+    placement: 'header',
+    includeBodyHash: false,
+  };
+}
+
+/** Les méthodes de signature qui demandent une clé privée. */
+export const needsPrivateKey = (method: string): boolean => method.startsWith('RSA-');
+
+/** La clé privée d'une auth OAuth 1.0 avec `change` appliqué ; sans effet sur un autre type. */
+export function withPrivateKey(auth: Auth, change: Partial<OAuth1Auth['privateKey']>): Auth {
+  return auth.type === 'oauth1' ? { ...auth, privateKey: { ...auth.privateKey, ...change } } : auth;
 }
 
 export function defaultOAuth2(): OAuth2Auth {

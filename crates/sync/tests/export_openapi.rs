@@ -292,7 +292,19 @@ fn ef_imp_03_authentication_is_inherited_and_repeated_only_where_it_differs() {
             root,
             "f.yml",
             &http("F", 5, "GET", "{{baseUrl}}/exotic", "")
-                .replace("auth: inherit", "auth:\n    type: ntlm\n    username: u"),
+                .replace("auth: inherit", "auth:\n    type: wsse\n    username: u"),
+        );
+        write(
+            root,
+            "i.yml",
+            &http("I", 8, "GET", "{{baseUrl}}/ntlm", "")
+                .replace("auth: inherit", "auth:\n    type: ntlm\n    username: u\n    password: p\n    domain: d"),
+        );
+        write(
+            root,
+            "j.yml",
+            &http("J", 9, "GET", "{{baseUrl}}/oauth1", "")
+                .replace("auth: inherit", "auth:\n    type: oauth1\n    consumerKey: ck\n    consumerSecret: cs"),
         );
         write(root, "g.yml", &http("G", 6, "GET", "{{baseUrl}}/aws", "").replace("auth: inherit", "auth:\n    type: awsv4\n    accessKeyId: AK\n    secretAccessKey: SK\n    service: s3\n    region: eu-west-1"));
         write(
@@ -316,8 +328,11 @@ fn ef_imp_03_authentication_is_inherited_and_repeated_only_where_it_differs() {
     assert_eq!(schemes["apiKey_api_key"], json!({ "type": "apiKey", "in": "query", "name": "api_key" }));
     assert_eq!(schemes["digestAuth"], json!({ "type": "http", "scheme": "digest" }));
     assert_eq!(schemes["awsSigV4"]["in"], "header");
-    assert!(issues.iter().any(|i| i.contains("F") && i.contains("ntlm")), "{issues:?}");
+    assert!(issues.iter().any(|i| i.contains("F") && i.contains("wsse")), "{issues:?}");
     assert_eq!(security("/exotic"), Some(json!([])));
+    assert!(issues.iter().any(|i| i.contains("I") && i.contains("NTLM")), "{issues:?}");
+    assert!(issues.iter().any(|i| i.contains("J") && i.contains("OAuth 1.0")), "{issues:?}");
+    assert_eq!((security("/ntlm"), security("/oauth1")), (Some(json!([])), Some(json!([]))));
 }
 
 #[test]

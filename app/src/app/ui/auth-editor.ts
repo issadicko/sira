@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
-import { AUTH_TYPES, defaultAuth, withAuthField } from '../core/auth';
-import { Auth, TokenInfo } from '../core/model';
+import { AUTH_TYPES, OAUTH1_METHODS, OAUTH1_PLACEMENTS, defaultAuth, needsPrivateKey, withAuthField, withPrivateKey } from '../core/auth';
+import { Auth, OAuth1Auth, TokenInfo } from '../core/model';
 import { Icon } from './icon';
 import { OAuth2Editor } from './oauth2-editor';
 
@@ -15,6 +15,10 @@ import { OAuth2Editor } from './oauth2-editor';
     .field { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 8px; font-size: calc(12.5 * var(--px)); color: var(--muted); }
     .field input { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); font: var(--code-size) var(--code-font); outline: 0; min-width: 0; }
     .field input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .field select, .field textarea { min-width: 0; border-radius: 6px; border: 1px solid var(--line); background: var(--sunken); color: inherit; font: var(--code-size) var(--code-font); padding: 4px 10px; outline: 0; }
+    .field select { height: 30px; }
+    .field textarea { resize: vertical; padding-top: 6px; }
+    .check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
     .type { max-width: 320px; }
     .hint { margin: 2px 0 8px 140px; font-size: calc(11.5 * var(--px)); color: var(--faint); }
     .foot { font-size: calc(12 * var(--px)); margin: 12px 2px 0; color: var(--faint); }
@@ -47,6 +51,55 @@ import { OAuth2Editor } from './oauth2-editor';
         <label class="field"><span>Utilisateur</span><input type="text" spellcheck="false" [value]="value('username')" (input)="set('username', $event)" /></label>
         <label class="field"><span>Mot de passe</span><input type="password" [value]="value('password')" (input)="set('password', $event)" placeholder="{{ '{{process.env.MOT_DE_PASSE}}' }}" /></label>
         <p class="hint">La requête part d'abord sans identifiants ; sur un 401 Digest, elle est renvoyée avec la réponse au défi du serveur.</p>
+      }
+      @case ('ntlm') {
+        <label class="field"><span>Utilisateur</span><input type="text" spellcheck="false" [value]="value('username')" (input)="set('username', $event)" /></label>
+        <label class="field"><span>Mot de passe</span><input type="password" [value]="value('password')" (input)="set('password', $event)" placeholder="{{ '{{process.env.MOT_DE_PASSE}}' }}" /></label>
+        <label class="field"><span>Domaine</span><input type="text" spellcheck="false" [value]="value('domain')" (input)="set('domain', $event)" placeholder="facultatif" /></label>
+        <p class="hint">La requête part d'abord sans corps pour négocier ; l'échange (négociation, défi, authentification) se fait sur une seule connexion, puis la requête entière est envoyée avec la réponse au défi (NTLMv2).</p>
+      }
+      @case ('oauth1') {
+        @let o = oauth1();
+        <label class="field"><span>Clé consommateur</span><input type="text" spellcheck="false" [value]="o.consumerKey" (input)="set('consumerKey', $event)" /></label>
+        <label class="field"><span>Secret consommateur</span><input type="password" [value]="o.consumerSecret" (input)="set('consumerSecret', $event)" placeholder="{{ '{{process.env.OAUTH_SECRET}}' }}" /></label>
+        <label class="field"><span>Jeton d'accès</span><input type="text" spellcheck="false" [value]="o.accessToken" (input)="set('accessToken', $event)" placeholder="facultatif" /></label>
+        <label class="field"><span>Secret du jeton</span><input type="password" [value]="o.accessTokenSecret" (input)="set('accessTokenSecret', $event)" placeholder="facultatif" /></label>
+        <label class="field"><span>Signature</span>
+          <select class="input" aria-label="Méthode de signature" (change)="set('signatureMethod', $event)">
+            @for (m of methods; track m) {
+              <option [value]="m" [selected]="(o.signatureMethod || 'HMAC-SHA1') === m">{{ m }}</option>
+            }
+          </select>
+        </label>
+        @if (needsKey(o.signatureMethod)) {
+          <label class="field"><span>Clé privée</span>
+            <select class="input" aria-label="Origine de la clé privée" (change)="setKey({ kind: $any($event.target).value })">
+              <option value="text" [selected]="o.privateKey.kind !== 'file'">PEM saisi ici</option>
+              <option value="file" [selected]="o.privateKey.kind === 'file'">Fichier PEM</option>
+            </select>
+          </label>
+          @if (o.privateKey.kind === 'file') {
+            <label class="field"><span>Fichier</span><input type="text" spellcheck="false" [value]="o.privateKey.value" (input)="setKey({ value: $any($event.target).value })" placeholder="~/.keys/oauth.pem ou chemin relatif à la collection" /></label>
+          } @else {
+            <label class="field"><span>PEM</span><textarea spellcheck="false" rows="5" [value]="o.privateKey.value" (input)="setKey({ value: $any($event.target).value })" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
+          }
+          <p class="hint">PEM PKCS#8 ou PKCS#1, sans mot de passe. Garde-le hors de la collection : elle est versionnée.</p>
+        }
+        <label class="field"><span>Emplacement</span>
+          <select class="input" aria-label="Emplacement des paramètres OAuth" (change)="set('placement', $event)">
+            @for (p of placements; track p.value) {
+              <option [value]="p.value" [selected]="(o.placement || 'header') === p.value">{{ p.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="field"><span>Realm</span><input type="text" spellcheck="false" [value]="o.realm" (input)="set('realm', $event)" placeholder="facultatif" /></label>
+        <label class="field"><span>Rappel (callback)</span><input type="text" spellcheck="false" [value]="o.callbackUrl" (input)="set('callbackUrl', $event)" placeholder="oob, pour obtenir un jeton temporaire" /></label>
+        <label class="field"><span>Vérificateur</span><input type="text" spellcheck="false" [value]="o.verifier" (input)="set('verifier', $event)" placeholder="facultatif" /></label>
+        <label class="field"><span>Horodatage</span><input type="text" spellcheck="false" [value]="o.timestamp" (input)="set('timestamp', $event)" placeholder="automatique" /></label>
+        <label class="field"><span>Nonce</span><input type="text" spellcheck="false" [value]="o.nonce" (input)="set('nonce', $event)" placeholder="automatique" /></label>
+        <label class="field"><span>Version</span><input type="text" spellcheck="false" [value]="o.version" (input)="set('version', $event)" placeholder="1.0" /></label>
+        <label class="field"><span>Corps</span><span class="check"><input type="checkbox" class="cb" [checked]="o.includeBodyHash" (change)="toggleBodyHash()" />Ajouter le hachage du corps (oauth_body_hash)</span></label>
+        <p class="hint">La signature est calculée à l'envoi, sur la requête finale (adresse, paramètres et corps de formulaire compris). L'obtention des jetons (étapes 1 et 2 de la RFC) se fait hors de l'application.</p>
       }
       @case ('apikey') {
         <label class="field"><span>Clé</span><input type="text" spellcheck="false" [value]="value('key')" (input)="set('key', $event)" /></label>
@@ -89,6 +142,13 @@ export class AuthEditor {
   readonly tokenFetch = output<void>();
   readonly tokenClear = output<void>();
   protected readonly types = AUTH_TYPES;
+  protected readonly methods = OAUTH1_METHODS;
+  protected readonly placements = OAUTH1_PLACEMENTS;
+  protected readonly needsKey = needsPrivateKey;
+
+  protected oauth1(): OAuth1Auth {
+    return this.auth() as OAuth1Auth;
+  }
 
   protected value(field: string): string {
     const current = this.auth() as unknown as Record<string, unknown>;
@@ -97,6 +157,14 @@ export class AuthEditor {
 
   protected set(field: string, event: Event) {
     this.authChange.emit(withAuthField(this.auth(), field, (event.target as HTMLInputElement).value));
+  }
+
+  protected setKey(change: Partial<OAuth1Auth['privateKey']>) {
+    this.authChange.emit(withPrivateKey(this.auth(), change));
+  }
+
+  protected toggleBodyHash() {
+    this.authChange.emit(withAuthField(this.auth(), 'includeBodyHash', !this.oauth1().includeBodyHash));
   }
 
   protected setType(type: string) {
