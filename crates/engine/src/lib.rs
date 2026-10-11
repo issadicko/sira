@@ -4,6 +4,7 @@ pub mod digest;
 mod grpc;
 mod network;
 pub mod ntlm;
+pub mod oauth1;
 mod proxy;
 mod redirect;
 mod time;
