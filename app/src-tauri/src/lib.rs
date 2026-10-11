@@ -24,6 +24,7 @@ mod network;
 mod oauth;
 mod runs;
 mod secrets;
+mod vault;
 mod ws;
 
 #[derive(Default)]
@@ -330,6 +331,7 @@ async fn loaded_session(state: &AppState, root: &str, env: Option<&str>) -> Repl
     session.secrets = blocking(move || Ok::<_, String>(secrets::load(&*store, &folder, picked.as_deref()))).await?;
     session.network = network::current(state)?;
     session.cookies = state.cookies.clone();
+    session.vault_credentials = vault::credentials(&*state.secrets.0);
     Ok(session)
 }
 
@@ -826,6 +828,9 @@ pub fn run() {
             history_clear,
             network::network_get,
             network::network_save,
+            vault::vault_get,
+            vault::vault_save,
+            vault::vault_check,
             cookies::cookies_list,
             cookies::cookie_save,
             cookies::cookie_delete,

@@ -55,6 +55,7 @@ pub async fn network_save(
     proxy_password: Option<String>,
 ) -> Reply<NetworkView> {
     let mut prefs = prefs;
+    prefs.vault = state.network.lock().map_err(err)?.vault.clone();
     prefs.ca_file = prefs.ca_file.map(|file| file.trim().to_owned()).filter(|file| !file.is_empty());
     prefs.validate()?;
     match proxy_password.as_deref() {
