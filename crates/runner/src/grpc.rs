@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use xc_core::vars::Context;
-use xc_core::{prepare_with, protobuf_config, Prepared, PreparedMessage, RequestDoc, SendAuth};
+use xc_core::{protobuf_config, Prepared, PreparedMessage, RequestDoc, SendAuth};
 use xc_engine::{connect_grpc, GrpcCall, GrpcEvent, GrpcRequest, Network};
 use xc_proto::{
     file_by_symbol_request, list_services_request, parse_reflection_response, MethodInfo, ReflectionAnswer, Schema,
@@ -161,7 +161,7 @@ async fn schema_for(
     }
 }
 
-fn prepare_grpc(
+async fn prepare_grpc(
     root: &Path,
     path: &str,
     doc: &RequestDoc,
@@ -172,8 +172,7 @@ fn prepare_grpc(
         return Err(format!("« {} » n'est pas une requête gRPC (type : {})", doc.name, doc.request_type));
     }
     let overrides = session.request_overrides(None, env);
-    let prepared =
-        prepare_with(root, path, doc, env, &session.runtime_strings(), overrides).map_err(|e| e.to_string())?;
+    let prepared = crate::vault::prepare_with_vault(root, path, doc, env, session, overrides).await?;
     if let Some(name) = auth_name(&prepared.auth) {
         return Err(format!("l'authentification {name} n'est pas prise en charge sur un appel gRPC"));
     }
@@ -188,7 +187,7 @@ pub async fn describe_grpc(
     env: Option<&str>,
     session: &Session,
 ) -> Result<(Schema, String), String> {
-    let prepared = prepare_grpc(root, path, doc, env, session)?;
+    let prepared = prepare_grpc(root, path, doc, env, session).await?;
     schema_for(root, path, doc, &prepared, None).await
 }
 
@@ -201,7 +200,7 @@ pub async fn open_grpc(
     env: Option<&str>,
     session: &Session,
 ) -> Result<GrpcStart, String> {
-    let prepared = prepare_grpc(root, path, doc, env, session)?;
+    let prepared = prepare_grpc(root, path, doc, env, session).await?;
     let method_name = prepared.request.method.clone();
     if method_name.trim().is_empty() {
         return Err("aucune méthode : écrire « paquet.Service/Méthode »".into());

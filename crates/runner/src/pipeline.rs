@@ -5,7 +5,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use xc_core::vars::{dynamic_value, Context, Scope};
-use xc_core::{prepare_with, RequestDoc};
+use xc_core::RequestDoc;
 use xc_engine::HttpResponse;
 use xc_script::{AssertionSpec, Input, Limits, LogLine, NextRequest, Output, Phase, ScriptRequest, TestResult, Vars};
 
@@ -380,7 +380,7 @@ pub(crate) async fn run_request_at(req: Request<'_>, session: &mut Session, dept
         doc.max_redirects = pre.max_redirects;
     }
     let overrides = session.request_overrides(headers, req.env);
-    let prepared = match prepare_with(req.root, req.path, &doc, req.env, &session.runtime_strings(), overrides) {
+    let prepared = match crate::vault::prepare_with_vault(req.root, req.path, &doc, req.env, session, overrides).await {
         Ok(prepared) => prepared,
         Err(e) => return out.fail(Stage::Prepare, e),
     };

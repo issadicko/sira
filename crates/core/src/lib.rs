@@ -20,7 +20,7 @@ pub use collection::{
     EnvVar, TreeItem,
 };
 pub use network::{
-    protobuf_config, ClientCertificate, NetworkPrefs, ProtobufConfig, ProxyConfig, ProxyMode, ProxyPref,
+    protobuf_config, ClientCertificate, NetworkPrefs, ProtobufConfig, ProxyConfig, ProxyMode, ProxyPref, VaultPrefs,
 };
 pub use prepare::{merged_headers, prepare, prepare_with, AwsSettings, Overrides, Prepared, PreparedMessage, SendAuth};
 pub use request::{

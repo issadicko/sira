@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use xc_core::vars::{Context, Scope};
-use xc_core::{prepare_with, PreparedMessage, RequestDoc, SendAuth};
+use xc_core::{PreparedMessage, RequestDoc, SendAuth};
 use xc_engine::{connect_ws, WsConnection, WsOpened, WsRequest};
 
 use crate::session::Session;
@@ -52,8 +52,7 @@ pub async fn open_websocket(
         return Err(format!("« {} » n'est pas une requête WebSocket (type : {})", doc.name, doc.request_type));
     }
     let overrides = session.request_overrides(None, env);
-    let prepared =
-        prepare_with(root, path, doc, env, &session.runtime_strings(), overrides).map_err(|e| e.to_string())?;
+    let prepared = crate::vault::prepare_with_vault(root, path, doc, env, session, overrides).await?;
     if let Some(name) = auth_name(&prepared.auth) {
         return Err(format!("l'authentification {name} n'est pas prise en charge sur une connexion WebSocket"));
     }

@@ -6,6 +6,7 @@ use xc_core::{NetworkPrefs, Overrides};
 use xc_engine::CookieJar;
 
 use crate::oauth2::{script_vars, SharedAuthorizer, Token};
+use crate::vault::{VaultCredentials, VaultSlot};
 
 /// Ce qui survit d'une requête à la suivante dans une collection : les variables que les scripts ont écrites.
 #[derive(Debug, Clone, Default)]
@@ -25,6 +26,9 @@ pub struct Session {
     pub network: NetworkPrefs,
     /// Le pot de cookies : celui de l'hôte, partagé entre les collections, ou un pot neuf pour une exécution seule.
     pub cookies: CookieJar,
+    /// Le jeton et le `secret_id` Vault que l'hôte a lus dans son trousseau.
+    pub vault_credentials: VaultCredentials,
+    pub vault: VaultSlot,
 }
 
 #[derive(Debug, Clone, Default)]
